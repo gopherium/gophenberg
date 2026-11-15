@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { buttonClasses } from '@gopherium/godmin/testing'
+import { formatDate } from '@gopherium/gottext'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -24,6 +26,89 @@ const PLUGIN_GROUP = {
 }
 
 const SUMMARY = { ...SUBTITLE, key: 'summary', label: 'Summary' }
+
+const OTHER_SAVE_STAMP = '2026-08-02T09:30:00Z'
+
+const ON_RECIPES = [[{ source: 'content_type', operator: '==', value: 'recipe' }]]
+
+const SOURCES = {
+	items: [
+		{
+			source: 'content_type',
+			operators: ['==', '!='],
+			values: [
+				{ value: '*', label: 'Any content type' },
+				{ value: 'post', label: 'Posts' },
+				{ value: 'recipe', label: 'Recipes' },
+			],
+		},
+	],
+}
+
+const MAKER = { ...SUBTITLE, key: 'maker', label: 'Maker', kind: 'relation', relates_to: 'post' }
+
+const CARS = {
+	...EXTRAS,
+	id: 6,
+	key: 'cars',
+	title: 'Cars',
+	position: 4,
+	fields: [MAKER, { ...MAKER, key: 'rival', label: 'Rival' }],
+}
+
+const LINKED_FROM = {
+	...SUBTITLE,
+	key: 'linked-from',
+	label: 'Linked from',
+	kind: 'backlinks',
+	settings: { source_group: 'cars', source_field: ['maker'] },
+}
+
+/**
+ * Returns the details column of the page.
+ * @param main - The main region of the page.
+ * @returns The details region.
+ */
+function detailsOf(main: HTMLElement) {
+	return within(main).getByRole('region', { name: 'Field group settings' })
+}
+
+/**
+ * Returns the notice the header Save leaves, once it shows above the fields and outside the details.
+ * @param main - The main region of the page.
+ * @returns The notice.
+ */
+async function saveNotice(main: HTMLElement) {
+	const notice = await within(main).findByRole('alert')
+	expect(detailsOf(main)).not.toContainElement(notice)
+	const field = within(main).getByRole('listitem', { name: 'Subtitle' })
+	expect(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+	return notice
+}
+
+/**
+ * Returns the Save button in the header of the page.
+ * @param main - The main region of the page.
+ * @returns The Save button.
+ */
+function saveOf(main: HTMLElement) {
+	return within(main).getByRole('button', { name: 'Save' })
+}
+
+/**
+ * Answers the group edit as the server stores it, lists the group as stored, and records every body the page sent.
+ * @param sent - The bodies sent so far.
+ * @param stored - The group the edit answers with.
+ */
+function storing(sent: unknown[], stored: typeof DETAILS) {
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent.push(await request.json())
+			listing([stored, EXTRAS, PLUGIN_GROUP])
+			return HttpResponse.json(stored)
+		}),
+	)
+}
 
 /**
  * Returns the main work of the page once it carries the title.
@@ -306,6 +391,475 @@ test('keeps the fields in view and names the failed read when the groups cannot 
 	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be loaded.')
 	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
 	expect(within(main).getByRole('button', { name: 'Add field' })).toBeInTheDocument()
+})
+
+test('holds the title, the active flag, the rules and the day the group was made beside the fields', async () => {
+	renderAt('/field-groups/3')
+
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+
+	expect(within(details).getByRole('textbox', { name: 'Title' })).toHaveValue('Article details')
+	expect(within(details).getByRole('checkbox', { name: 'Active' })).toBeChecked()
+	expect(within(details).getByRole('heading', { level: 3, name: 'Location rules' })).toBeInTheDocument()
+	expect(within(details).getByRole('group', { name: 'Rule 1 of set 1' })).toBeInTheDocument()
+	expect(within(details).getByText(`Created ${formatDate(DETAILS.created_at)}`)).toBeInTheDocument()
+	expect(within(details).queryByRole('listitem', { name: 'Subtitle' })).not.toBeInTheDocument()
+})
+
+test('keeps Save off until a part of the group changes, and off again once the change is undone', async () => {
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.type(title, ' here')
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Article details')
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('keeps Save off while the title is blank, and still asks before that draft is left', async () => {
+	const sent: unknown[] = []
+	storing(sent, DETAILS)
+	const { router } = renderRoutedAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+
+	await userEvent.clear(title)
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	await userEvent.type(title, '   ')
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(saveOf(main))
+	await userEvent.click(backToList(main))
+
+	expect(await screen.findByRole('alertdialog', { name: 'Discard changes?' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+	expect(sent).toEqual([])
+})
+
+test('titles the page with the title as it is typed, and Field Group while it is empty or only spaces', async () => {
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+
+	await userEvent.clear(title)
+	expect(within(main).getByRole('heading', { level: 2, name: 'Field Group' })).toBeInTheDocument()
+
+	await userEvent.type(title, '   ')
+	expect(within(main).getByRole('heading', { level: 2, name: 'Field Group' })).toBeInTheDocument()
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Car details')
+	expect(within(main).getByRole('heading', { level: 2, name: 'Car details' })).toBeInTheDocument()
+})
+
+test('sends the title alone with the stamp the page read, then says so and turns Save off', async () => {
+	const sent: unknown[] = []
+	storing(sent, { ...DETAILS, title: 'Car details', updated_at: OTHER_SAVE_STAMP })
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Car details')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ title: 'Car details', updated_at: DETAILS.updated_at }]))
+	expect(await findToast('Car details updated.')).toBeInTheDocument()
+	await waitFor(() => expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true'))
+	expect(title).toHaveValue('Car details')
+})
+
+test('sends the active flag alone once the box is cleared', async () => {
+	const sent: unknown[] = []
+	storing(sent, { ...DETAILS, active: false })
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+
+	await userEvent.click(within(detailsOf(main)).getByRole('checkbox', { name: 'Active' }))
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ active: false, updated_at: DETAILS.updated_at }]))
+})
+
+test('sends the rules alone once a rule changes', async () => {
+	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
+	const sent: unknown[] = []
+	storing(sent, { ...DETAILS, location: ON_RECIPES })
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+
+	const rule = within(detailsOf(main)).getByRole('group', { name: 'Rule 1 of set 1' })
+	await userEvent.click(within(rule).getByLabelText('Value'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ location: ON_RECIPES, updated_at: DETAILS.updated_at }]))
+})
+
+test('asks before the breadcrumb leaves a draft, stays on Keep editing and leaves on Discard', async () => {
+	const { router } = renderRoutedAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, ' here')
+
+	await userEvent.click(backToList(main))
+	const asking = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+	expect(within(asking).getByText('The changes to this field group are not saved.')).toBeInTheDocument()
+	await userEvent.click(within(asking).getByRole('button', { name: 'Keep editing' }))
+
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+	expect(title).toHaveValue('Article details here')
+
+	await userEvent.click(backToList(main))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Discard' }))
+
+	expect(await screen.findByRole('region', { name: 'Field Groups' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups')
+})
+
+test('leaves by the breadcrumb without asking while no draft is held', async () => {
+	const { router } = renderRoutedAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+
+	await userEvent.click(backToList(main))
+
+	expect(await screen.findByRole('region', { name: 'Field Groups' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups')
+	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('keeps the draft and names why above the fields and in a toast when the save is rejected', async () => {
+	const said = 'content: another group already claims those items'
+	server.use(
+		http.patch('/api/groups/3', () => HttpResponse.json({ error: said, code: 'group_collides' }, { status: 422 })),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+
+	await userEvent.type(title, ' here')
+	await userEvent.click(saveOf(main))
+
+	expect(await saveNotice(main)).toHaveTextContent(said)
+	expect(title).toHaveValue('Article details here')
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
+	expect(await findToast(`Could not save the field group. ${said}`)).toBeInTheDocument()
+})
+
+test('keeps the draft on a save someone else beat, then moves it onto theirs with its changes on top', async () => {
+	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
+	let listed: unknown[] = [DETAILS, EXTRAS]
+	const sent: unknown[] = []
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			const body = (await request.json()) as { updated_at?: string }
+			if (body.updated_at === DETAILS.updated_at) {
+				const theirs = { ...DETAILS, active: false, location: ON_RECIPES, updated_at: OTHER_SAVE_STAMP }
+				listed = [theirs, EXTRAS]
+				return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+			}
+			sent.push(body)
+			return HttpResponse.json(DETAILS)
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+	const title = within(details).getByRole('textbox', { name: 'Title' })
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Car details')
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
+	await userEvent.click(within(rule).getByLabelText('Value'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Any content type' }))
+
+	await userEvent.click(saveOf(main))
+
+	const notice = await saveNotice(main)
+	expect(notice).toHaveTextContent('Someone saved Article details after you opened it.')
+	const toast = 'Could not save the field group. Someone saved Article details after you opened it.'
+	expect(await findToast(toast)).toBeInTheDocument()
+	expect(title).toHaveValue('Car details')
+	expect(within(details).getByRole('checkbox', { name: 'Active' })).toBeChecked()
+
+	await userEvent.click(within(notice).getByRole('button', { name: 'Load saved version' }))
+
+	await waitFor(() => expect(within(details).getByRole('checkbox', { name: 'Active' })).not.toBeChecked())
+	expect(title).toHaveValue('Car details')
+	expect(within(rule).getByLabelText('Value')).toHaveTextContent('Recipes')
+	expect(within(details).getByText('Changed elsewhere too. Your edit was not kept.')).toBeInTheDocument()
+	expect(within(main).queryByText('Someone saved Article details after you opened it.')).not.toBeInTheDocument()
+
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ title: 'Car details', updated_at: OTHER_SAVE_STAMP }]))
+})
+
+test('stores a Linked from pick saved after the field was renamed over the page', async () => {
+	let listed: unknown[] = [{ ...DETAILS, fields: [LINKED_FROM] }, CARS]
+	const renamed = { ...LINKED_FROM, label: 'Linked cars', updated_at: OTHER_SAVE_STAMP }
+	const sent: unknown[] = []
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3/fields/linked-from', () => {
+			listed = [{ ...DETAILS, fields: [renamed] }, CARS]
+			return HttpResponse.json(renamed)
+		}),
+		http.patch('/api/groups/3', async ({ request }) => {
+			const body = (await request.json()) as { backlinks?: Record<string, { updated_at?: string }> }
+			sent.push(body)
+			if (body.backlinks?.['linked-from'].updated_at !== OTHER_SAVE_STAMP) {
+				return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+			}
+			return HttpResponse.json({ ...DETAILS, fields: [renamed] })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const reading = within(detailsOf(main)).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
+
+	await userEvent.click(within(main).getByRole('button', { name: 'Rename Linked from' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.clear(within(dialog).getByLabelText('Name'))
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Linked cars')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename' }))
+	expect(await within(main).findByRole('listitem', { name: 'Linked cars' })).toBeInTheDocument()
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast('Article details updated.')).toBeInTheDocument()
+	expect(sent).toEqual([
+		{
+			backlinks: { 'linked-from': { source_group: 'cars', source_field: ['rival'], updated_at: OTHER_SAVE_STAMP } },
+			updated_at: DETAILS.updated_at,
+		},
+	])
+})
+
+test('draws no Save and no details on the page of a group a plugin declared', async () => {
+	renderAt('/field-groups/5')
+
+	const main = await pageTitled('Event details')
+
+	expect(within(main).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+	expect(within(main).queryByRole('region', { name: 'Field group settings' })).not.toBeInTheDocument()
+})
+
+test('keeps the fields in view after a save that answers the group without them', async () => {
+	const reading = gate()
+	let saved = false
+	server.use(
+		http.get('/api/groups', async () => {
+			if (saved) {
+				await reading.held
+			}
+			return HttpResponse.json({ items: [DETAILS, EXTRAS, PLUGIN_GROUP] })
+		}),
+		http.patch('/api/groups/3', () => {
+			saved = true
+			return HttpResponse.json({ ...DETAILS, title: 'Car details', updated_at: OTHER_SAVE_STAMP, fields: [] })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Car details')
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast('Car details updated.')).toBeInTheDocument()
+	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
+	expect(within(main).queryByText('This group holds no fields yet.')).not.toBeInTheDocument()
+	reading.release()
+})
+
+test('forgets a Linked from pick once its field leaves the group, and saves the other parts alone', async () => {
+	let listed: unknown[] = [{ ...DETAILS, fields: [LINKED_FROM] }, CARS]
+	const sent: unknown[] = []
+	server.use(
+		http.get('/api/groups', () => HttpResponse.json({ items: listed })),
+		http.delete('/api/groups/3/fields/linked-from', () => {
+			listed = [{ ...DETAILS, fields: [] }, CARS]
+			return new HttpResponse(null, { status: 204 })
+		}),
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...DETAILS, title: 'Article details here', fields: [] })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const reading = within(detailsOf(main)).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.click(within(main).getByRole('button', { name: 'Delete Linked from' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete the field' }))
+	expect(await within(main).findByText('This group holds no fields yet.')).toBeInTheDocument()
+
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	await userEvent.type(within(detailsOf(main)).getByRole('textbox', { name: 'Title' }), ' here')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ title: 'Article details here', updated_at: DETAILS.updated_at }]))
+})
+
+test('keeps the stale notice and names the failed read when the saved version cannot be loaded', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.patch('/api/groups/3', () => {
+			server.use(http.get('/api/groups', () => new HttpResponse(null, { status: 500 })))
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+	await userEvent.type(within(details).getByRole('textbox', { name: 'Title' }), ' here')
+	await userEvent.click(saveOf(main))
+
+	await userEvent.click(within(await saveNotice(main)).getByRole('button', { name: 'Load saved version' }))
+
+	await within(main).findAllByText('The field groups could not be loaded.')
+	expect(within(main).getAllByText('The field groups could not be loaded.')).toHaveLength(1)
+	expect(within(main).getByText('Someone saved Article details after you opened it.')).toBeInTheDocument()
+	expect(within(details).queryByRole('alert')).not.toBeInTheDocument()
+	expect(within(details).getByRole('textbox', { name: 'Title' })).toHaveValue('Article details here')
+})
+
+test('says only that the group does not exist once the saved version shows someone deleted it', async () => {
+	let listed: unknown[] = [DETAILS, EXTRAS]
+	server.use(
+		http.get('/api/groups', () => HttpResponse.json({ items: listed })),
+		http.patch('/api/groups/3', () => {
+			listed = [EXTRAS]
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+	await userEvent.type(within(details).getByRole('textbox', { name: 'Title' }), ' here')
+	await userEvent.click(saveOf(main))
+	let failed = false
+	const watching = new MutationObserver(() => {
+		failed ||= within(main).queryByText('The field groups could not be loaded.') !== null
+	})
+	watching.observe(main, { childList: true, subtree: true })
+	onTestFinished(() => watching.disconnect())
+
+	await userEvent.click(await within(main).findByRole('button', { name: 'Load saved version' }))
+
+	expect(await within(main).findByText(/^This field group does not exist/)).toBeInTheDocument()
+	expect(within(main).getByRole('heading', { level: 2, name: 'Field Group' })).toBeInTheDocument()
+	expect(within(main).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+	expect(failed).toBe(false)
+})
+
+test('drops the line saying a part changed elsewhere once that part is edited again', async () => {
+	let listed: unknown[] = [DETAILS, EXTRAS]
+	server.use(
+		http.get('/api/groups', () => HttpResponse.json({ items: listed })),
+		http.patch('/api/groups/3', () => {
+			listed = [{ ...DETAILS, title: 'Car details', updated_at: OTHER_SAVE_STAMP }, EXTRAS]
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+	const title = within(details).getByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, ' here')
+	await userEvent.click(saveOf(main))
+	await userEvent.click(await within(main).findByRole('button', { name: 'Load saved version' }))
+	expect(await within(details).findByText('Changed elsewhere too. Your edit was not kept.')).toBeInTheDocument()
+
+	await userEvent.type(title, ' again')
+
+	expect(within(details).queryByText('Changed elsewhere too. Your edit was not kept.')).not.toBeInTheDocument()
+})
+
+test('takes the notice of a rejected save away once the draft is undone', async () => {
+	const said = 'content: another group already claims those items'
+	server.use(
+		http.patch('/api/groups/3', () => HttpResponse.json({ error: said, code: 'group_collides' }, { status: 422 })),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, ' here')
+	await userEvent.click(saveOf(main))
+	expect(await within(main).findByRole('alert')).toHaveTextContent(said)
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Article details')
+
+	expect(within(main).queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('takes the stale notice away once the draft is undone', async () => {
+	server.use(
+		http.patch('/api/groups/3', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const title = within(detailsOf(main)).getByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, ' here')
+	await userEvent.click(saveOf(main))
+	expect(await within(main).findByRole('alert')).toHaveTextContent('Someone saved Article details')
+
+	await userEvent.clear(title)
+	await userEvent.type(title, 'Article details')
+
+	expect(within(main).queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('names each rule set in words above its conditions', async () => {
+	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+	const add = within(details).getByRole('button', { name: 'Add rule set' })
+	await waitFor(() => expect(add).not.toHaveAttribute('aria-disabled', 'true'))
+
+	await userEvent.click(add)
+
+	for (const name of ['Rule set 1', 'Rule set 2']) {
+		expect(within(within(details).getByRole('group', { name })).getByText(name)).toBeInTheDocument()
+	}
+})
+
+test('keeps the rule buttons at their own width, the one adding a condition compact', async () => {
+	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = detailsOf(main)
+
+	const condition = within(details).getByRole('button', { name: 'Add condition' })
+	const ruleSet = within(details).getByRole('button', { name: 'Add rule set' })
+
+	expect([...condition.classList]).toEqual(buttonClasses('outline', 'compact'))
+	expect(condition.parentElement).toHaveStyle({ alignItems: 'start' })
+	expect(ruleSet.parentElement).toHaveStyle({ alignItems: 'start' })
+})
+
+test('heads the add field form with its own section title', async () => {
+	renderAt('/field-groups/3')
+
+	const main = await pageTitled('Article details')
+
+	const heading = within(main).getByRole('heading', { level: 3, name: 'Add a field' })
+	expect(heading.parentElement).toContainElement(within(main).getByRole('button', { name: 'Add field' }))
 })
 
 const READERS = [

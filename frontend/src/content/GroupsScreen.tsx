@@ -27,7 +27,6 @@ import { DriftNotices } from './DriftNotices'
 import { typesQueryKey } from './nav'
 import { ImportDefinitions } from './ImportDefinitions'
 import { PluginFieldsDialog } from './PluginFieldsDialog'
-import { RulesDialog } from './RulesDialog'
 import { pluralOf } from './typeText'
 import { listTypes } from './types'
 import type { FieldGroup, GroupEdit, Location, LocationRule } from './groups'
@@ -116,6 +115,7 @@ interface PlacedGroup {
 export interface Shadowing {
 	key: string
 	winner: string
+	winnerID: number
 	loser: string
 	loserID: number
 	where: string[]
@@ -180,7 +180,14 @@ function noteOverlap(noted: Map<string, Shadowing>, { key, winner, loser }: Over
 		known.where.push(label)
 		return
 	}
-	noted.set(at, { key, winner: winner.title, loser: loser.title, loserID: loser.id, where: [label] })
+	noted.set(at, {
+		key,
+		winner: winner.title,
+		winnerID: winner.id,
+		loser: loser.title,
+		loserID: loser.id,
+		where: [label],
+	})
 }
 
 /**
@@ -188,7 +195,7 @@ function noteOverlap(noted: Map<string, Shadowing>, { key, winner, loser }: Over
  * @param held - The overlap to phrase.
  * @returns The sentence the notice shows.
  */
-function shadowingSentence(held: Shadowing): string {
+export function shadowingSentence(held: Shadowing): string {
 	return sprintf(
 		__('%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s.', 'gophenberg'),
 		{
@@ -338,7 +345,6 @@ function GroupsBody(
 						<GroupRow
 							key={held.id}
 							held={held}
-							groups={props.groups}
 							types={props.types}
 							shadowed={props.shadowed.has(held.id)}
 							order={props.groups.map((listed) => listed.id)}
@@ -361,7 +367,6 @@ function GroupsBody(
 function GroupRow(
 	props: Reporter & {
 		held: FieldGroup
-		groups: FieldGroup[]
 		types: ContentType[]
 		shadowed: boolean
 		order: number[]
@@ -405,15 +410,6 @@ function GroupRow(
 				<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-groups__actions">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
 					{declared && <PluginFieldsDialog held={held} origin={origin} />}
-					{!declared && (
-						<RulesDialog
-							held={held}
-							groups={props.groups}
-							types={props.types}
-							onDone={props.onDone}
-							onRefused={props.onRefused}
-						/>
-					)}
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 					</Button>

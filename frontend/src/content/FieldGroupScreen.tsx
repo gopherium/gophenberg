@@ -1,39 +1,81 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Notice } from '@gophenberg/frontend-sdk'
+import { Button, Notice } from '@gophenberg/frontend-sdk'
 import { ErrorNotice, LoadingScreen, Page, PageBreadcrumb, PageBreadcrumbs } from '@gopherium/godmin'
+import { UnsavedChangesDialog } from '@gopherium/godmin/router'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { __, sprintf } from '@wordpress/i18n'
+import { useId } from 'react'
+import type { ReactNode } from 'react'
 
+import { GroupDetails, SaveNotices, useGroupDetails } from './GroupDetails'
 import { GroupFields } from './GroupFieldsDialog'
+import { shadowings, shadowingSentence } from './GroupsScreen'
 import { groupsQueryKey, listGroups } from './groups'
 import { groupsMenuItem, typesQueryKey } from './nav'
 import { listTypes } from './types'
 import type { FieldGroup } from './groups'
+import type { Shadowing } from './GroupsScreen'
 import type { ContentType } from './types'
 
 /**
  * Returns the title the page of a group carries: the group's own, else the name of the kind of record.
- * @param held - The group the address names, none while the groups load or when no group holds the address.
- * @returns The page title.
+ * @param title - The title the group holds or the reader typed, none while the groups load or when no group holds
+ * the address.
+ * @returns The page title, the name of the kind of record while the title is blank.
  */
-function titleOf(held: FieldGroup | undefined): string {
-	return held === undefined || held.title === '' ? __('Field Group', 'gophenberg') : held.title
+function titleOf(title: string | undefined): string {
+	return title === undefined || title.trim() === '' ? __('Field Group', 'gophenberg') : title
 }
 
 /**
- * Renders the page of one field group, its fields in the main work.
+ * Renders the page of one field group, read afresh for each address.
  * @returns The field group screen element.
  */
 export function FieldGroupScreen() {
 	const { groupId } = useParams({ from: '/framed/admin/field-groups/$groupId' })
+	return <GroupScreen key={groupId} groupId={groupId} />
+}
+
+/**
+ * Renders the page of the group an address names in whichever state the read of the groups is in.
+ * @param props - The id the address names.
+ * @returns The page element.
+ */
+function GroupScreen(props: { groupId: string }) {
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
-	const held = groups.data?.find((listed) => String(listed.id) === groupId)
+	const held = groups.data?.find((listed) => String(listed.id) === props.groupId)
+	const origin = held?.origin ?? ''
+	if (groups.data !== undefined && held !== undefined && origin === '') {
+		return <SiteGroupPage held={held} groups={groups.data} types={types.data ?? []} failed={groups.isError} />
+	}
+	return (
+		<GroupPage title={titleOf(held?.title)}>
+			<GroupState held={held} origin={origin} loaded={groups.data !== undefined} failed={groups.isError} />
+		</GroupPage>
+	)
+}
+
+/** What the frame of a group's page holds beside its main work. */
+interface GroupPageProps {
+	title: string
+	actions?: ReactNode
+	aside?: ReactNode
+	children: ReactNode
+}
+
+/**
+ * Renders the frame of a group's page: the breadcrumb back to the list, the title, the header actions and the details.
+ * @param props - The title, the header actions and the details, both absent when the page edits nothing, and the
+ * main work.
+ * @returns The page element.
+ */
+function GroupPage(props: GroupPageProps) {
 	return (
 		<Page
-			title={titleOf(held)}
+			title={props.title}
 			headingLevel={2}
 			breadcrumbs={
 				<PageBreadcrumbs label={__('Breadcrumbs', 'gophenberg')}>
@@ -42,29 +84,105 @@ export function FieldGroupScreen() {
 					</PageBreadcrumb>
 				</PageBreadcrumbs>
 			}
+			actions={props.actions}
+			aside={props.aside}
+			asideLabel={props.aside === undefined ? undefined : __('Field group settings', 'gophenberg')}
 		>
-			<GroupWork held={held} groups={groups.data} failed={groups.isError} types={types.data ?? []} />
+			{props.children}
 		</Page>
 	)
 }
 
-/** What the main work of a group's page reads. */
-interface GroupWorkProps {
-	held?: FieldGroup
-	groups?: FieldGroup[]
-	failed: boolean
+/**
+ * Returns the overlaps a group takes part in, as the group serving a field or as the group losing it.
+ * @param held - The group of the page.
+ * @param groups - Every group read.
+ * @param types - The registered types the rules may reach.
+ * @returns The overlaps naming the group.
+ */
+function overlapsOf(held: FieldGroup, groups: FieldGroup[], types: ContentType[]): Shadowing[] {
+	return shadowings(groups, types).filter((overlap) => overlap.winnerID === held.id || overlap.loserID === held.id)
+}
+
+/** What the page of a group the site declared reads. */
+interface SiteGroupProps {
+	held: FieldGroup
+	groups: FieldGroup[]
 	types: ContentType[]
+	failed: boolean
 }
 
 /**
- * Renders the main work of a group's page in whichever state the read of the groups is in.
- * @param props - The group the address names, every group read, whether the read failed, and the types.
- * @returns The loading screen, a notice, or the fields of the group under the notice of a failed read.
+ * Renders the page of a group the site declared: its fields, its details beside them and the header Save.
+ * @param props - The group, every group read, the types, and whether the last read of the groups failed.
+ * @returns The page element.
  */
-function GroupWork(props: GroupWorkProps) {
-	const failure = <ErrorNotice>{__('The field groups could not be loaded.', 'gophenberg')}</ErrorNotice>
-	if (props.groups === undefined) {
-		return props.failed ? failure : <LoadingScreen label={__('Loading field groups.', 'gophenberg')} />
+function SiteGroupPage(props: SiteGroupProps) {
+	const form = useId()
+	const details = useGroupDetails(props.held, props.groups)
+	const overlaps = overlapsOf(props.held, props.groups, props.types)
+	const losing = new Set(overlaps.filter((overlap) => overlap.loserID === props.held.id).map((overlap) => overlap.key))
+	const blank = details.draft.title.trim() === ''
+	return (
+		<GroupPage
+			title={titleOf(details.draft.title)}
+			actions={
+				<Button
+					type="submit"
+					form={form}
+					size="compact"
+					disabled={!details.changed || blank || details.saving}
+					loading={details.saving}
+				>
+					{__('Save', 'gophenberg')}
+				</Button>
+			}
+			aside={<GroupDetails form={form} held={props.held} groups={props.groups} types={props.types} details={details} />}
+		>
+			<SaveNotices held={props.held} details={details} />
+			{overlaps.map((overlap) => (
+				<Notice.Root key={`${overlap.key}:${overlap.winnerID}:${overlap.loserID}`} intent="warning">
+					<Notice.Description>{shadowingSentence(overlap)}</Notice.Description>
+				</Notice.Root>
+			))}
+			{props.failed && <ReadFailure />}
+			<GroupFields held={props.held} groups={props.groups} types={props.types} shadowed={losing} />
+			<UnsavedChangesDialog
+				when={details.changed}
+				title={__('Discard changes?', 'gophenberg')}
+				description={__('The changes to this field group are not saved.', 'gophenberg')}
+				discardLabel={__('Discard', 'gophenberg')}
+				keepLabel={__('Keep editing', 'gophenberg')}
+			/>
+		</GroupPage>
+	)
+}
+
+/**
+ * Renders the notice that the field groups could not be read.
+ * @returns The notice element.
+ */
+function ReadFailure() {
+	return <ErrorNotice>{__('The field groups could not be loaded.', 'gophenberg')}</ErrorNotice>
+}
+
+/** What the page of a group with nothing to edit reads. */
+interface GroupStateProps {
+	held?: FieldGroup
+	origin: string
+	loaded: boolean
+	failed: boolean
+}
+
+/**
+ * Renders the main work of a page with nothing to edit in whichever state the read of the groups is in.
+ * @param props - The group the address names, the plugin that declared it, whether the groups were read, and whether
+ * the read failed.
+ * @returns The loading screen, the notice of a failed read or of a missing group, or the notice of a plugin group.
+ */
+function GroupState(props: GroupStateProps) {
+	if (!props.loaded) {
+		return props.failed ? <ReadFailure /> : <LoadingScreen label={__('Loading field groups.', 'gophenberg')} />
 	}
 	if (props.held === undefined) {
 		return (
@@ -76,16 +194,7 @@ function GroupWork(props: GroupWorkProps) {
 			</ErrorNotice>
 		)
 	}
-	const origin = props.held.origin ?? ''
-	if (origin !== '') {
-		return <PluginGroupNotice held={props.held} origin={origin} />
-	}
-	return (
-		<>
-			{props.failed && failure}
-			<GroupFields held={props.held} groups={props.groups} types={props.types} />
-		</>
-	)
+	return <PluginGroupNotice held={props.held} origin={props.origin} />
 }
 
 /**

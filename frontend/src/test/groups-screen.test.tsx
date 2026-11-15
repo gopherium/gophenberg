@@ -175,8 +175,17 @@ test('names the plugin that declared a group and keeps its shape out of reach', 
 	expect(within(declared).queryByRole('button', { name: 'Rules' })).not.toBeInTheDocument()
 	expect(within(declared).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
 	expect(within(declared).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
-	expect(within(site).getByRole('button', { name: 'Rules' })).toBeInTheDocument()
 	expect(within(site).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+})
+
+test('offers no Rules button on any row, the rules of a site group living on its page', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	expect(within(table).queryByRole('button', { name: 'Rules' })).not.toBeInTheDocument()
+	expect(within(table).getByRole('link', { name: 'Extras' })).toBeInTheDocument()
 })
 
 test('links the title of a site group to its page and leaves the title of a plugin group plain', async () => {

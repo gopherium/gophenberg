@@ -11,7 +11,7 @@ import {
 	downIcon,
 	upIcon,
 } from '@gophenberg/frontend-sdk'
-import { ConfirmDialog, ErrorNotice, FormDialog, useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, ErrorNotice, FormDialog, SectionTitle, useToaster } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -90,10 +90,15 @@ interface Inside extends Reporter {
 
 /**
  * Renders the fields a group holds, the controls managing them and the notice naming the last failed write.
- * @param props - The group, the other groups and the types.
+ * @param props - The group, the other groups, the types and the keys an earlier group serves in its place.
  * @returns The fields element.
  */
-export function GroupFields(props: { held: FieldGroup; groups: FieldGroup[]; types: ContentType[] }) {
+export function GroupFields(props: {
+	held: FieldGroup
+	groups: FieldGroup[]
+	types: ContentType[]
+	shadowed: Set<string>
+}) {
 	const client = useQueryClient()
 	const toaster = useToaster()
 	const [notice, setNotice] = useState('')
@@ -132,6 +137,7 @@ export function GroupFields(props: { held: FieldGroup; groups: FieldGroup[]; typ
 				held={props.held}
 				groups={props.groups}
 				types={props.types}
+				shadowed={props.shadowed}
 				onDone={done}
 				onRefused={refused}
 			/>
@@ -141,11 +147,12 @@ export function GroupFields(props: { held: FieldGroup; groups: FieldGroup[]; typ
 
 /**
  * Renders the fields a group holds and the control declaring another.
- * @param props - The group, the other groups, the types, and what to report.
+ * @param props - The group, the other groups, the types, the keys an earlier group serves in its place, and what to
+ * report.
  * @returns The body element.
  */
 function FieldsBody(
-	props: Reporter & { held: FieldGroup; groups: FieldGroup[]; types: ContentType[] },
+	props: Reporter & { held: FieldGroup; groups: FieldGroup[]; types: ContentType[]; shadowed: Set<string> },
 ) {
 	const declared = props.held.fields
 	const reorder = useMutation({
@@ -172,16 +179,12 @@ function FieldsBody(
 			{declared.length === 0 ? (
 				<Text>{__('This group holds no fields yet.', 'gophenberg')}</Text>
 			) : (
-				<ul className="gophenberg-fields__list">
+				<ul className="gophenberg-fields__list gophenberg-fields__list--top">
 					{declared.map((field, index) => (
 						<li key={field.key} aria-label={field.label}>
 							<Stack direction="column" gap="xs">
 								<Stack direction="row" gap="sm" align="center" justify="space-between">
-									<Stack direction="row" gap="xs" align="center">
-										<Text>{field.label}</Text>
-										<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-										{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
-									</Stack>
+									<FieldTitle field={field} shadowed={props.shadowed.has(field.key)} />
 									<Stack direction="row" gap="xs" align="center">
 										<IconButton
 											icon={upIcon}
@@ -271,13 +274,32 @@ function FieldsBody(
 					))}
 				</ul>
 			)}
-			<AddField
-				group={props.held.id}
-				types={props.types}
-				groups={props.groups}
-				onDone={props.onDone}
-				onRefused={props.onRefused}
-			/>
+			<Stack direction="column" gap="sm">
+				<SectionTitle>{__('Add a field', 'gophenberg')}</SectionTitle>
+				<AddField
+					group={props.held.id}
+					types={props.types}
+					groups={props.groups}
+					onDone={props.onDone}
+					onRefused={props.onRefused}
+				/>
+			</Stack>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the name of a field, its kind and the badges it carries.
+ * @param props - The field and whether an earlier group serves its key in the group's place.
+ * @returns The name row.
+ */
+function FieldTitle(props: { field: ContentField; shadowed: boolean }) {
+	return (
+		<Stack direction="row" gap="xs" align="center">
+			<Text>{props.field.label}</Text>
+			<Text variant="body-sm">{kindLabel(props.field.kind)}</Text>
+			{props.field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+			{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
 		</Stack>
 	)
 }
@@ -1162,11 +1184,7 @@ function HeldFields(
 				<li key={field.key} aria-label={field.label}>
 					<Stack direction="column" gap="xs">
 						<Stack direction="row" gap="sm" align="center" justify="space-between">
-							<Stack direction="row" gap="xs" align="center">
-								<Text>{field.label}</Text>
-								<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-								{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
-							</Stack>
+							<FieldTitle field={field} shadowed={false} />
 							<Stack direction="row" gap="xs" align="center">
 								<IconButton
 									icon={upIcon}

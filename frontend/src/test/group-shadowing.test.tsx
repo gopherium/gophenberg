@@ -172,6 +172,57 @@ test('says the overlaps may be out of date when the types cannot be refreshed', 
 	expect(screen.getByText(/is served by/)).toBeInTheDocument()
 })
 
+/**
+ * Returns the main work of the page of a group once it carries the group's title.
+ * @param title - The title of the group.
+ * @returns The main region.
+ */
+async function groupPage(title: string) {
+	const main = await screen.findByRole('main')
+	await within(main).findByRole('heading', { level: 2, name: title })
+	return main
+}
+
+const MORE = { ...EXTRAS, id: 5, key: 'more', title: 'More', position: 3 }
+
+test('warns on the page of a group that loses a field and marks the field it loses', async () => {
+	listing([DETAILS, EXTRAS])
+	renderAt('/field-groups/4')
+
+	const main = await groupPage('Extras')
+
+	expect(
+		within(main).getByText('subtitle is served by Article details, so Extras does not show it on Posts.'),
+	).toBeInTheDocument()
+	const lost = within(main).getByRole('listitem', { name: 'Subtitle' })
+	expect(within(lost).getByText('Shadowed')).toBeInTheDocument()
+})
+
+test('warns on the page of a group of every overlap it serves and leaves its own fields unmarked', async () => {
+	listing([DETAILS, EXTRAS, MORE])
+	renderAt('/field-groups/3')
+
+	const main = await groupPage('Article details')
+
+	expect(
+		within(main).getByText('subtitle is served by Article details, so Extras does not show it on Posts.'),
+	).toBeInTheDocument()
+	expect(
+		within(main).getByText('subtitle is served by Article details, so More does not show it on Posts.'),
+	).toBeInTheDocument()
+	expect(within(within(main).getByRole('listitem', { name: 'Subtitle' })).queryByText('Shadowed')).toBeNull()
+})
+
+test('keeps the page of a group quiet about an overlap between two other groups', async () => {
+	listing([DETAILS, EXTRAS, { ...MORE, fields: [{ ...SUBTITLE, key: 'teaser', label: 'Teaser' }] }])
+	renderAt('/field-groups/5')
+
+	const main = await groupPage('More')
+
+	expect(within(main).queryByText(/is served by/)).not.toBeInTheDocument()
+	expect(within(main).queryByText('Shadowed')).not.toBeInTheDocument()
+})
+
 test('names the overlaps a listing carries from its rules alone', () => {
 	const types = [
 		{ key: 'post', pluralLabel: 'Posts' },
@@ -200,13 +251,13 @@ test('names the overlaps a listing carries from its rules alone', () => {
 	expect(shadowings([], types)).toEqual([])
 	expect(
 		shadowings([holding(1, 'First', onPost, ['a']), holding(2, 'Second', onPost, ['a'])], types),
-	).toEqual([{ key: 'a', winner: 'First', loser: 'Second', loserID: 2, where: ['Posts'] }])
+	).toEqual([{ key: 'a', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Posts'] }])
 	expect(
 		shadowings([holding(1, 'First', onPost, ['a']), holding(2, 'Second', anywhere, ['a'])], types),
-	).toEqual([{ key: 'a', winner: 'First', loser: 'Second', loserID: 2, where: ['Posts'] }])
+	).toEqual([{ key: 'a', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Posts'] }])
 	expect(
 		shadowings([holding(1, 'First', anywhere, ['a']), holding(2, 'Second', anywhere, ['a'])], types),
-	).toEqual([{ key: 'a', winner: 'First', loser: 'Second', loserID: 2, where: ['Posts', 'Recipes'] }])
+	).toEqual([{ key: 'a', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Posts', 'Recipes'] }])
 	expect(
 		shadowings([holding(1, 'First', onPost, ['a']), holding(2, 'Second', notPost, ['a'])], types),
 	).toEqual([])
@@ -230,12 +281,12 @@ test('names the overlaps a listing carries from its rules alone', () => {
 			types,
 		),
 	).toEqual([
-		{ key: 'a', winner: 'First', loser: 'Second', loserID: 2, where: ['Posts'] },
-		{ key: 'a', winner: 'First', loser: 'Third', loserID: 3, where: ['Posts'] },
+		{ key: 'a', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Posts'] },
+		{ key: 'a', winner: 'First', winnerID: 1, loser: 'Third', loserID: 3, where: ['Posts'] },
 	])
 	expect(
 		shadowings([holding(1, 'First', onPost, ['a', 'b']), holding(2, 'Second', onPost, ['b'])], types),
-	).toEqual([{ key: 'b', winner: 'First', loser: 'Second', loserID: 2, where: ['Posts'] }])
+	).toEqual([{ key: 'b', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Posts'] }])
 })
 
 test('names the built-in type an overlap sits on in the words of WordPress es_ES for a Spanish reader', async () => {
@@ -250,6 +301,6 @@ test('names the built-in type an overlap sits on in the words of WordPress es_ES
 	const second = { id: 2, title: 'Second', active: true, location: anywhere, fields: [{ key: 'a' }] }
 
 	expect(shadowings([first, second], types)).toEqual([
-		{ key: 'a', winner: 'First', loser: 'Second', loserID: 2, where: ['Entradas', 'Recipes'] },
+		{ key: 'a', winner: 'First', winnerID: 1, loser: 'Second', loserID: 2, where: ['Entradas', 'Recipes'] },
 	])
 })
