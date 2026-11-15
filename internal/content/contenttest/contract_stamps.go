@@ -22,6 +22,78 @@ var contractStampCases = []Case{
 	{"AGroupEditLeavesTheStampsOfItsFieldsAlone", aGroupEditLeavesTheStampsOfItsFieldsAlone},
 	{"ANestedItemEditHoldingTheStampFromBeforeACarryConflicts", aNestedItemEditHoldingTheStampFromBeforeACarryConflicts},
 	{"AHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp", aHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp},
+	{"AGroupEditHoldingAnOlderStampConflicts", aGroupEditHoldingAnOlderStampConflicts},
+	{"AFieldEditLeavesTheStampOfItsGroupAlone", aFieldEditLeavesTheStampOfItsGroupAlone},
+	{"ARepointHoldingTheStampAFieldEditAnsweredLands", aRepointHoldingTheStampAFieldEditAnsweredLands},
+}
+
+// retitled returns an edit giving the group the title while holding the expected stamp.
+func retitled(t *testing.T, types content.TypeStore, g content.Group, title string) func(time.Time) error {
+	return func(expected time.Time) error {
+		g.Title, g.UpdatedAt = title, expected
+		_, err := types.UpdateGroup(t.Context(), g, nil, nil)
+		return err
+	}
+}
+
+// aGroupEditHoldingAnOlderStampConflicts turns away a group edit holding the stamp from before another edit.
+func aGroupEditHoldingAnOlderStampConflicts(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	read := GroupOn(t, s.Types, "Extras", "car")
+	if err := retitled(t, s.Types, read, "Extras renamed")(read.UpdatedAt); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+	served := GroupAt(t, s.Types, read.ID)
+	edit := retitled(t, s.Types, read, "Car extras")
+
+	if err := edit(read.UpdatedAt); !errors.Is(err, content.ErrConflict) {
+		t.Errorf("UpdateGroup() holding the stamp from before: error = %v, want %v", err, content.ErrConflict)
+	}
+	if held := GroupAt(t, s.Types, read.ID); held.Title != "Extras renamed" || !held.UpdatedAt.Equal(served.UpdatedAt) {
+		t.Errorf("the stored group = %q at %v, want the other edit kept at %v", held.Title, held.UpdatedAt, served.UpdatedAt)
+	}
+	if err := edit(served.UpdatedAt); err != nil {
+		t.Errorf("UpdateGroup() holding the stamp the store serves now: error = %v, want nil", err)
+	}
+}
+
+// aFieldEditLeavesTheStampOfItsGroupAlone lets a group edit land holding the stamp read before its fields changed.
+func aFieldEditLeavesTheStampOfItsGroupAlone(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	read := FieldsGroupOf(t, s.Types, "car")
+	title := DeclareTypedField(t, s.Types, "car", "title")
+	specs := DeclareSection(t, s.Types, "specs")
+	DeclareUnder(t, s.Types, specs.ID, "doors")
+	if _, err := s.Types.UpdateFieldInGroup(
+		t.Context(), read.ID, relabelled(title), title.UpdatedAt, nil,
+	); err != nil {
+		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
+	}
+	if err := s.Types.ReorderFieldsInGroup(t.Context(), read.ID, []string{"specs", "title"}); err != nil {
+		t.Fatalf("ReorderFieldsInGroup() error = %v, want nil", err)
+	}
+
+	if err := retitled(t, s.Types, read, "Car details")(read.UpdatedAt); err != nil {
+		t.Errorf("UpdateGroup() holding the stamp from before the field writes: error = %v, want nil", err)
+	}
+}
+
+// aRepointHoldingTheStampAFieldEditAnsweredLands points a Linked from field anew holding the stamp its edit answered.
+func aRepointHoldingTheStampAFieldEditAnsweredLands(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	group, field := ReadersOn(t, s.Types, "car", "maker")
+	answered, err := s.Types.UpdateFieldInGroup(t.Context(), group.ID, relabelled(field), field.UpdatedAt, nil)
+	if err != nil {
+		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
+	}
+	pointed := func(stamp time.Time) error {
+		repointed := answered
+		repointed.Settings, repointed.UpdatedAt = readingSource("rival"), stamp
+		_, err := s.Types.UpdateGroup(t.Context(), group, []content.Field{repointed}, nil)
+		return err
+	}
+
+	staleThenServed(t, "UpdateGroup() pointing the Linked from field anew", field.UpdatedAt, answered.UpdatedAt, pointed)
 }
 
 // fieldNamed returns the field the identity names among the fields or anywhere below them, and whether one does.
