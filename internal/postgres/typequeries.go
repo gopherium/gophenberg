@@ -166,11 +166,13 @@ func (q typeQueries) CreateFieldGroup(ctx context.Context, g typestore.GroupRow)
 	return groupRow(row), err
 }
 
-// UpdateFieldGroup stores the title, location and active flag of the group row and returns it as stored.
-func (q typeQueries) UpdateFieldGroup(ctx context.Context, g typestore.GroupRow) (typestore.GroupRow, error) {
+// UpdateFieldGroup stores the title, location and active flag of the group row while its stamp holds.
+func (q typeQueries) UpdateFieldGroup(
+	ctx context.Context, g typestore.GroupRow, expected time.Time,
+) (typestore.GroupRow, error) {
 	row, err := q.queries.UpdateFieldGroup(ctx, db.UpdateFieldGroupParams{
 		Title: g.Title, Location: g.Location, Active: g.Active,
-		UpdatedAt: g.UpdatedAt, ID: int32(g.ID),
+		UpdatedAt: g.UpdatedAt, ID: int32(g.ID), ExpectedUpdatedAt: expected,
 	})
 	return groupRow(row), err
 }

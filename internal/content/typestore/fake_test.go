@@ -65,12 +65,12 @@ type retyped struct {
 	UpdatedAt           time.Time
 }
 
-// groupColumns holds the columns a group write binds, its location as text.
+// groupColumns holds the columns a group write binds, its location as text, and the stamp an edit expects.
 type groupColumns struct {
-	ID                           int
-	Key, Title, Location, Origin string
-	Active                       bool
-	CreatedAt, UpdatedAt         time.Time
+	ID                             int
+	Key, Title, Location, Origin   string
+	Active                         bool
+	CreatedAt, UpdatedAt, Expected time.Time
 }
 
 // fieldColumns holds the columns a field statement binds, its settings as text.
@@ -474,12 +474,15 @@ func (q fakeQueries) CreateFieldGroup(_ context.Context, g GroupRow) (GroupRow, 
 	return answer(q, "CreateFieldGroup", bound, g, nil)
 }
 
-// UpdateFieldGroup answers with the stored group under the identity carrying the edit, or no row.
-func (q fakeQueries) UpdateFieldGroup(_ context.Context, g GroupRow) (GroupRow, error) {
+// UpdateFieldGroup answers with the stored group under the identity carrying the edit while its stamp holds, or no row.
+func (q fakeQueries) UpdateFieldGroup(_ context.Context, g GroupRow, expected time.Time) (GroupRow, error) {
 	bound := groupColumns{
-		ID: g.ID, Title: g.Title, Location: string(g.Location), Active: g.Active, UpdatedAt: q.fake.stamp(g.UpdatedAt),
+		ID: g.ID, Title: g.Title, Location: string(g.Location), Active: g.Active,
+		UpdatedAt: q.fake.stamp(g.UpdatedAt), Expected: q.fake.stamp(expected),
 	}
-	row, err := firstRow(q.fake.shelf.groups, func(held GroupRow) bool { return held.ID == g.ID })
+	row, err := firstRow(q.fake.shelf.groups, func(held GroupRow) bool {
+		return held.ID == g.ID && held.UpdatedAt.Equal(expected)
+	})
 	if err == nil {
 		row.Title, row.Location, row.Active, row.UpdatedAt = g.Title, g.Location, g.Active, g.UpdatedAt
 	}

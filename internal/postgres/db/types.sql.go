@@ -1090,16 +1090,17 @@ func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypePa
 const updateFieldGroup = `-- name: UpdateFieldGroup :one
 UPDATE core.field_groups
 SET title = $1, location = $2, active = $3, updated_at = $4
-WHERE id = $5
+WHERE id = $5 AND updated_at = $6
 RETURNING id, title, location, position, active, created_at, updated_at, origin, key
 `
 
 type UpdateFieldGroupParams struct {
-	Title     string
-	Location  []byte
-	Active    bool
-	UpdatedAt time.Time
-	ID        int32
+	Title             string
+	Location          []byte
+	Active            bool
+	UpdatedAt         time.Time
+	ID                int32
+	ExpectedUpdatedAt time.Time
 }
 
 func (q *Queries) UpdateFieldGroup(ctx context.Context, arg UpdateFieldGroupParams) (CoreFieldGroup, error) {
@@ -1109,6 +1110,7 @@ func (q *Queries) UpdateFieldGroup(ctx context.Context, arg UpdateFieldGroupPara
 		arg.Active,
 		arg.UpdatedAt,
 		arg.ID,
+		arg.ExpectedUpdatedAt,
 	)
 	var i CoreFieldGroup
 	err := row.Scan(

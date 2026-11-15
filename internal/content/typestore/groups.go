@@ -198,7 +198,7 @@ func (s *Store) groupWriteFailure(err error) error {
 	return fmt.Errorf("%s: create field group: %w", s.backend.Engine, err)
 }
 
-// UpdateGroup stores the group's title, location and active flag with the settings of the fields it points anew.
+// UpdateGroup stores the group's title, location and active flag with the fields it points anew while its stamp holds.
 func (s *Store) UpdateGroup(
 	ctx context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
@@ -210,30 +210,46 @@ func (s *Store) UpdateGroup(
 		if err := s.rechecked(ctx, queries, recheck); err != nil {
 			return err
 		}
-		if err := s.groupStandsAlone(ctx, queries, g); err != nil {
-			return err
-		}
-		now := time.Now().UTC()
-		row, err := queries.UpdateFieldGroup(ctx, GroupRow{
-			Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
-			UpdatedAt: now, ID: g.ID,
-		})
-		if errors.Is(err, sql.ErrNoRows) {
-			return content.ErrGroupNotFound
-		}
+		found, err := s.groupStandsAlone(ctx, queries, g)
 		if err != nil {
 			return err
 		}
-		if err := repoint(ctx, queries, g.ID, repointed, now); err != nil {
-			return err
-		}
-		updated, err = GroupFromRow(s.backend.Engine, row)
+		updated, err = s.writeGroup(ctx, queries, g, repointed, found)
 		return err
 	})
 	if err != nil {
 		return content.Group{}, s.updateGroupFailure(err)
 	}
 	return updated, nil
+}
+
+// writeGroup stores the group row while its stamp holds, then the fields it points anew.
+func (s *Store) writeGroup(
+	ctx context.Context, queries Queries, g content.Group, repointed []content.Field, found bool,
+) (content.Group, error) {
+	now := time.Now().UTC()
+	row, err := queries.UpdateFieldGroup(ctx, GroupRow{
+		Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
+		UpdatedAt: now, ID: g.ID,
+	}, g.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return content.Group{}, groupMissed(found)
+	}
+	if err != nil {
+		return content.Group{}, err
+	}
+	if err := repoint(ctx, queries, g.ID, repointed, now); err != nil {
+		return content.Group{}, err
+	}
+	return GroupFromRow(s.backend.Engine, row)
+}
+
+// groupMissed returns a conflict when the read under the lock held the group, and group not found when it did not.
+func groupMissed(found bool) error {
+	if found {
+		return content.ErrConflict
+	}
+	return content.ErrGroupNotFound
 }
 
 // repoint stores the settings of each field pointed anew, refusing one that changed since it was read.
@@ -261,15 +277,15 @@ func (s *Store) updateGroupFailure(err error) error {
 	return fmt.Errorf("%s: update field group: %w", s.backend.Engine, err)
 }
 
-// groupStandsAlone reports whether the group's stored keys stay free of every rival it would share a type with.
-func (s *Store) groupStandsAlone(ctx context.Context, queries Queries, g content.Group) error {
+// groupStandsAlone reports whether the group is stored, and whether its keys stay free of every rival sharing a type.
+func (s *Store) groupStandsAlone(ctx context.Context, queries Queries, g content.Group) (bool, error) {
 	groups, err := s.groupsWithFields(ctx, queries)
 	if err != nil {
-		return err
+		return false, err
 	}
 	held, found := groupByID(groups, g.ID)
 	if !found {
-		return nil
+		return false, nil
 	}
 	keys := make([]string, 0, len(held.Fields))
 	for _, f := range held.Fields {
@@ -277,10 +293,10 @@ func (s *Store) groupStandsAlone(ctx context.Context, queries Queries, g content
 	}
 	types, err := s.storedTypes(ctx, queries)
 	if err != nil {
-		return err
+		return true, err
 	}
 	g.Fields = held.Fields
-	return content.Uncollided(types, groups, g, keys, 0, locationParams)
+	return true, content.Uncollided(types, groups, g, keys, 0, locationParams)
 }
 
 // DeleteGroup removes the group, its fields and their stored values in one transaction, once the check passes.

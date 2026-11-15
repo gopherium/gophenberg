@@ -82,7 +82,7 @@ RETURNING id, title, location, position, active, created_at, updated_at, origin,
 -- name: UpdateFieldGroup :one
 UPDATE core.field_groups
 SET title = @title, location = @location, active = @active, updated_at = @updated_at
-WHERE id = @id
+WHERE id = @id AND updated_at = @expected_updated_at
 RETURNING id, title, location, position, active, created_at, updated_at, origin, key;
 
 -- name: DeleteFieldGroup :execrows

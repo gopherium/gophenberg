@@ -326,7 +326,7 @@ func (q stubQueries) CreateFieldGroup(_ context.Context, g GroupRow) (GroupRow, 
 }
 
 // UpdateFieldGroup answers with the group it was given.
-func (q stubQueries) UpdateFieldGroup(_ context.Context, g GroupRow) (GroupRow, error) {
+func (q stubQueries) UpdateFieldGroup(_ context.Context, g GroupRow, _ time.Time) (GroupRow, error) {
 	return g, q.fails("UpdateFieldGroup")
 }
 
