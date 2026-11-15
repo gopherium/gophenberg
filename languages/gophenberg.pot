@@ -661,6 +661,9 @@ msgstr ""
 msgid "Could not save the change. %s"
 msgstr ""
 
+msgid "Could not save the field group. %s"
+msgstr ""
+
 msgid "Could not save the field. %s"
 msgstr ""
 
@@ -1509,6 +1512,9 @@ msgid "Someone else changed this media item while you were editing it. Reload th
 msgstr ""
 
 msgid "Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in."
+msgstr ""
+
+msgid "Someone saved %(group)s after you opened it."
 msgstr ""
 
 msgid "Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening."

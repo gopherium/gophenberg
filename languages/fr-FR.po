@@ -1377,6 +1377,10 @@ msgid "Shadowed"
 msgstr "Masqué"
 
 #, fuzzy
+msgid "Someone saved %(group)s after you opened it."
+msgstr "Quelqu'un a enregistré %(group)s après que vous l'avez ouvert."
+
+#, fuzzy
 msgid "Source"
 msgstr "Source"
 
@@ -2585,6 +2589,10 @@ msgstr "Impossible d’enregistrer le média. %s"
 #, fuzzy
 msgid "Could not save the change. %s"
 msgstr "Impossible d’enregistrer la modification. %s"
+
+#, fuzzy
+msgid "Could not save the field group. %s"
+msgstr "Impossible d’enregistrer le groupe de champs. %s"
 
 #, fuzzy
 msgid "Could not save the field. %s"

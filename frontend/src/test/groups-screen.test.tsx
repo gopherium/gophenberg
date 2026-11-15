@@ -682,6 +682,37 @@ test('phrases where a group appears with the built-in types in the words of Word
 	).toBe('Entradas o Excepto Leaflets o Recipes')
 })
 
+test.each([
+	{
+		locale: 'es-ES',
+		list: 'Grupos de campos',
+		deactivate: 'Desactivar',
+		said: 'No se ha podido guardar el grupo de campos. Alguien guardó Article details después de que lo abrieras.',
+	},
+	{
+		locale: 'fr-FR',
+		list: 'Groupes de champs',
+		deactivate: 'Désactiver',
+		said:
+			"Impossible d’enregistrer le groupe de champs. Quelqu'un a enregistré Article details après que vous l'avez ouvert.",
+	},
+])('says the group was not saved since someone saved it after it was opened in $locale', async (reader) => {
+	setLocaleData(await catalogFor(reader.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	server.use(
+		http.patch('/api/groups/3', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: reader.list })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: reader.deactivate }))
+
+	expect(await findToast(reader.said)).toBeInTheDocument()
+})
+
 test('names the built-in type a new group starts on for a Spanish reader', async () => {
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))

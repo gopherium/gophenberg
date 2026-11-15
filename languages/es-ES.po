@@ -1126,6 +1126,10 @@ msgid "Shadowed"
 msgstr "Eclipsado"
 
 #, fuzzy
+msgid "Someone saved %(group)s after you opened it."
+msgstr "Alguien guardó %(group)s después de que lo abrieras."
+
+#, fuzzy
 msgid "Source"
 msgstr "Origen"
 
@@ -2329,6 +2333,10 @@ msgstr "No se ha podido guardar el archivo multimedia. %s"
 #, fuzzy
 msgid "Could not save the change. %s"
 msgstr "No se ha podido guardar el cambio. %s"
+
+#, fuzzy
+msgid "Could not save the field group. %s"
+msgstr "No se ha podido guardar el grupo de campos. %s"
 
 #, fuzzy
 msgid "Could not save the field. %s"
