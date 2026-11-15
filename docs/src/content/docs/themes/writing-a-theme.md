@@ -76,6 +76,10 @@ Your own pages coexist with them: `src/pages/about.astro` serves
 `/about` as in any Astro site. To put posts on a page of your own,
 read the [content API](/reference/content-api/) directly.
 
+The 404 and 500 pages take precedence over the catch-all, so a
+stored item at `/404` or `/500` is not served. Give such an item
+another address.
+
 ## The layouts
 
 **Base** wraps every page. It receives `seo` and an optional
