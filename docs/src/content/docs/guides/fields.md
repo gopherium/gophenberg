@@ -16,7 +16,7 @@ Cars, and every car gets a Price box in the editor.
 Open **Field Groups** in the admin menu.
 
 Press **Add Field Group** and give it a name. A new group starts
-placed on one content type.
+placed on one content type, and its page opens once it is created.
 
 A group can be set aside without deleting it. **Deactivate** stops
 it appearing anywhere and leaves its fields and their stored values
@@ -38,9 +38,9 @@ A group with no rules at all appears nowhere, and the list says
 
 ## Declaring a field
 
-Press **Fields** on a group, then give the field a name and pick a
-kind. The name is what editors see, and Gophenberg derives the key
-from it, so a field named Sold On is stored under `sold-on`. The
+Press the group's title to open its page, then give the field a name
+and pick a kind. The name is what editors see, and Gophenberg derives
+the key from it, so a field named Sold On is stored under `sold-on`. The
 key and the entry you picked are fixed once the field exists, so an
 Email field stays an email box. **Rename** changes only the name,
 which is free and touches nothing stored.
