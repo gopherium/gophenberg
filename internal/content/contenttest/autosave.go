@@ -4,6 +4,7 @@ package contenttest
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -73,30 +74,56 @@ func saveAutosaveStoresTheBuffer(t *testing.T, s Stores) {
 	}
 }
 
-// saveAutosaveReplacesTheAuthorsAutosave overwrites the author's parked buffer in place under its row id.
+// bufferAt returns the author's autosave of the item holding words and a value made from the word, saved at the moment.
+func bufferAt(t *testing.T, item content.Content, author uuid.UUID, word string, at time.Time) content.Revision {
+	t.Helper()
+	buffer := item
+	buffer.Title = word + " Buffer"
+	buffer.Content = "<!-- wp:paragraph --><p>" + word + " body</p><!-- /wp:paragraph -->"
+	buffer.Excerpt = word + " excerpt"
+	buffer.Fields = content.Values{"subtitle": word + " subtitle"}
+	autosave := MustAutosave(t, buffer, author)
+	autosave.CreatedAt = at
+	return autosave
+}
+
+// wantBuffer fails unless the autosave the call answered holds the row id, words, values and stamp of the wanted one.
+func wantBuffer(t *testing.T, call string, got, want content.Revision) {
+	t.Helper()
+	if got.ID != want.ID {
+		t.Errorf("%s ID = %s, want the replaced buffer to keep row id %s", call, got.ID, want.ID)
+	}
+	if got.Title != want.Title || got.Content != want.Content || got.Excerpt != want.Excerpt {
+		t.Errorf("%s = %q, %q, %q, want the newer buffer's %q, %q, %q",
+			call, got.Title, got.Content, got.Excerpt, want.Title, want.Content, want.Excerpt)
+	}
+	if !reflect.DeepEqual(got.Fields, want.Fields) {
+		t.Errorf("%s fields = %v, want the newer buffer's %v", call, got.Fields, want.Fields)
+	}
+	if !got.CreatedAt.Equal(want.CreatedAt) {
+		t.Errorf("%s saved at %s, want the newer save's %s", call, got.CreatedAt, want.CreatedAt)
+	}
+}
+
+// saveAutosaveReplacesTheAuthorsAutosave overwrites the author's parked buffer and its stamp in place under its row id.
 func saveAutosaveReplacesTheAuthorsAutosave(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
 	created := MustCreate(t, s.Content, "Autosaved", author)
-	first := created
-	first.Title = "First Buffer"
-	parked, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, first, author))
+	first := bufferAt(t, created, author, "First", created.UpdatedAt.Add(time.Minute))
+	parked, err := s.Content.SaveAutosave(t.Context(), first)
 	if err != nil {
 		t.Fatalf("first SaveAutosave() error = %v, want nil", err)
 	}
-	second := created
-	second.Title = "Second Buffer"
+	second := bufferAt(t, created, author, "Second", created.UpdatedAt.Add(2*time.Minute))
 
-	saved, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, second, author))
+	saved, err := s.Content.SaveAutosave(t.Context(), second)
 
 	if err != nil {
 		t.Fatalf("second SaveAutosave() error = %v, want nil", err)
 	}
-	if saved.Title != "Second Buffer" {
-		t.Errorf("Title = %q, want the newer buffer", saved.Title)
-	}
-	if saved.ID != parked.ID {
-		t.Errorf("ID = %s, want the replaced buffer to keep row id %s", saved.ID, parked.ID)
-	}
+	second.ID = parked.ID
+	wantBuffer(t, "SaveAutosave()", saved, second)
+	wantBuffer(t, "Autosave()", heldAutosave(t, s, created, author), second)
 	revisions, err := s.Content.Revisions(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
@@ -178,11 +205,17 @@ func saveAutosaveReportsAVanishedPost(t *testing.T, s Stores) {
 	}
 }
 
-// deleteAutosaveRemovesOnlyTheAuthorsBuffer drops the author's buffer and keeps the other author's.
+// deleteAutosaveRemovesOnlyTheAuthorsBuffer drops the author's buffer, not their revision or another author's buffer.
 func deleteAutosaveRemovesOnlyTheAuthorsBuffer(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
 	other := s.AddAuthor(t, "Another Writer")
 	created := MustCreate(t, s.Content, "Shared", author)
+	snapshot := MustSnapshot(t, created, author)
+	if _, err := s.Content.Update(
+		t.Context(), EditTitle(created, "Edited"), created.UpdatedAt, snapshot, 0,
+	); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
 	if _, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, created, author)); err != nil {
 		t.Fatalf("SaveAutosave(author) error = %v, want nil", err)
 	}
@@ -199,6 +232,9 @@ func deleteAutosaveRemovesOnlyTheAuthorsBuffer(t *testing.T, s Stores) {
 	}
 	if _, err := s.Content.Autosave(t.Context(), created.ID, other); err != nil {
 		t.Errorf("Autosave(other) error = %v, want the other author's buffer kept", err)
+	}
+	if _, err := s.Content.RevisionByID(t.Context(), created.ID, snapshot.ID); err != nil {
+		t.Errorf("RevisionByID() error = %v, want the author's revision kept", err)
 	}
 }
 
