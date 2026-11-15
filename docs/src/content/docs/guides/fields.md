@@ -24,7 +24,17 @@ untouched. **Activate** brings it back.
 
 ## Where a group appears
 
-Press **Rules** on a group to say which content it appears on.
+Press a group's title to open its page. Beside its fields, or under
+them on a phone, sit the group's **Title**, an **Active** box and its
+**Location rules**, which say which content it appears on. Press
+**Save** at the top of the page to keep what you changed. It stays
+off while the title is empty. Leaving the page with changes not saved
+asks first.
+
+When someone else saved the group after you opened it, the save stops
+and says so. **Load saved version** brings in their version and keeps
+your own changes on top. Where you both changed the same part, their
+value stays and the page tells you.
 
 A rule reads like *Content type is Posts*, and the content type is
 the only source today.
@@ -324,11 +334,12 @@ that relation points at. Categories work this way. The relation
 sits on Posts and points at Categories, so the Linked from field
 sits on Categories.
 
-**Rules** on that group also lists its Linked from fields, each with
-its own **Reads from** and **Through**. To move the group onto other
-content, change the rules and point each Linked from field at a
-relation on that content in the same save. Both changes are checked
-together, and when either one does not fit, nothing is saved. A
+**Location rules** on that group's page also lists its Linked from
+fields, each with its own **Reads from** and **Through**. To move the
+group onto other content, change the rules and point each Linked from
+field at a relation on that content, then press **Save** once. Both
+changes are checked together, and when either one does not fit,
+nothing is saved. A
 Linked from field that reads a relation inside a Section or a
 Repeater gets no pickers there, and only an import can point it
 elsewhere.
@@ -348,8 +359,8 @@ field.
 Removing the relation a Linked from field reads is refused, wherever
 it stands, and so is moving it to another group. Deleting the group
 holding it is refused too, unless the Linked from field goes with
-it. Point the Linked from field at another relation first, from
-**Rules** on its group.
+it. Point the Linked from field at another relation first, under
+**Location rules** on its group's page.
 
 ## Deleting a field
 
