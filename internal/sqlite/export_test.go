@@ -2,7 +2,13 @@
 
 package sqlite
 
-import "testing"
+import (
+	"database/sql"
+	"testing"
+
+	"github.com/gopherium/gophenberg/internal/content/contentstore"
+	"github.com/gopherium/gophenberg/internal/sqlite/db"
+)
 
 // RaiseFrom is raiseFrom, for the tests of a raise another binary got to first.
 var RaiseFrom = raiseFrom
@@ -15,6 +21,11 @@ const SettingsLookup = settingsLookup
 
 // BuildsLookup is buildsLookup, for the tests of a claim whose read of the builds fails.
 const BuildsLookup = buildsLookup
+
+// FieldDefinitions returns the field definition reads the content store sends on the handle.
+func FieldDefinitions(handle *sql.DB) contentstore.DefinitionQueries {
+	return typeQueries{queries: db.New(handle)}
+}
 
 // RunAsRoot makes the backups see the process as root until t ends.
 func RunAsRoot(t *testing.T) {
