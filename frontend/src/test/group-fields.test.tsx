@@ -46,15 +46,17 @@ const BLOCKS = { ...SUBTITLE, key: 'blocks', label: 'Blocks', kind: 'flexible', 
 const LINKED = { ...SUBTITLE, key: 'linked-from', label: 'Linked from', kind: 'backlinks' }
 
 /**
- * Opens the fields of the named group.
- * @param named - The group whose fields to open.
- * @returns The dialog the group opened.
+ * Opens the page of the named group from its title on the list.
+ * @param named - The group whose page to open.
+ * @param list - The name the list region carries.
+ * @returns The main work of the page.
  */
-async function openFields(named = 'Article details') {
-	const table = await screen.findByRole('region', { name: 'Field Groups' })
-	const row = within(table).getByRole('row', { name: new RegExp(named) })
-	await userEvent.click(within(row).getByRole('button', { name: 'Fields' }))
-	return screen.findByRole('dialog')
+async function openFields(named = 'Article details', list = 'Field Groups') {
+	const table = await screen.findByRole('region', { name: list })
+	await userEvent.click(within(table).getByRole('link', { name: named }))
+	const main = screen.getByRole('main')
+	await within(main).findByRole('heading', { level: 2, name: named })
+	return main
 }
 
 beforeEach(() => {
@@ -782,10 +784,7 @@ test('offers a built-in type as a relation target in the words of WordPress es_E
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/field-groups')
-	const table = await screen.findByRole('region', { name: 'Grupos de campos' })
-	const row = within(table).getByRole('row', { name: /Article details/ })
-	await userEvent.click(within(row).getByRole('button', { name: 'Campos' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await openFields('Article details', 'Grupos de campos')
 
 	await userEvent.click(within(dialog).getByLabelText('Tipo'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Relación' }))
@@ -1209,13 +1208,12 @@ test('stores the order a field is moved up into', async () => {
 	await waitFor(() => expect(sent).toEqual({ order: ['reading-time', 'subtitle'] }))
 })
 
-test('leaves the fields alone when the dialog is closed again', async () => {
+test('opens the fields on the page of the group with no dialog over them', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	expect(within(dialog).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
+	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 test('reports a refused reorder inside the dialog', async () => {

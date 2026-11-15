@@ -12,14 +12,15 @@ import { renderAt } from './render'
 import { expectReadOnly, waitBusy } from './typeFixtures'
 
 /**
- * Opens the fields of the article details group.
- * @returns The dialog the group opened.
+ * Opens the page of the article details group from its title on the list.
+ * @returns The main work of the page.
  */
 async function openFields() {
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
-	const row = within(table).getByRole('row', { name: /Article details/ })
-	await userEvent.click(within(row).getByRole('button', { name: 'Fields' }))
-	return screen.findByRole('dialog')
+	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
+	const main = screen.getByRole('main')
+	await within(main).findByRole('heading', { level: 2, name: 'Article details' })
+	return main
 }
 
 beforeEach(() => {

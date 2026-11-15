@@ -7,12 +7,14 @@ import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
+import { adminBasepath } from '../basepath'
 import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
+import { declarations } from './stylesheet'
 import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
@@ -177,6 +179,56 @@ test('names the plugin that declared a group and keeps its shape out of reach', 
 	expect(within(site).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
 })
 
+test('links the title of a site group to its page and leaves the title of a plugin group plain', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	const title = within(site).getByRole('link', { name: 'Extras' })
+	expect(title).toHaveAttribute('href', `${adminBasepath}/field-groups/4`)
+	expect(title.closest('td')).toHaveClass('godmin-table__title')
+	expect(within(declared).queryByRole('link')).not.toBeInTheDocument()
+	expect(within(declared).getByText('Article details').closest('td')).toHaveClass('godmin-table__title')
+})
+
+test('opens the page of a site group from its title', async () => {
+	const { router } = renderRoutedAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
+
+	const main = screen.getByRole('main')
+	expect(await within(main).findByRole('heading', { level: 2, name: 'Article details' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+})
+
+test('keeps the Fields button for a plugin group alone, a site group opening its fields from its title', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	expect(within(declared).getByRole('button', { name: 'Fields' })).toBeInTheDocument()
+	expect(within(site).queryByRole('button', { name: 'Fields' })).not.toBeInTheDocument()
+})
+
+test('wraps the actions of a group row so its buttons keep their words whole', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	const actions = within(row).getByRole('button', { name: 'Deactivate' }).parentElement
+	expect(actions).toHaveStyle({ flexWrap: 'wrap' })
+	expect(actions).toHaveClass('gophenberg-groups__actions')
+	expect(declarations('.gophenberg-groups__actions button')).toEqual({ 'overflow-wrap': 'normal' })
+})
+
 test('shows the fields a plugin declared without offering to change them', async () => {
 	const venue = { ...SUBTITLE, key: 'venue', label: 'Venue' }
 	const details = { ...SUBTITLE, key: 'details', label: 'Details', kind: 'section', fields: [venue] }
@@ -231,6 +283,28 @@ test('creates a group named after what the operator typed', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ title: 'Extras' }))
+})
+
+test('opens the page of a new group once it is created, read again with the group in it', async () => {
+	listing([DETAILS_GROUP])
+	server.use(
+		http.post('/api/groups', () => {
+			listing([DETAILS_GROUP, EXTRAS_GROUP])
+			return HttpResponse.json(EXTRAS_GROUP, { status: 201 })
+		}),
+	)
+	const { router } = renderRoutedAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
+	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+	const main = screen.getByRole('main')
+	expect(await within(main).findByRole('heading', { level: 2, name: 'Extras' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/4')
+	expect(within(main).getByText('This group holds no fields yet.')).toBeInTheDocument()
+	expect(await findToast('Extras created.')).toBeInTheDocument()
 })
 
 test('seeds a new group with a rule so it is never born matching nowhere', async () => {

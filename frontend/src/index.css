@@ -59,6 +59,10 @@
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
 }
 
+.gophenberg-groups__actions button {
+	overflow-wrap: normal;
+}
+
 .gophenberg-updates__check {
 	padding: 0;
 	border: 0;

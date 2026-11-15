@@ -14,6 +14,7 @@ const TITLES: Record<string, string> = {
 	'/content/$typeKey': 'Posts',
 	'/content-types': 'Content Types',
 	'/field-groups': 'Field Groups',
+	'/field-groups/$groupId': 'Field Group',
 	'/media': 'Media',
 	'/users': 'Users',
 	'/users/new': 'Add User',
@@ -25,7 +26,10 @@ const TITLES: Record<string, string> = {
 
 const FRAMED = Object.keys(TITLES)
 
-const VISITABLE = Object.entries(TITLES).map(([path, title]) => [path.replace('$typeKey', 'post'), title])
+const VISITABLE = Object.entries(TITLES).map(([path, title]) => [
+	path.replace('$typeKey', 'post').replace('$groupId', '3'),
+	title,
+])
 
 const EMPTY = [
 	['/content/post', 'No items yet'],
