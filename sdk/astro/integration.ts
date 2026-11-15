@@ -23,6 +23,7 @@ const injectedRoutes = [
 	{ pattern: '/', entrypoint: 'content.astro' },
 	{ pattern: '/[...path]', entrypoint: 'content.astro' },
 	{ pattern: '/404', entrypoint: 'not-found.astro' },
+	{ pattern: '/500', entrypoint: 'server-error.astro' },
 	{ pattern: '/_gophenberg/health', entrypoint: 'health.ts' },
 ]
 

@@ -34,7 +34,8 @@
 		"./config": "./config.ts",
 		"./routes/health.ts": "./routes/health.ts",
 		"./routes/content.astro": "./routes/content.astro",
-		"./routes/not-found.astro": "./routes/not-found.astro"
+		"./routes/not-found.astro": "./routes/not-found.astro",
+		"./routes/server-error.astro": "./routes/server-error.astro"
 	},
 	"scripts": {
 		"cover": "vitest run --coverage",

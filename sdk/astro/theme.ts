@@ -11,6 +11,7 @@ export interface ThemeLayouts {
 	Archive: AstroComponentFactory
 	Term: AstroComponentFactory
 	NotFound?: AstroComponentFactory
+	ServerError?: AstroComponentFactory
 }
 
 /** How a theme names itself to a reader and a search engine. */

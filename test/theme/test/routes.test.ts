@@ -7,6 +7,9 @@ import { GophenbergClient } from '@gophenberg/astro'
 import type { Resolved } from '@gophenberg/astro'
 import Content from '@gophenberg/astro/routes/content.astro'
 import NotFound from '@gophenberg/astro/routes/not-found.astro'
+import ServerError from '@gophenberg/astro/routes/server-error.astro'
+
+import theme from '../src/theme.ts'
 
 /** The published item the route renders after resolving its address. */
 const resolved: Resolved = {
@@ -36,6 +39,7 @@ const resolved: Resolved = {
 }
 
 afterEach(() => {
+	delete theme.layouts.ServerError
 	vi.restoreAllMocks()
 	vi.unstubAllGlobals()
 	vi.unstubAllEnvs()
@@ -84,5 +88,27 @@ describe('the public address the injected content route resolves', () => {
 		})
 
 		expect(html).toContain('Published body')
+	})
+})
+
+describe('the page the injected 500 route serves', () => {
+	test('falls back to a page in the Base layout when the theme names no ServerError', async () => {
+		const resolve = vi.spyOn(GophenbergClient.prototype, 'resolve')
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(ServerError)
+
+		expect(html).toContain('<title>Something went wrong | Gophenberg Starter</title>')
+		expect(resolve).not.toHaveBeenCalled()
+	})
+
+	test('renders the ServerError layout a theme names', async () => {
+		theme.layouts.ServerError = theme.layouts.NotFound
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(ServerError)
+
+		expect(html).toContain('No page lives at this address.')
+		expect(html).not.toContain('Something went wrong')
 	})
 })

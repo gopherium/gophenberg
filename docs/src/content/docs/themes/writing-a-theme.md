@@ -51,8 +51,8 @@ export default defineTheme({
 })
 ```
 
-`NotFound` is optional, and a `blocks` map can join the object to
-override single block types, covered in
+`NotFound` and `ServerError` are optional, and a `blocks` map can
+join the object to override single block types, covered in
 [rendering blocks](/themes/rendering-blocks/).
 
 `pagination` is optional too. Leave it out and listings carry the
@@ -64,11 +64,13 @@ decides instead, whatever the site chose.
 
 You write no pages for content. The integration injects the front
 page, one catch-all route serving every stored address, the 404
-page, and the health route Gophenberg probes at startup. The
-catch-all asks Gophenberg what an address holds and renders your
-Post layout for an item, your Archive layout for a listing, or your
-Term layout for an item that lists what points at it, with the
-content already fetched.
+page, the 500 page shown when a page fails to render, and the
+health route Gophenberg probes at startup. The 500 page asks
+Gophenberg for no content, so a page whose content read fails reads
+the content API once. The catch-all asks Gophenberg what an address
+holds and renders your Post layout for an item, your Archive layout
+for a listing, or your Term layout for an item that lists what
+points at it, with the content already fetched.
 
 Your own pages coexist with them: `src/pages/about.astro` serves
 `/about` as in any Astro site. To put posts on a page of your own,
@@ -133,7 +135,7 @@ const { post, blocks, seo } = Astro.props
 **Archive** receives `posts` (summaries without content), `total`,
 `page`, `perPage`, `type` (the content type being listed, carrying
 its labels, its route word, and the settings each of its fields
-holds), and `seo`. **NotFound** receives `seo`.
+holds), and `seo`. **NotFound** and **ServerError** receive `seo`.
 
 **Term** renders an item that lists what points at it, a category
 page for example. It receives the Archive props plus `term`, the
