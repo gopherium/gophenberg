@@ -538,12 +538,14 @@ func (s *fakeTypeStore) flattened(typeKey string, own []content.Field) []content
 	return fields
 }
 
-// CreateGroup stores a new field group at the end of the order.
+// CreateGroup stores a new field group at the end of the order, stamped now.
 func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	g.CreatedAt = time.Now().UTC()
+	g.UpdatedAt = g.CreatedAt
 	if g.Key == "" {
 		g.Key = s.freeGroupKey(content.GroupKeyFrom(g.Title))
 	}
@@ -564,7 +566,7 @@ func (s *fakeTypeStore) freeGroupKey(stem string) string {
 	return key
 }
 
-// UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew, stamped now.
 func (s *fakeTypeStore) UpdateGroup(
 	_ context.Context, g content.Group, repointed []content.Field, _ content.Recheck,
 ) (content.Group, error) {
@@ -574,7 +576,7 @@ func (s *fakeTypeStore) UpdateGroup(
 		if held.ID != g.ID {
 			continue
 		}
-		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		held.Title, held.Location, held.Active, held.UpdatedAt = g.Title, g.Location, g.Active, time.Now().UTC()
 		for _, f := range repointed {
 			at := slices.IndexFunc(held.Fields, func(stored content.Field) bool { return stored.Key == f.Key })
 			if at >= 0 {

@@ -21,7 +21,9 @@ func TestGroupPatchRefusesAGroupAPluginDeclaredNamingThePlugin(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	recorder := doRequest(t, handler, http.MethodPatch, groupPath(declared.ID), `{"title":"Happenings"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(declared.ID), groupBody(t, map[string]any{
+		"title": "Happenings", "updated_at": groupStamp(t, handler, declared.ID),
+	}))
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())

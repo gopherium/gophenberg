@@ -76,6 +76,7 @@ func TestGroupPatchPointsItsBacklinksAnewAsItMoves(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
 		"location": categoryLocation(), "backlinks": readingRelation(key, "categories", stamp),
+		"updated_at": groupStamp(t, handler, id),
 	}))
 
 	if recorder.Code != http.StatusOK {
@@ -95,6 +96,7 @@ func TestGroupPatchRefusesABacklinksPointedAtNothing(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
 		"location": categoryLocation(), "backlinks": readingRelation(key, "nothing", stamp),
+		"updated_at": groupStamp(t, handler, id),
 	}))
 
 	if code := errorCode(t, recorder); code != "backlinks_source_unknown" {
@@ -115,6 +117,7 @@ func TestGroupPatchRefusesABacklinksWithoutTheStampItsEditorRead(t *testing.T) {
 		"backlinks": map[string]any{"linked-from": map[string]any{
 			"source_group": key, "source_field": []any{"categories"},
 		}},
+		"updated_at": groupStamp(t, handler, id),
 	}))
 
 	if recorder.Code != http.StatusBadRequest {
@@ -133,6 +136,7 @@ func TestGroupPatchRefusesABacklinksChangedSinceItsEditorRead(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
 		"location": categoryLocation(), "backlinks": readingRelation(key, "categories", "2026-01-01T00:00:00Z"),
+		"updated_at": groupStamp(t, handler, id),
 	}))
 
 	if code := errorCode(t, recorder); code != "content_stale_update" {

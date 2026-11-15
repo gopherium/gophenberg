@@ -34,11 +34,12 @@ func groupBody(t *testing.T, fields map[string]any) string {
 // groupsHeld is the group listing as the admin API answers it.
 type groupsHeld struct {
 	Items []struct {
-		ID       int    `json:"id"`
-		Title    string `json:"title"`
-		Position int    `json:"position"`
-		Active   bool   `json:"active"`
-		Location [][]struct {
+		ID        int    `json:"id"`
+		Title     string `json:"title"`
+		Position  int    `json:"position"`
+		Active    bool   `json:"active"`
+		UpdatedAt string `json:"updated_at"`
+		Location  [][]struct {
 			Source   string `json:"source"`
 			Operator string `json:"operator"`
 			Value    string `json:"value"`
@@ -143,8 +144,9 @@ func TestGroupPatchCarriesTheTitleAndTheRestingFlag(t *testing.T) {
 	handler, _, _, _ := typedPostServer(t)
 	id := createGroup(t, handler, "Article details")
 
-	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id),
-		groupBody(t, map[string]any{"title": "Renamed", "active": false}))
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
+		"title": "Renamed", "active": false, "updated_at": groupStamp(t, handler, id),
+	}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -165,7 +167,7 @@ func TestGroupPatchLeavesWhatItDoesNotName(t *testing.T) {
 	id := createGroup(t, handler, "Article details")
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id),
-		groupBody(t, map[string]any{"active": false}))
+		groupBody(t, map[string]any{"active": false, "updated_at": groupStamp(t, handler, id)}))
 
 	patched := decodeBody[struct {
 		Title  string `json:"title"`
@@ -176,6 +178,57 @@ func TestGroupPatchLeavesWhatItDoesNotName(t *testing.T) {
 	}
 	if patched.Active {
 		t.Error("active = true, want the flag the patch named")
+	}
+}
+
+func TestGroupPatchRejectsAnEditWithoutTheStampItRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{"title": "Renamed"}))
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	answered := decodeBody[struct {
+		Code string         `json:"code"`
+		Meta map[string]any `json:"meta"`
+	}](t, recorder)
+	if answered.Code != "body_field_required" || answered.Meta["field"] != "updated_at" {
+		t.Errorf("answer = %+v, want body_field_required naming updated_at", answered)
+	}
+	if held := groupTitled(t, handler, id); held != "Article details" {
+		t.Errorf("title = %q, want the stored title left alone", held)
+	}
+}
+
+func TestGroupPatchRejectsAnEditHoldingAnOlderStamp(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	stampBeforeOtherSave := groupStamp(t, handler, id)
+	elsewhere := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
+		"title": "Article facts", "updated_at": stampBeforeOtherSave,
+	}))
+	if elsewhere.Code != http.StatusOK {
+		t.Fatalf("the other save: status = %d, body %s", elsewhere.Code, elsewhere.Body.String())
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
+		"title": "Article extras", "updated_at": stampBeforeOtherSave,
+	}))
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "content_stale_update" {
+		t.Errorf("code = %q, want content_stale_update", code)
+	}
+	if held := groupTitled(t, handler, id); held != "Article facts" {
+		t.Errorf("title = %q, want the other save kept", held)
 	}
 }
 
@@ -747,4 +800,31 @@ func TestGroupParamsOfferATypeSavedAfterAnEarlierListingEnded(t *testing.T) {
 // groupPath returns the API path of one group.
 func groupPath(id int) string {
 	return "/api/groups/" + strconv.Itoa(id)
+}
+
+// listedGroup returns the title and the stamp the listing serves for the group, failing when it serves none.
+func listedGroup(t *testing.T, handler http.Handler, id int) (string, string) {
+	t.Helper()
+	listed := decodeBody[groupsHeld](t, doRequest(t, handler, http.MethodGet, "/api/groups", ""))
+	for _, held := range listed.Items {
+		if held.ID == id {
+			return held.Title, held.UpdatedAt
+		}
+	}
+	t.Fatalf("the listing holds no group %d", id)
+	return "", ""
+}
+
+// groupStamp returns the updated_at the listing serves for the group, the stamp an editor reads it at.
+func groupStamp(t *testing.T, handler http.Handler, id int) string {
+	t.Helper()
+	_, stamp := listedGroup(t, handler, id)
+	return stamp
+}
+
+// groupTitled returns the title the listing serves for the group.
+func groupTitled(t *testing.T, handler http.Handler, id int) string {
+	t.Helper()
+	title, _ := listedGroup(t, handler, id)
+	return title
 }

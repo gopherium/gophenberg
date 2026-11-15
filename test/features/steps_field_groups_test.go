@@ -158,12 +158,19 @@ func theGroupExists(ctx context.Context, title, typeKey string) error {
 	return w.expect(http.StatusCreated)
 }
 
-// theRestingGroupExists stores a group placed on one content type and rests it.
+// theRestingGroupExists stores a group placed on one content type and asserts it rests.
 func theRestingGroupExists(ctx context.Context, title, typeKey string) error {
 	if err := theGroupExists(ctx, title, typeKey); err != nil {
 		return err
 	}
-	return theAdministratorRestsTheGroup(ctx, title)
+	if err := theAdministratorRestsTheGroup(ctx, title); err != nil {
+		return err
+	}
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
 }
 
 // theGroupIsListed asserts a group carries the title.
@@ -316,8 +323,18 @@ func theTypeServesTheFieldsInOrder(ctx context.Context, typeKey, first, second s
 	return nil
 }
 
-// patchGroup carries an edit to the group carrying the title.
-func patchGroup(ctx context.Context, title, body string) error {
+// sendGroupEdit carries the parts to the group holding the stamp given.
+func sendGroupEdit(w *world, held groupHeld, parts map[string]any, stamp string) error {
+	parts["updated_at"] = stamp
+	body, err := json.Marshal(parts)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(held.ID), string(body))
+}
+
+// patchGroup carries the parts to the group carrying the title, holding the stamp the listing serves for it now.
+func patchGroup(ctx context.Context, title string, parts map[string]any) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
@@ -326,12 +343,12 @@ func patchGroup(ctx context.Context, title, body string) error {
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(groupsPath+"/"+strconv.Itoa(held.ID), body)
+	return sendGroupEdit(w, held, parts, held.UpdatedAt)
 }
 
 // theAdministratorRenamesTheGroup carries a new title to the group.
 func theAdministratorRenamesTheGroup(ctx context.Context, title, renamed string) error {
-	return patchGroup(ctx, title, fmt.Sprintf(`{"title":%q}`, renamed))
+	return patchGroup(ctx, title, map[string]any{"title": renamed})
 }
 
 // groupStampFor returns the stamp the administrator read the group at, the stored one unless they read it earlier.
@@ -352,12 +369,7 @@ func editGroupHoldingTheStamp(ctx context.Context, title string, parts map[strin
 	if err != nil {
 		return err
 	}
-	parts["updated_at"] = groupStampFor(w, held)
-	body, err := json.Marshal(parts)
-	if err != nil {
-		return err
-	}
-	return w.patchJSON(groupsPath+"/"+strconv.Itoa(held.ID), string(body))
+	return sendGroupEdit(w, held, parts, groupStampFor(w, held))
 }
 
 // theAdministratorReadTheGroup keeps the stamp the group listing serves for the group the title names.
@@ -416,12 +428,12 @@ func theAdministratorRemakesTheGroupInOneEdit(ctx context.Context, title, rename
 
 // theAdministratorRestsTheGroup takes the group out of every screen it served.
 func theAdministratorRestsTheGroup(ctx context.Context, title string) error {
-	return patchGroup(ctx, title, `{"active":false}`)
+	return patchGroup(ctx, title, map[string]any{"active": false})
 }
 
 // theAdministratorWakesTheGroup puts the group back on the screens its rules name.
 func theAdministratorWakesTheGroup(ctx context.Context, title string) error {
-	return patchGroup(ctx, title, `{"active":true}`)
+	return patchGroup(ctx, title, map[string]any{"active": true})
 }
 
 // theAdministratorDeletesTheGroup removes the group with the fields it holds.
