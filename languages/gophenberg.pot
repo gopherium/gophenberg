@@ -124,6 +124,9 @@ msgstr ""
 msgid "%(file)s: %(reason)s"
 msgstr ""
 
+msgid "%(group)s comes from %(plugin)s, so it is read only. Its fields show from the Field Groups list."
+msgstr ""
+
 msgid "%(group)s created."
 msgstr ""
 
@@ -625,13 +628,22 @@ msgstr ""
 msgid "Could not activate the theme. %s"
 msgstr ""
 
+msgid "Could not add the field. %s"
+msgstr ""
+
 msgid "Could not deactivate the theme. %s"
+msgstr ""
+
+msgid "Could not delete the field. %s"
 msgstr ""
 
 msgid "Could not install the theme. %s"
 msgstr ""
 
 msgid "Could not load that post."
+msgstr ""
+
+msgid "Could not order the fields. %s"
 msgstr ""
 
 msgid "Could not roll back the theme. %s"
@@ -647,6 +659,9 @@ msgid "Could not save that post."
 msgstr ""
 
 msgid "Could not save the change. %s"
+msgstr ""
+
+msgid "Could not save the field. %s"
 msgstr ""
 
 msgid "Could not save the settings. %s"
@@ -834,6 +849,9 @@ msgid "Fewest rows"
 msgstr ""
 
 msgid "Field"
+msgstr ""
+
+msgid "Field Group"
 msgstr ""
 
 msgid "Field Groups"
@@ -1862,6 +1880,9 @@ msgid "This content type still holds content, so it cannot be deleted. Move or d
 msgstr ""
 
 msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgstr ""
+
+msgid "This field group does not exist, and it may have been deleted. Go back to the list to see what is there."
 msgstr ""
 
 msgid "This field holds no layouts yet."

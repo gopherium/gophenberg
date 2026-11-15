@@ -878,6 +878,10 @@ msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and sav
 msgstr "%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y guarda de nuevo."
 
 #, fuzzy
+msgid "%(group)s comes from %(plugin)s, so it is read only. Its fields show from the Field Groups list."
+msgstr "%(group)s viene de %(plugin)s, así que es de solo lectura. Sus campos se muestran desde la lista Grupos de campos."
+
+#, fuzzy
 msgid "%(group)s created."
 msgstr "%(group)s creado."
 
@@ -1004,6 +1008,10 @@ msgstr "Todo grupo de campos necesita un título. Ponle un nombre y guarda otra 
 #, fuzzy
 msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
 msgstr "Todos los valores guardados en este campo se van con él, en cada elemento que el grupo alcanza y en las revisiones que hay detrás."
+
+#, fuzzy
+msgid "Field Group"
+msgstr "Grupo de campos"
 
 #, fuzzy
 msgid "Field Groups"
@@ -1188,6 +1196,10 @@ msgstr "El ajuste %(setting)s queda fuera de los demás. Mantén min por debajo 
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparaciones que sí ofrece."
+
+#, fuzzy
+msgid "This field group does not exist, and it may have been deleted. Go back to the list to see what is there."
+msgstr "Este grupo de campos no existe, y puede que se haya borrado. Vuelve a la lista para ver qué hay."
 
 #, fuzzy
 msgid "This group holds no fields yet."
@@ -2283,12 +2295,24 @@ msgid "Could not activate the theme. %s"
 msgstr "No se ha podido activar el tema. %s"
 
 #, fuzzy
+msgid "Could not add the field. %s"
+msgstr "No se ha podido añadir el campo. %s"
+
+#, fuzzy
 msgid "Could not deactivate the theme. %s"
 msgstr "No se ha podido desactivar el tema. %s"
 
 #, fuzzy
+msgid "Could not delete the field. %s"
+msgstr "No se ha podido borrar el campo. %s"
+
+#, fuzzy
 msgid "Could not install the theme. %s"
 msgstr "No se ha podido instalar el tema. %s"
+
+#, fuzzy
+msgid "Could not order the fields. %s"
+msgstr "No se han podido ordenar los campos. %s"
 
 #, fuzzy
 msgid "Could not roll back the theme. %s"
@@ -2305,6 +2329,10 @@ msgstr "No se ha podido guardar el archivo multimedia. %s"
 #, fuzzy
 msgid "Could not save the change. %s"
 msgstr "No se ha podido guardar el cambio. %s"
+
+#, fuzzy
+msgid "Could not save the field. %s"
+msgstr "No se ha podido guardar el campo. %s"
 
 #, fuzzy
 msgid "Could not save the settings. %s"

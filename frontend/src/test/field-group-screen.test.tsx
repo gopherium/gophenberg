@@ -3,9 +3,11 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { adminBasepath } from '../basepath'
+import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { DETAILS, EXTRAS, listing, POST_TYPE, SUBTITLE } from './groupFieldsFixtures'
 import { renderAt, renderRoutedAt } from './render'
@@ -304,4 +306,67 @@ test('keeps the fields in view and names the failed read when the groups cannot 
 	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be loaded.')
 	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
 	expect(within(main).getByRole('button', { name: 'Add field' })).toBeInTheDocument()
+})
+
+const READERS = [
+	{
+		locale: 'es-ES',
+		title: 'Grupo de campos',
+		list: 'Grupos de campos',
+		missing: 'Este grupo de campos no existe, y puede que se haya borrado. Vuelve a la lista para ver qué hay.',
+		declared:
+			'Event details viene de events, así que es de solo lectura. ' +
+			'Sus campos se muestran desde la lista Grupos de campos.',
+	},
+	{
+		locale: 'fr-FR',
+		title: 'Groupe de champs',
+		list: 'Groupes de champs',
+		missing:
+			"Ce groupe de champs n'existe pas, et il a peut-être été supprimé. " +
+			"Revenez à la liste pour voir ce qui s'y trouve.",
+		declared:
+			'Event details vient de events, donc il est en lecture seule. ' +
+			"Ses champs s'affichent depuis la liste Groupes de champs.",
+	},
+]
+
+const ADD_READERS = [
+	{ locale: 'es-ES', name: 'Nombre', add: 'Añadir campo', failed: 'No se ha podido añadir el campo.' },
+	{ locale: 'fr-FR', name: 'Nom', add: 'Ajouter un champ', failed: 'Impossible d’ajouter le champ.' },
+]
+
+test.each(ADD_READERS)('names a field that could not be added in its toast in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	server.use(http.post('/api/groups/3/fields', rejectedWrite))
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+
+	await userEvent.type(within(main).getByLabelText(said.name), 'Subtitle')
+	await userEvent.click(within(main).getByRole('button', { name: said.add }))
+
+	expect(await findToast(`${said.failed} ${LOCKED}`)).toBeInTheDocument()
+})
+
+test.each(READERS)('titles an address no group holds and says the group does not exist in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups/99')
+
+	const main = await pageTitled(said.title)
+
+	expect(await within(main).findByRole('alert')).toHaveTextContent(said.missing)
+	const trail = within(main).getByRole('navigation')
+	expect(within(trail).getByRole('link', { name: said.list })).toBeInTheDocument()
+})
+
+test.each(READERS)('says a group a plugin declared is read only in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups/5')
+
+	const main = await pageTitled('Event details')
+
+	expect(within(main).getByText(said.declared)).toBeInTheDocument()
 })
