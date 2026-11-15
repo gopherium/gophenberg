@@ -111,6 +111,50 @@ test('opens a group page from its typed address and names an address no group ho
 	)
 })
 
+test('renames a group in its details, saves it from the header and reads the new title after a reload', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page, 'Course')
+	const renamed = `Course outline ${RUN}`
+	await page.goto(`/admin/field-groups/${group.id}`)
+	const main = page.getByRole('main')
+	const details = main.getByRole('region', { name: 'Field group settings' })
+
+	await details.getByRole('textbox', { name: 'Title' }).fill(renamed)
+	await expect(main.getByRole('heading', { level: 2, name: renamed })).toBeVisible()
+	await main.getByRole('button', { name: 'Save', exact: true }).click()
+	await expect(page.locator('.godmin-toast', { hasText: `${renamed} updated.` })).toBeVisible()
+	await page.reload()
+
+	await expect(main.getByRole('heading', { level: 2, name: renamed })).toBeVisible()
+	await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue(renamed)
+})
+
+test('asks before a draft leaves by the breadcrumb, stays on Keep editing and lands on the list on Discard', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page, 'Workshop')
+	const drafted = `Workshop draft ${RUN}`
+	await page.goto(`/admin/field-groups/${group.id}`)
+	const main = page.getByRole('main')
+	const title = main.getByRole('region', { name: 'Field group settings' }).getByRole('textbox', { name: 'Title' })
+	await title.fill(drafted)
+
+	await backToList(main).click()
+	const asking = page.getByRole('alertdialog', { name: 'Discard changes?' })
+	await asking.getByRole('button', { name: 'Keep editing', exact: true }).click()
+	await expect(asking).toBeHidden()
+	await expect(page).toHaveURL(new RegExp(`/admin/field-groups/${group.id}$`))
+	await expect(title).toHaveValue(drafted)
+
+	await backToList(main).click()
+	await asking.getByRole('button', { name: 'Discard', exact: true }).click()
+
+	await expect(page).toHaveURL(/\/admin\/field-groups$/)
+	const list = page.getByRole('region', { name: 'Field Groups' })
+	await expect(list.getByRole('link', { name: group.title, exact: true })).toBeVisible()
+})
+
 test('wraps the actions of a field on a phone, each button whole on one line inside the row', async ({ page }) => {
 	const group = await groupOfItsOwn(page, 'Notice')
 	await textFieldIn(page, group.id, 'Duration')
