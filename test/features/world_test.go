@@ -147,6 +147,7 @@ type world struct {
 	imported       *answer
 	answers        []*answer
 	readStamps     map[string]string
+	groupStampRead string
 	pending        *activation
 	rememberedETag string
 	file           *definitions.Import

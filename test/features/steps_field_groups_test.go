@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"slices"
@@ -18,12 +19,13 @@ const groupsPath = "/api/groups"
 
 // groupHeld is one field group as a scenario reads it back.
 type groupHeld struct {
-	ID     int         `json:"id"`
-	Key    string      `json:"key"`
-	Title  string      `json:"title"`
-	Active bool        `json:"active"`
-	Origin string      `json:"origin"`
-	Fields []fieldHeld `json:"fields"`
+	ID        int         `json:"id"`
+	Key       string      `json:"key"`
+	Title     string      `json:"title"`
+	Active    bool        `json:"active"`
+	Origin    string      `json:"origin"`
+	Fields    []fieldHeld `json:"fields"`
+	UpdatedAt string      `json:"updated_at"`
 }
 
 // fieldHeld is a field definition as a scenario reads it back, holding the sub fields it declares.
@@ -332,6 +334,86 @@ func theAdministratorRenamesTheGroup(ctx context.Context, title, renamed string)
 	return patchGroup(ctx, title, fmt.Sprintf(`{"title":%q}`, renamed))
 }
 
+// groupStampFor returns the stamp the administrator read the group at, the stored one unless they read it earlier.
+func groupStampFor(w *world, held groupHeld) string {
+	if w.groupStampRead != "" {
+		return w.groupStampRead
+	}
+	return held.UpdatedAt
+}
+
+// editGroupHoldingTheStamp carries the parts to the group the title names, holding the stamp the administrator read.
+func editGroupHoldingTheStamp(ctx context.Context, title string, parts map[string]any) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	parts["updated_at"] = groupStampFor(w, held)
+	body, err := json.Marshal(parts)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(held.ID), string(body))
+}
+
+// theAdministratorReadTheGroup keeps the stamp the group listing serves for the group the title names.
+func theAdministratorReadTheGroup(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	w.groupStampRead = held.UpdatedAt
+	return nil
+}
+
+// someoneRenamedTheGroupAfterItWasRead keeps the stamp the administrator read the group at, then renames it.
+func someoneRenamedTheGroupAfterItWasRead(ctx context.Context, title, renamed string) error {
+	if err := theAdministratorReadTheGroup(ctx, title); err != nil {
+		return err
+	}
+	if err := editGroupHoldingTheStamp(ctx, title, map[string]any{"title": renamed}); err != nil {
+		return err
+	}
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theAdministratorRenamesTheGroupHoldingTheStamp carries a new title holding the stamp the administrator read.
+func theAdministratorRenamesTheGroupHoldingTheStamp(ctx context.Context, title, renamed string) error {
+	return editGroupHoldingTheStamp(ctx, title, map[string]any{"title": renamed})
+}
+
+// theAdministratorRenamesTheGroupWithoutAStamp carries a new title holding no stamp at all.
+func theAdministratorRenamesTheGroupWithoutAStamp(ctx context.Context, title, renamed string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(held.ID), fmt.Sprintf(`{"title":%q}`, renamed))
+}
+
+// theAdministratorRemakesTheGroupInOneEdit carries a new title, a new place and the active flag in one edit.
+func theAdministratorRemakesTheGroupInOneEdit(ctx context.Context, title, renamed, typeKey string) error {
+	return editGroupHoldingTheStamp(ctx, title, map[string]any{
+		"title": renamed, "location": json.RawMessage(namingType(typeKey)), "active": true,
+	})
+}
+
 // theAdministratorRestsTheGroup takes the group out of every screen it served.
 func theAdministratorRestsTheGroup(ctx context.Context, title string) error {
 	return patchGroup(ctx, title, `{"active":false}`)
@@ -478,6 +560,7 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 		theAdministratorAddsTheFieldToGroup,
 	)
 	sc.When(`^the administrator renames the group "([^"]*)" to "([^"]*)"$`, theAdministratorRenamesTheGroup)
+	initializeGroupStamps(sc)
 	sc.When(`^the administrator rests the group "([^"]*)"$`, theAdministratorRestsTheGroup)
 	sc.When(`^the administrator wakes the group "([^"]*)"$`, theAdministratorWakesTheGroup)
 	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
@@ -507,4 +590,30 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	initializeImportFile(sc)
+}
+
+// initializeGroupStamps registers the steps that edit a group holding the stamp it read.
+func initializeGroupStamps(sc *godog.ScenarioContext) {
+	sc.Given(`^the administrator read the group "([^"]*)"$`, theAdministratorReadTheGroup)
+	sc.Given(
+		`^someone renamed the group "([^"]*)" to "([^"]*)" after the administrator read it$`,
+		someoneRenamedTheGroupAfterItWasRead,
+	)
+	sc.Given(
+		`^the administrator relabels the field "([^"]*)" in "([^"]*)" as "([^"]*)"$`,
+		theAdministratorRelabelsInGroup,
+	)
+	sc.When(
+		`^the administrator renames the group "([^"]*)" to "([^"]*)" holding the stamp it read$`,
+		theAdministratorRenamesTheGroupHoldingTheStamp,
+	)
+	sc.When(
+		`^the administrator renames the group "([^"]*)" to "([^"]*)" without a stamp$`,
+		theAdministratorRenamesTheGroupWithoutAStamp,
+	)
+	sc.When(
+		`^the administrator renames the group "([^"]*)" to "([^"]*)", places it on "([^"]*)" and wakes it in one edit$`,
+		theAdministratorRemakesTheGroupInOneEdit,
+	)
+	sc.Then(`^the request is rejected with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }
