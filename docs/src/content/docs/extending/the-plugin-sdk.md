@@ -31,21 +31,113 @@ each version and how to move your plugin to it.
 | `DatabaseURL` | The PostgreSQL connection string, for a plugin that still opens its own connection. Empty on a SQLite database |
 | `Content` | A read view of published content |
 | `Accounts` | Reads the names, roles and avatars of many accounts in one call, described [below](#reading-account-names) |
-| `Env` | Reads the settings under the `GOPHENBERG_` prefix, for the plugin's own configuration |
-| `Getenv` | Reads any environment variable by its full name, as it is set |
+| `Settings` | Reads the plugin's own settings, the ones its `plugin.json` declares, described [below](#settings) |
 
-`Env` takes a setting's name without the prefix and trims the
-spaces around its value. `Value` returns the text, empty when the
-setting is unset, and `Required` refuses an empty one. `Duration`,
-`Count` and `Flag` read a duration above zero, a whole number above
-zero, or true or false. `Counts` reads whole numbers above zero
-split by commas, each above the one before, such as `10,50,100`.
-Each returns the default you pass when the setting is empty.
-`Within` narrows the prefix, so
-`deps.Env.Within("FEED_").Count("ITEMS", 20)` reads
-`GOPHENBERG_FEED_ITEMS`. Every error names the full setting, such
-as `GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"`,
-so `Register` can return it as it is.
+## Settings
+
+A plugin lists the settings it reads under `settings` in its
+`plugin.json`, each with a key, one of seven types and, for most
+types, a default. [The manifest](/extending/write-a-plugin/#1-the-manifest)
+shows the feed's two. `deps.Settings` reads each one back by its key,
+with the reader of its type:
+
+| Type | A value is | Default | Read with |
+| --- | --- | --- | --- |
+| `text` | Any text, the spaces around it trimmed | Optional, empty when left out | `Text` |
+| `count` | A whole number, at or above `min` and at or below `max` when the manifest gives them | Required, within the bounds | `Count` |
+| `flag` | `true` or `false`, or another word Go's `strconv.ParseBool` takes, such as `1` or `0` | Optional, `false` when left out | `Flag` |
+| `duration` | A Go duration above zero, such as `30s` or `720h` | Required | `Duration` |
+| `choice` | One of the setting's `options`, the spaces around it trimmed | Required, one of the options | `Text` |
+| `secret` | Any text, taken exactly as the environment holds it | None, see below | `Secret` |
+| `lines` | A comma list, such as `news, events`, each item trimmed and the empty items dropped | Optional, no items when left out | `Lines` |
+
+A default is written as text, such as `"20"` or `"720h"`, and a
+`lines` default as a comma list. A `count` with no `min` takes zero
+and negative numbers too, so give it the floor it needs, as the feed
+gives `items` a `min` of 1. `Lines` answers a new slice on every call,
+so a plugin that changes one never changes the next read.
+
+The site works out every value when it starts, from the environment
+first and the manifest's default second. A read costs no query and
+returns no error, so read a setting where you use it, such as on each
+request, as the feed reads its title and its post count:
+
+```go
+// seats returns how many seats one reservation may take.
+func (p *plugin) seats() int {
+	return p.settings.Count("max_seats")
+}
+```
+
+A change to the environment applies at the next start. Each setting
+has one variable. Its name is `GOPHENBERG_PLUGIN_`, the plugin's id in
+capitals with each hyphen written as an underscore, two underscores,
+and the key in capitals:
+
+| Plugin id | Key | Variable |
+| --- | --- | --- |
+| `feed` | `items` | `GOPHENBERG_PLUGIN_FEED__ITEMS` |
+| `events` | `max_seats` | `GOPHENBERG_PLUGIN_EVENTS__MAX_SEATS` |
+| `events-pro` | `max_seats` | `GOPHENBERG_PLUGIN_EVENTS_PRO__MAX_SEATS` |
+
+An empty variable counts as unset, so the setting takes its default,
+or reads empty when it has none.
+
+A key is lowercase words of letters and digits joined by one
+underscore, the first word starting with a letter, such as
+`max_seats`. It must not start with `job_` or `db_`, and a plugin
+declares each key once. The id of a plugin with settings must not hold
+two hyphens in a row or end with one.
+
+The site checks every declaration and every value when it starts.
+When one breaks a rule, `serve` pauses the plugin at the step
+`register` with the reason, and the rest of the site starts. On the
+command line the plugin shows under "Not loaded:" and `check` fails.
+A value's reason names its variable, such as
+`GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"`,
+and a declaration's reason names its place in the list, such as
+`settings[0] max_seats: a count needs a default`.
+
+A `secret`, such as an API key or a password, comes from the
+environment only. It takes no default, because `plugin.json` is public
+and ships inside the binary. The site never writes a secret's value in
+a log line or an error, and your plugin must never log one either. A
+secret is not trimmed, since a password may end in a space on purpose.
+
+No setting is required. A `text` or `lines` with no default, and a
+`secret`, read empty when the environment leaves them unset. When
+your plugin cannot run without a value, check it in your own
+`Register` and return an error naming the variable, so the site
+pauses the plugin with that reason:
+
+```go
+// Register builds the events plugin, which cannot run without its API key.
+func Register(deps sdk.Deps) (sdk.Plugin, error) {
+	if deps.Settings.Secret("api_key") == "" {
+		return nil, errors.New("GOPHENBERG_PLUGIN_EVENTS__API_KEY must be set")
+	}
+	return &plugin{settings: deps.Settings}, nil
+}
+```
+
+A read of a key the manifest does not declare, or a read with another
+type's reader, such as `Count` on a text setting, answers the zero
+value: `0`, `false`, empty text or no items. `Text` on a secret
+answers empty too, and so does `Secret` on any other type. The site
+logs one error for each plugin and key, naming them and never a value.
+
+`Core` reads one of the site's own settings, from a short list the
+site publishes. The list holds `TRUSTED_PROXIES` alone, the text of
+[`GOPHENBERG_TRUSTED_PROXIES`](/self-hosting/configuration/#trusted-proxies)
+with the spaces around it trimmed, for a plugin that works out a
+visitor's address. The plugin parses the text itself. A name off the
+list answers empty, and the site logs it once. A plugin reads no other
+variable.
+
+`Settings` is never nil. A plugin that declares no settings gets a
+reader with no keys. Only the site implements it, so a test fakes it
+by embedding `sdk.HostOnly`, and such a fake stops compiling when
+`Settings` gains a reader.
 
 ## The lifecycle interfaces
 
@@ -1013,7 +1105,32 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
   path a moved item left in its `PreviousPath`, the `ChangeKind` type,
   the kinds `Published`, `Unpublished`, `Trashed` and `Deleted`, and
   the hook's name in `ContentChangedHook`.
-- Nothing breaks.
+- New: `Settings` and `Deps.Settings` read the settings a plugin
+  declares in its `plugin.json`, in seven types, with `Core` for the
+  trusted proxies. See [settings](#settings).
+- `Deps.Getenv`, `Deps.Env` and the `Env` type are gone, a breaking
+  change.
+
+**To move:**
+
+1. Declare each setting under `settings` in `plugin.json`, a secret
+   with no default.
+2. Read it with `deps.Settings`, such as
+   `deps.Settings.Count("max_seats")` or
+   `deps.Settings.Secret("api_key")`, where you read `deps.Env` or
+   `deps.Getenv`.
+3. Read `TRUSTED_PROXIES` with `deps.Settings.Core`, where you read
+   `deps.Getenv`.
+4. Check in your own `Register` any value your plugin cannot run
+   without, and answer an error naming it.
+5. Rename the variables your operators set to
+   `GOPHENBERG_PLUGIN_<ID>__<KEY>`.
+6. If your plugin's id is `db`, `query`, `tx`, `start`, `hook`,
+   `hook-save` or `hook-timed`, give it another one. These ids are now
+   reserved, and `make generate` stops on them with
+   `id "hook" is reserved`. Rename its folder under `plugins/` to
+   match, and start the names of its commands and of the capabilities
+   it declares with the new id.
 
 ### v0.5.0
 
