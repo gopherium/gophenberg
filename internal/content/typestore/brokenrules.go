@@ -20,7 +20,7 @@ const (
 	FieldGroupExists
 	TypeKeyUnique
 	RouteWordUnique
-	RootTaken
+	DefaultUnique
 	TypeHeldByContent
 	ContentPathUnique
 	RelationTargetExists
@@ -84,15 +84,14 @@ var fieldWriteErrors = map[Constraint]error{
 var typeWriteErrors = map[Constraint]error{
 	TypeKeyUnique:   content.ErrTypeTaken,
 	RouteWordUnique: content.ErrRouteWordTaken,
-	RootTaken:       content.ErrRootTaken,
 }
 
 // typeUpdateErrors maps each rule a type update can break to the error it stands for.
 var typeUpdateErrors = map[Constraint]error{
 	TypeKeyUnique:     content.ErrTypeTaken,
 	RouteWordUnique:   content.ErrRouteWordTaken,
+	DefaultUnique:     content.ErrRootTaken,
 	ContentPathUnique: content.ErrSlugTaken,
-	RootTaken:         content.ErrRootTaken,
 }
 
 // typeDeleteErrors maps each rule a type delete can break to the error it stands for.
