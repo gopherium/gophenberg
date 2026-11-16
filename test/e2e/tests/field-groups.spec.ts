@@ -172,8 +172,12 @@ test('wraps the actions of a field on a phone, each button whole on one line ins
 		return {
 			heights: new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().height))).size,
 			inside: buttons.every((button) => Math.round(button.getBoundingClientRect().right) <= Math.round(edge)),
-			whole: buttons.every((button) => button.scrollWidth <= button.clientWidth),
+			oneLine: buttons.every((button) => {
+				const label = document.createRange()
+				label.selectNodeContents(button)
+				return new Set([...label.getClientRects()].map((line) => Math.round(line.top))).size === 1
+			}),
 		}
 	})
-	expect(fit).toEqual({ heights: 1, inside: true, whole: true })
+	expect(fit).toEqual({ heights: 1, inside: true, oneLine: true })
 })
