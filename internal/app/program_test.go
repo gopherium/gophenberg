@@ -146,6 +146,26 @@ func TestCheckPassesAValidSiteWithoutReachingTheDatabase(t *testing.T) {
 	}
 }
 
+func TestProgramWithIndexLendsTheIndexToCommandsAndProgramLendsNone(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
+		"GOPHENBERG_PLUGIN_KEEPER__ITEMS": "banana",
+	})
+
+	indexed := testkit.Run(t, ProgramWithIndex(env, keeping(&keeper{}), itemsIndex(t, "keeper")), "", "check")
+	bare := testkit.Run(t, Program(env, keeping(&keeper{})), "", "check")
+
+	want := `GOPHENBERG_PLUGIN_KEEPER__ITEMS: must be a whole number, got "banana"`
+	if indexed.Code != gonsole.ExitFailed || !strings.Contains(indexed.Stderr, want) {
+		t.Errorf("check over the index = %d with stderr %q, want 1 and %q", indexed.Code, indexed.Stderr, want)
+	}
+	if bare.Code != gonsole.ExitDone {
+		t.Errorf("check with no index = %d with stderr %q, want 0 since no setting is declared", bare.Code, bare.Stderr)
+	}
+}
+
 func TestProgramSeedOnlyPreviewsUntilYes(t *testing.T) {
 	t.Parallel()
 

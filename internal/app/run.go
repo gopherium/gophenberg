@@ -45,7 +45,7 @@ type binary struct {
 func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer, compiled binary) error {
 	logger := slog.New(slog.NewTextHandler(stderr, nil))
 
-	listed, err := listedHooksOf(compiled.index)
+	index, err := indexOf(compiled.index)
 	if err != nil {
 		return err
 	}
@@ -55,12 +55,13 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	}
 
 	composed := composeOf(settings, getenv)
+	composed.settings, composed.logger = index.settings, logger
 	built, err := openSite(composed)
 	if err != nil {
 		return err
 	}
 	defer built.close()
-	b := boot{settings: settings, guard: guard, built: built, logger: logger, stamp: compiled.stamp, listed: listed}
+	b := boot{settings: settings, guard: guard, built: built, logger: logger, stamp: compiled.stamp, listed: index.hooks}
 	serving, restart := context.WithCancelCause(ctx)
 	defer restart(nil)
 	b.admin = b.updatesFromAdmin(serving, restart, settingsEnv(getenv))

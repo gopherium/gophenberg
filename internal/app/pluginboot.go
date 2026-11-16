@@ -87,7 +87,7 @@ func (b boot) registerPlugins(ctx context.Context, plugins registrations) (*paus
 	if err != nil {
 		return nil, nil, err
 	}
-	outcome, err := pluginkit.Register(ctx, records, plugins, b.built.depsFor)
+	outcome, err := pluginkit.Register(ctx, records, b.built.checked(plugins), b.built.depsFor)
 	if err != nil {
 		return nil, nil, err
 	}

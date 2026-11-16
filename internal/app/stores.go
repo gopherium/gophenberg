@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 
 	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/gopherium/framework/goncierge"
@@ -12,6 +13,7 @@ import (
 	accountpg "github.com/gopherium/framework/gonsole/auth/postgres"
 	accountsqlite "github.com/gopherium/framework/gonsole/auth/sqlite"
 	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/wire"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
@@ -22,6 +24,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/cron"
 	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/mediahost"
+	"github.com/gopherium/gophenberg/internal/pluginsettings"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/sqlite"
@@ -38,6 +41,8 @@ type composeConfig struct {
 	mediaDir    string
 	getenv      func(string) string
 	roles       *goncierge.Registry
+	settings    map[string][]wire.Setting
+	logger      *slog.Logger
 }
 
 // userStore is the account store the site serves, signs in with and sweeps expired sessions and tokens from.
@@ -72,6 +77,8 @@ type site struct {
 	laneSettings  laneSettings
 	accounts      *accountbridge.Reader
 	deps          sdk.Deps
+
+	pluginSettings *pluginsettings.Set
 }
 
 // composeOf returns the values compose reads out of the server settings.

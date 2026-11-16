@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/settings"
+	"github.com/gopherium/framework/pluginkit/wire"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/peterldowns/pgtestdb"
@@ -153,28 +156,91 @@ func TestRunPausesAPluginWhoseRegisterFailsAndServes(t *testing.T) {
 	}
 }
 
-func TestRunHandsThePluginsTheirSettingsReader(t *testing.T) {
+// indexOver returns the manifest index of the manifests given, in their order.
+func indexOver(t *testing.T, manifests ...wire.Manifest) []byte {
+	t.Helper()
+	index, err := json.Marshal(manifests)
+	if err != nil {
+		t.Fatalf("writing the manifest index: %v", err)
+	}
+	return index
+}
+
+// itemsIndex is the manifest index of the plugin id declaring the count items with the default 20.
+func itemsIndex(t *testing.T, id string) []byte {
+	t.Helper()
+	return indexOver(t, wire.Manifest{
+		ID: id, Name: id, Settings: []wire.Setting{{Key: "items", Type: settings.TypeCount, Default: "20"}},
+	})
+}
+
+// serveIndexedUntilListening serves the site over the plugins and their index until it listens, logging to logged.
+func serveIndexedUntilListening(
+	t *testing.T, env map[string]string, compiled binary, logged *strings.Builder,
+) error {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	env["GOPHENBERG_ADDR"] = "localhost:0"
+	compiled.stamp = version.Stamp()
+	return serveSite(ctx, testkit.Getenv(env), listenRecorder{cancel: cancel, logged: logged}, compiled)
+}
+
+func TestRunHandsEachPluginTheSettingsItsManifestDeclares(t *testing.T) {
 	t.Parallel()
 
 	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_FEED_ITEMS":   "7",
+		"GOPHENBERG_DATABASE_URL":       emptyDatabaseURL(t),
+		"GOPHENBERG_PLUGIN_FEED__ITEMS": "7",
 	}
 	var handed sdk.Deps
-
-	err := serveUntilListening(t, env, listedAs("feed", func(deps sdk.Deps) (sdk.Plugin, error) {
+	plugins := listedAs("feed", func(deps sdk.Deps) (sdk.Plugin, error) {
 		handed = deps
+		deps.Settings.Count("pages")
 		return nil, errors.New("stopped after the registration")
-	}))
+	})
+	logged := &strings.Builder{}
+
+	err := serveIndexedUntilListening(t, env, binary{plugins: plugins, index: itemsIndex(t, "feed")}, logged)
 
 	if err != nil {
-		t.Fatalf("run() error = %v, want the site served", err)
+		t.Fatalf("serveSite() error = %v, want the site served", err)
 	}
-	if handed.Env.Getenv == nil {
-		t.Fatal("run() handed the plugins no settings reader")
+	if handed.Settings == nil {
+		t.Fatal("serveSite() handed the plugins no settings reader")
 	}
-	if items := handed.Env.Within("FEED_").Value("ITEMS"); items != "7" {
-		t.Errorf("Env reads FEED_ITEMS as %q, want 7 under the program prefix", items)
+	if items := handed.Settings.Count("items"); items != 7 {
+		t.Errorf("Settings reads items as %d, want the 7 GOPHENBERG_PLUGIN_FEED__ITEMS holds", items)
+	}
+	if line := `msg="plugin read an undeclared setting" plugin=feed key=pages`; !strings.Contains(logged.String(), line) {
+		t.Errorf("the site logged %q, want %q among it", logged.String(), line)
+	}
+}
+
+func TestRunPausesAPluginWhoseSettingsAreRejectedAndServes(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_PLUGIN_FEED__ITEMS": "banana"}
+	registered := false
+	plugins := listedAs("feed", func(sdk.Deps) (sdk.Plugin, error) {
+		registered = true
+		return idle("feed"), nil
+	})
+
+	err := serveIndexedUntilListening(t, env, binary{plugins: plugins, index: itemsIndex(t, "feed")},
+		&strings.Builder{})
+
+	if err != nil {
+		t.Fatalf("serveSite() error = %v, want the site served with the plugin paused", err)
+	}
+	want := pluginkit.PluginRecord{
+		ID: "feed", State: pluginkit.PluginPaused,
+		LastError: `pluginkit: feed register: GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"`,
+	}
+	if got := recordsAt(t, databaseURL)["feed"]; got != want || registered {
+		t.Errorf("the feed record = %+v with its Register run %v, want %+v and the Register never run", got,
+			registered, want)
 	}
 }
 

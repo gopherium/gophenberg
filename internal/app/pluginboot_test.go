@@ -14,10 +14,14 @@ import (
 	"time"
 
 	"github.com/gopherium/framework/goncierge"
+	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/framework/pluginkit/pluginstoretest"
+	"github.com/gopherium/framework/pluginkit/settings"
+	"github.com/gopherium/framework/pluginkit/wire"
 
 	"github.com/gopherium/gophenberg/internal/accountbridge"
+	"github.com/gopherium/gophenberg/internal/pluginsettings"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -64,7 +68,8 @@ func bootOver(store pluginkit.PluginStore) boot {
 		},
 		built: site{
 			pluginRecords: store, roles: goncierge.New(), defaultRole: role.Member, lane: &pluginLane{sqlite: true},
-			accounts: accountbridge.New(nil, accountbridge.Options{}),
+			accounts:       accountbridge.New(nil, accountbridge.Options{}),
+			pluginSettings: pluginsettings.New(nil, testkit.Getenv(nil), nil),
 		},
 		logger: testLogger(io.Discard),
 	}
@@ -224,6 +229,33 @@ func TestStartPluginsBuildsTheHooksOverTheStartedPluginsOnly(t *testing.T) {
 	want := []sdk.HeadTag{{Tag: "meta", Attrs: []sdk.Attr{{Key: "name", Value: "heads"}}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("HeadTags() = %+v, want the tags of the started plugin alone %+v", got, want)
+	}
+}
+
+func TestStartPluginsPausesAPluginWhoseSettingsAreRejectedAtRegister(t *testing.T) {
+	t.Parallel()
+
+	store := pluginstoretest.NewMemory()
+	start := bootOver(store)
+	start.built.pluginSettings = pluginsettings.New(map[string][]wire.Setting{
+		"notes": {{Key: "per_page", Type: settings.TypeCount}},
+	}, testkit.Getenv(nil), nil)
+
+	_, err := start.startPlugins(t.Context(), listOf(idle("notes"), idle("gallery")))
+
+	if err != nil {
+		t.Fatalf("startPlugins() = %v, want the other plugins started", err)
+	}
+	records, err := store.Records(t.Context())
+	want := map[string]pluginkit.PluginRecord{
+		"notes": {
+			ID: "notes", State: pluginkit.PluginPaused,
+			LastError: "pluginkit: notes register: settings[0] per_page: a count needs a default",
+		},
+		"gallery": {ID: "gallery", State: pluginkit.PluginActive},
+	}
+	if err != nil || !reflect.DeepEqual(records, want) {
+		t.Errorf("Records() = %+v (%v), want %+v", records, err, want)
 	}
 }
 

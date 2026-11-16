@@ -7,12 +7,9 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
@@ -218,76 +215,6 @@ func TestAPluginWithoutCommandsOffersNone(t *testing.T) {
 	}
 }
 
-// settingValues are the texts the settings readers are compared over, malformed ones included.
-var settingValues = []string{
-	"", "   ", "7", " 7 ", "banana", "2.5", "0", "-3", "9223372036854775807", "99999999999999999999",
-	"-99999999999999999999", "+5", "0x10", "1e3", "30s", " 1m30s ", "0s", "-1m", "soon", "true", "FALSE", "1",
-	"t", "maybe", "https://example.com/feed", "10,50,100", " 10 , 50 ", "50,10", "10,10", "10,,50", "10,",
-	",10", "10,banana", "10,0", "10,-5", "10,99999999999999999999",
-}
-
-// readings returns what every settings reader answers for the setting ITEMS, errors as text.
-func readings(env interface {
-	Value(name string) string
-	Key(name string) string
-	Required(name string) (string, error)
-	Count(name string, fallback int) (int, error)
-	Counts(name string, fallback []int) ([]int, error)
-	Flag(name string, fallback bool) (bool, error)
-	Duration(name string, fallback time.Duration) (time.Duration, error)
-},
-) []string {
-	required, requiredErr := env.Required("ITEMS")
-	count, countErr := env.Count("ITEMS", 20)
-	counts, countsErr := env.Counts("ITEMS", []int{5})
-	flagged, flagErr := env.Flag("ITEMS", true)
-	waited, durationErr := env.Duration("ITEMS", 5*time.Second)
-	return []string{
-		env.Key("ITEMS"), env.Value("ITEMS"), required, errorText(requiredErr),
-		strconv.Itoa(count), errorText(countErr), fmt.Sprintf("%#v", counts), errorText(countsErr),
-		strconv.FormatBool(flagged), errorText(flagErr), waited.String(), errorText(durationErr),
-	}
-}
-
-// gonsoleReader adapts the command line's settings to the readers the plugins' settings offer.
-type gonsoleReader struct {
-	gonsole.Env
-}
-
-// Count reads a whole number with no bound.
-func (r gonsoleReader) Count(name string, fallback int) (int, error) {
-	return r.Env.Count(name, fallback)
-}
-
-// Counts reads rising whole numbers with no bound.
-func (r gonsoleReader) Counts(name string, fallback []int) ([]int, error) {
-	return r.Env.Counts(name, fallback)
-}
-
-// Duration reads a duration with no bound.
-func (r gonsoleReader) Duration(name string, fallback time.Duration) (time.Duration, error) {
-	return r.Env.Duration(name, fallback)
-}
-
-func TestPluginSettingsReadAsTheCommandLineReadsThem(t *testing.T) {
-	t.Parallel()
-
-	for _, value := range settingValues {
-		t.Run(value, func(t *testing.T) {
-			t.Parallel()
-
-			getenv := testkit.Getenv(map[string]string{"GOPHENBERG_FEED_ITEMS": value})
-
-			lent := readings(sdk.Env{Prefix: settingsPrefix, Getenv: getenv}.Within("FEED_"))
-			wanted := readings(gonsoleReader{settingsEnv(getenv).Within("FEED_")})
-
-			if !slices.Equal(lent, wanted) {
-				t.Errorf("plugins read %q, want %q as the command line reads it", lent, wanted)
-			}
-		})
-	}
-}
-
 func TestAPluginCommandEncodesAsTheCommandLineEncodes(t *testing.T) {
 	t.Parallel()
 
@@ -301,12 +228,4 @@ func TestAPluginCommandEncodesAsTheCommandLineEncodes(t *testing.T) {
 		t.Errorf("a plugin encodes %q, %v, want %q, %v as the command line encodes it",
 			lent.String(), lentErr, wanted.String(), wantedErr)
 	}
-}
-
-// errorText returns the text of err, empty when it is nil.
-func errorText(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
 }

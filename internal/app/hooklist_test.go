@@ -4,44 +4,57 @@ package app
 
 import (
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
+	"github.com/gopherium/framework/pluginkit/settings"
+	"github.com/gopherium/framework/pluginkit/wire"
 
 	"github.com/gopherium/gophenberg/internal/version"
 )
 
-func TestListedHooksOfReadsTheHooksEachPluginListsAndDefines(t *testing.T) {
+func TestIndexOfReadsTheHooksAndTheSettingsOfEachPluginFromOneIndex(t *testing.T) {
 	t.Parallel()
 
-	listed, err := listedHooksOf([]byte(`[
-		{"id": "forum", "name": "Forum", "hooks": ["public.head-tags"], "defines": ["forum.badges", {"hook": "forum.check"}]},
+	read, err := indexOf([]byte(`[
+		{"id": "forum", "name": "Forum", "hooks": ["public.head-tags"], "defines": ["forum.badges", {"hook": "forum.check"}],
+			"settings": [{"key": "per_page", "type": "count", "default": "10", "min": 1}]},
 		{"id": "solved", "name": "Solved", "hooks": ["forum.badges"]},
 		{"id": "quiet", "name": "Quiet"}
 	]`))
 
 	if err != nil {
-		t.Fatalf("listedHooksOf() = %v, want the index read", err)
+		t.Fatalf("indexOf() = %v, want the index read", err)
 	}
+	listed := read.hooks
 	want := map[string][]string{"forum": {"public.head-tags"}, "solved": {"forum.badges"}, "quiet": nil}
 	if !maps.EqualFunc(listed.byPlugin, want, slices.Equal) {
-		t.Errorf("listedHooksOf() lists %v, want %v", listed.byPlugin, want)
+		t.Errorf("indexOf() lists %v, want %v", listed.byPlugin, want)
 	}
 	if !slices.Equal(listed.defined, []string{"forum.badges", "forum.check"}) {
-		t.Errorf("listedHooksOf() defines %v, want forum.badges and forum.check", listed.defined)
+		t.Errorf("indexOf() defines %v, want forum.badges and forum.check", listed.defined)
+	}
+	least := 1.0
+	declared := map[string][]wire.Setting{
+		"forum": {{Key: "per_page", Type: settings.TypeCount, Default: "10", Min: &least}}, "solved": nil, "quiet": nil,
+	}
+	if !reflect.DeepEqual(read.settings, declared) {
+		t.Errorf("indexOf() declares %+v, want %+v", read.settings, declared)
 	}
 }
 
-func TestListedHooksOfListsNoHookWithoutAnIndex(t *testing.T) {
+func TestIndexOfReadsNothingWithoutAnIndex(t *testing.T) {
 	t.Parallel()
 
-	listed, err := listedHooksOf(nil)
+	read, err := indexOf(nil)
 
-	if err != nil || len(listed.byPlugin) != 0 || listed.defined != nil {
-		t.Errorf("listedHooksOf(nil) = %+v (%v), want no hook and no error", listed, err)
+	want := manifestIndex{hooks: listedHooks{byPlugin: map[string][]string{}}, settings: map[string][]wire.Setting{}}
+	if err != nil || !reflect.DeepEqual(read, want) {
+		t.Errorf("indexOf(nil) = %+v (%v), want no hook, no setting and no error", read, err)
 	}
 }
 

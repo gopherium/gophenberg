@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/accountbridge"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
+	"github.com/gopherium/gophenberg/internal/pluginsettings"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -27,7 +29,7 @@ func compose(cfg composeConfig, plugins registrations) (site, error) {
 	if err != nil {
 		return site{}, err
 	}
-	outcome := pluginkit.RegisterEach(plugins, built.depsFor)
+	outcome := pluginkit.RegisterEach(built.checked(plugins), built.depsFor)
 	built.registered, built.failed = outcome.Registered, failuresOf(outcome.Failed)
 	if err := built.ready(); err != nil {
 		built.close()
@@ -58,7 +60,16 @@ func openSite(cfg composeConfig) (site, error) {
 		Avatar: avatarOf(avatars), Timeout: lane.queryTimeout,
 	})
 	built.deps = pluginDeps(cfg, built, built.accounts)
+	built.pluginSettings = pluginsettings.New(cfg.settings, environmentOf(cfg.getenv), cfg.logger)
 	return built, nil
+}
+
+// environmentOf returns getenv, or a reader of an empty environment when getenv is nil.
+func environmentOf(getenv func(string) string) func(string) string {
+	if getenv == nil {
+		return func(string) string { return "" }
+	}
+	return getenv
 }
 
 // failuresOf returns one error naming each failure, nil for none.
@@ -126,9 +137,22 @@ func (s site) openLane(count int) error {
 	return s.lane.open(s.pgHandle, count, s.laneSettings)
 }
 
-// depsFor returns what the site lends the plugin id, the same for every plugin.
-func (s site) depsFor(string) sdk.Deps {
-	return s.deps
+// depsFor returns what the site lends the plugin id: what every plugin shares and a reader of its own settings.
+func (s site) depsFor(id string) sdk.Deps {
+	deps := s.deps
+	deps.Settings = s.pluginSettings.For(id)
+	return deps
+}
+
+// checked returns a copy of plugins in which the Register of each plugin whose settings were rejected answers why.
+func (s site) checked(plugins registrations) registrations {
+	held := slices.Clone(plugins)
+	for i, plugin := range held {
+		if rejected := s.pluginSettings.Rejection(plugin.ID); rejected != nil {
+			held[i].Register = func(sdk.Deps) (sdk.Plugin, error) { return nil, rejected }
+		}
+	}
+	return held
 }
 
 // close releases the PostgreSQL handle and with it the plugins' share, nothing on SQLite or while describing.
@@ -136,12 +160,8 @@ func (s site) close() {
 	s.release()
 }
 
-// pluginDeps returns what the site lends every plugin, a settings reader that is never nil and no address on SQLite.
+// pluginDeps returns what the site lends every plugin alike, no address on SQLite.
 func pluginDeps(cfg composeConfig, built site, accounts sdk.AccountReader) sdk.Deps {
-	getenv := cfg.getenv
-	if getenv == nil {
-		getenv = func(string) string { return "" }
-	}
 	databaseURL := cfg.databaseURL
 	if onSQLite(databaseURL) {
 		databaseURL = ""
@@ -151,7 +171,5 @@ func pluginDeps(cfg composeConfig, built site, accounts sdk.AccountReader) sdk.D
 		DB:          built.lane,
 		Content:     contentbridge.New(built.content, built.registry, built.library, built.settings),
 		Accounts:    accounts,
-		Getenv:      getenv,
-		Env:         sdk.Env{Prefix: settingsPrefix, Getenv: getenv},
 	}
 }

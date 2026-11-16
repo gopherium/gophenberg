@@ -3,6 +3,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -11,9 +12,12 @@ import (
 
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole/testkit"
+	"github.com/gopherium/framework/pluginkit/settings"
+	"github.com/gopherium/framework/pluginkit/wire"
 	"github.com/gopherium/gouncer/avatar"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/pluginsettings"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -54,11 +58,9 @@ func TestComposeRegistersThePluginsWithoutMigrating(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
-	getenv := testkit.Getenv(map[string]string{"GOPHENBERG_FEED_ITEMS": "7"})
 	var handed sdk.Deps
 
-	built, err := compose(composeConfig{databaseURL: databaseURL, fieldDepth: 4, getenv: getenv},
-		handedKeeper(&handed))
+	built, err := compose(composeConfig{databaseURL: databaseURL, fieldDepth: 4}, handedKeeper(&handed))
 
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
@@ -67,9 +69,12 @@ func TestComposeRegistersThePluginsWithoutMigrating(t *testing.T) {
 	if !slices.Contains(idsOf(built.registered), "keeper") {
 		t.Errorf("registered = %v, want the keeper plugin among them", idsOf(built.registered))
 	}
-	if handed.DatabaseURL != databaseURL || handed.Content == nil || handed.Env.Within("FEED_").Value("ITEMS") != "7" {
-		t.Errorf("plugins were handed %q, %v and FEED_ITEMS %q, want the address, a content reader and the settings",
-			handed.DatabaseURL, handed.Content, handed.Env.Within("FEED_").Value("ITEMS"))
+	if handed.DatabaseURL != databaseURL || handed.Content == nil {
+		t.Errorf("plugins were handed %q and %v, want the address and a content reader", handed.DatabaseURL,
+			handed.Content)
+	}
+	if handed.Settings == nil {
+		t.Error("plugins were handed no settings reader, want one")
 	}
 	if handed.Accounts == nil {
 		t.Error("plugins were handed no account reader, want one")
@@ -146,8 +151,9 @@ func TestComposeInDescribeModeNeedsNoDatabaseSetting(t *testing.T) {
 	t.Parallel()
 
 	var handed sdk.Deps
+	declared := map[string][]wire.Setting{"keeper": {{Key: "title", Type: settings.TypeText, Default: "Notes"}}}
 
-	built, err := compose(composeConfig{describe: true, fieldDepth: 4}, handedKeeper(&handed))
+	built, err := compose(composeConfig{describe: true, fieldDepth: 4, settings: declared}, handedKeeper(&handed))
 
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugins registered without a database setting", err)
@@ -156,11 +162,87 @@ func TestComposeInDescribeModeNeedsNoDatabaseSetting(t *testing.T) {
 	if !slices.Contains(idsOf(built.registered), "keeper") {
 		t.Errorf("registered = %v, want the keeper plugin among them", idsOf(built.registered))
 	}
-	if handed.Getenv == nil || handed.Env.Getenv == nil {
+	if handed.Settings == nil {
 		t.Fatal("plugins were handed no settings reader, want one that is never nil")
 	}
-	if held := handed.Env.Value("FEED_ITEMS"); held != "" {
-		t.Errorf("Env reads FEED_ITEMS as %q with no environment, want nothing", held)
+	if title, items := handed.Settings.Text("title"), handed.Settings.Count("items"); title != "Notes" || items != 0 {
+		t.Errorf("Settings reads title %q and items %d with no environment and no logger, want the default and 0",
+			title, items)
+	}
+}
+
+func TestComposeLendsEachPluginTheSettingsItsManifestDeclares(t *testing.T) {
+	t.Parallel()
+
+	title := []wire.Setting{{Key: "title", Type: settings.TypeText, Default: "Untitled"}}
+	var handed, gallery sdk.Deps
+	plugins := slices.Concat(handing(&handed), listedAs("gallery", func(deps sdk.Deps) (sdk.Plugin, error) {
+		gallery = deps
+		return idle("gallery"), nil
+	}))
+	cfg := composeConfig{
+		describe: true, fieldDepth: 4, settings: map[string][]wire.Setting{"handed": title, "gallery": title},
+		getenv: testkit.Getenv(map[string]string{"GOPHENBERG_PLUGIN_HANDED__TITLE": "Field Notes"}),
+	}
+
+	built, err := compose(cfg, plugins)
+
+	if err != nil {
+		t.Fatalf("compose() error = %v, want both plugins registered", err)
+	}
+	defer built.close()
+	if got := handed.Settings.Text("title"); got != "Field Notes" {
+		t.Errorf("the plugin handed reads title %q, want the Field Notes its variable holds", got)
+	}
+	if got := gallery.Settings.Text("title"); got != "Untitled" {
+		t.Errorf("the plugin gallery reads title %q, want its own default Untitled", got)
+	}
+}
+
+func TestComposeListsAPluginWhoseSettingsAreRejectedAsFailed(t *testing.T) {
+	t.Parallel()
+
+	var handed sdk.Deps
+	cfg := composeConfig{
+		describe: true, fieldDepth: 4,
+		settings: map[string][]wire.Setting{"keeper": {{Key: "per_page", Type: settings.TypeCount, Default: "10"}}},
+		getenv:   testkit.Getenv(map[string]string{"GOPHENBERG_PLUGIN_KEEPER__PER_PAGE": "banana"}),
+	}
+
+	built, err := compose(cfg, handedKeeper(&handed))
+
+	if err != nil {
+		t.Fatalf("compose() error = %v, want the other plugins registered", err)
+	}
+	defer built.close()
+	want := `pluginkit: keeper register: GOPHENBERG_PLUGIN_KEEPER__PER_PAGE: must be a whole number, got "banana"`
+	if fmt.Sprint(built.failed) != want {
+		t.Errorf("failed = %v, want %q", built.failed, want)
+	}
+	if ids := idsOf(built.registered); slices.Contains(ids, "keeper") || handed.Settings != nil {
+		t.Errorf("registered %v and handed %+v, want the keeper plugin never registered", ids, handed)
+	}
+}
+
+func TestCheckedSwapsTheRegisterOfARejectedPluginAlone(t *testing.T) {
+	t.Parallel()
+
+	built := site{pluginSettings: pluginsettings.New(map[string][]wire.Setting{
+		"notes": {{Key: "per_page", Type: settings.TypeCount}}, "gallery": nil,
+	}, testkit.Getenv(nil), nil)}
+	plugins := listOf(idle("notes"), idle("gallery"))
+
+	held := built.checked(plugins)
+
+	_, rejected := held[0].Register(sdk.Deps{})
+	if want := built.pluginSettings.Rejection("notes"); rejected == nil || !errors.Is(rejected, want) {
+		t.Errorf("the Register of notes = %v, want its rejection %v", rejected, want)
+	}
+	if kept, err := held[1].Register(sdk.Deps{}); kept != idle("gallery") || err != nil {
+		t.Errorf("the Register of gallery = %v, %v, want the plugin it registers", kept, err)
+	}
+	if kept, err := plugins[0].Register(sdk.Deps{}); kept != idle("notes") || err != nil {
+		t.Errorf("the compiled Register of notes = %v, %v, want it left as it was", kept, err)
 	}
 }
 

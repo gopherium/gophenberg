@@ -127,12 +127,62 @@ func TestLoadPluginsNamesWhatItCannotRead(t *testing.T) {
 
 			call := gonsole.Call{Env: settingsEnv(testkit.Getenv(tc.env)), Describe: tc.describe}
 
-			_, err := loadPlugins(noPlugins, goncierge.New(), &sitePool{})(t.Context(), call)
+			_, err := loadPlugins(binary{plugins: noPlugins}, goncierge.New(), &sitePool{})(t.Context(), call)
 
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Errorf("loadPlugins() error = %v, want %s named", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestLoadPluginsStopsOnAManifestIndexItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	call := gonsole.Call{Env: settingsEnv(testkit.Getenv(nil)), Describe: true}
+	compiled := binary{plugins: keeping(&keeper{}), index: []byte(`{"id": "keeper"`)}
+
+	_, err := loadPlugins(compiled, goncierge.New(), &sitePool{})(t.Context(), call)
+
+	if err == nil || !strings.Contains(err.Error(), "reading the plugin manifest index") {
+		t.Errorf("loadPlugins() error = %v, want the index named", err)
+	}
+}
+
+func TestListShowsAPluginWhoseSettingsAreRejectedUnderNotLoaded(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
+		"GOPHENBERG_PLUGIN_KEEPER__ITEMS": "banana",
+	})
+
+	got := testkit.Run(t, ProgramWithIndex(env, keeping(&keeper{}), itemsIndex(t, "keeper")), "", "list")
+
+	want := "\nNot loaded:\n  pluginkit: keeper register: GOPHENBERG_PLUGIN_KEEPER__ITEMS: must be a whole number, got " +
+		`"banana"` + "\n"
+	if got.Code != gonsole.ExitDone || !strings.Contains(got.Stdout, want) {
+		t.Errorf("list = %d, stdout %q, want 0 and the keeper plugin under Not loaded", got.Code, got.Stdout)
+	}
+	if strings.Contains(got.Stdout, "keeper:show") {
+		t.Errorf("list = %q, want none of the commands of the keeper plugin", got.Stdout)
+	}
+}
+
+func TestACommandLogsAPluginMisreadToItsStandardError(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
+	plugins := listedAs("keeper", func(deps sdk.Deps) (sdk.Plugin, error) {
+		deps.Settings.Count("pages")
+		return &keeper{deps: deps}, nil
+	})
+
+	got := testkit.Run(t, ProgramWithIndex(env, plugins, itemsIndex(t, "keeper")), "", "check")
+
+	line := `level=ERROR msg="plugin read an undeclared setting" plugin=keeper key=pages`
+	if got.Code != gonsole.ExitDone || !strings.Contains(got.Stderr, line) {
+		t.Errorf("check = %d with stderr %q, want 0 and %q", got.Code, got.Stderr, line)
 	}
 }
 
@@ -171,7 +221,7 @@ func TestReleaseEndsWithinTheStopGrace(t *testing.T) {
 	call := gonsole.Call{Env: settingsEnv(testkit.Getenv(map[string]string{
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "100ms",
 	})), Describe: true}
-	loaded, err := loadPlugins(keeping(k), goncierge.New(), &sitePool{})(t.Context(), call)
+	loaded, err := loadPlugins(binary{plugins: keeping(k)}, goncierge.New(), &sitePool{})(t.Context(), call)
 	if err != nil {
 		t.Fatalf("loadPlugins() error = %v, want nil", err)
 	}
