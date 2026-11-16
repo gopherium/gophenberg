@@ -233,6 +233,22 @@ Feature: Operators run Gophenberg from one command line
     Then the command exits with code 1
     And the error says "needs -since, which it does not declare"
 
+  @wip
+  Scenario: Check names the variable of a plugin value its type rejects
+    Given the plugin "notes" declares the count setting "per_page" with the default "10"
+    And GOPHENBERG_PLUGIN_NOTES__PER_PAGE is "banana"
+    When the operator runs "check"
+    Then the command exits with code 1
+    And the error says "GOPHENBERG_PLUGIN_NOTES__PER_PAGE: must be a whole number"
+
+  @wip
+  Scenario: List shows a plugin whose value its type rejects under Not loaded
+    Given the plugin "notes" declares the count setting "per_page" with the default "10"
+    And GOPHENBERG_PLUGIN_NOTES__PER_PAGE is "banana"
+    When the operator runs "list"
+    Then the command succeeds
+    And the answer lists "notes" under "Not loaded", naming "GOPHENBERG_PLUGIN_NOTES__PER_PAGE"
+
   Scenario: An account becomes a member that never enters the admin
     Given the administrator "admin@example.com"
     And the author "author@example.com"
