@@ -5,6 +5,23 @@
 		"backend": "github.com/gopherium/gophenberg/plugins/feed",
 		"hooks": [
 			"public.head-tags"
+		],
+		"settings": [
+			{
+				"key": "title",
+				"type": "text",
+				"default": "Gophenberg",
+				"label": "Feed title",
+				"help": "The channel title feed readers display"
+			},
+			{
+				"key": "items",
+				"type": "count",
+				"default": "20",
+				"label": "Posts in the feed",
+				"help": "How many posts the feed carries",
+				"min": 1
+			}
 		]
 	}
 ]

@@ -20,11 +20,11 @@ const pluginID = "feed"
 // feedPath is the namespace relative address the channel is served at.
 const feedPath = "/rss.xml"
 
-// defaultTitle names the channel when the environment names none.
-const defaultTitle = "Gophenberg"
+// titleSetting is the key of the setting that names the channel.
+const titleSetting = "title"
 
-// defaultItems caps the posts a channel carries when the environment caps none.
-const defaultItems = 20
+// itemsSetting is the key of the setting that caps the posts a channel carries.
+const itemsSetting = "items"
 
 // postType is the type of post the channel carries.
 const postType = "post"
@@ -34,27 +34,13 @@ var blockComment = regexp.MustCompile(`<!-- /?wp:[\s\S]*?-->`)
 
 // plugin serves published posts as an RSS channel.
 type plugin struct {
-	posts sdk.ContentReader
-	title string
-	items int
+	posts    sdk.ContentReader
+	settings sdk.Settings
 }
 
-// Register returns the feed plugin configured from the environment.
+// Register returns the feed plugin, which reads its settings on each request.
 func Register(deps sdk.Deps) (sdk.Plugin, error) {
-	settings := deps.Env.Within("FEED_")
-	title := settings.Value("TITLE")
-	if title == "" {
-		title = defaultTitle
-	}
-	items, err := settings.Count("ITEMS", defaultItems)
-	if err != nil {
-		return nil, err
-	}
-	return &plugin{
-		posts: deps.Content,
-		title: title,
-		items: items,
-	}, nil
+	return &plugin{posts: deps.Content, settings: deps.Settings}, nil
 }
 
 // ID returns the plugin's identifier.
@@ -106,7 +92,7 @@ func originOf(r *http.Request) string {
 
 // serveFeed writes the published posts as an RSS channel.
 func (p *plugin) serveFeed(w http.ResponseWriter, r *http.Request) {
-	posts, err := p.posts.ListPublished(r.Context(), postType, p.items)
+	posts, err := p.posts.ListPublished(r.Context(), postType, p.settings.Count(itemsSetting))
 	if err != nil {
 		http.Error(w, "feed unavailable", http.StatusInternalServerError)
 		return
@@ -162,7 +148,7 @@ func (p *plugin) channelOf(origin string, posts []sdk.Item) rss {
 	}
 	return rss{
 		Version: "2.0",
-		Channel: rssChannel{Title: p.title, Link: origin, Items: items},
+		Channel: rssChannel{Title: p.settings.Text(titleSetting), Link: origin, Items: items},
 	}
 }
 

@@ -24,17 +24,10 @@ import (
 
 const unreachableDatabaseURL = "postgres://postgres:gophenberg@localhost:9/postgres?sslmode=disable&connect_timeout=1"
 
-// settingsOf returns the settings reader under the command line's prefix over env.
-func settingsOf(env map[string]string) sdk.Env {
-	settings := app.Program(testkit.Getenv(env), pluginRegistrations).Env
-	return sdk.Env{Prefix: settings.Prefix, Getenv: settings.Getenv}
-}
-
-// registeredOver registers every compiled plugin with the settings of env, answering the outcome.
-func registeredOver(env map[string]string) pluginkit.RegisterOutcome[sdk.Plugin] {
-	settings := settingsOf(env)
+// registered registers every compiled plugin over empty dependencies, answering the outcome.
+func registered() pluginkit.RegisterOutcome[sdk.Plugin] {
 	return pluginkit.RegisterEach(pluginRegistrations, func(string) sdk.Deps {
-		return sdk.Deps{Getenv: settings.Getenv, Env: settings}
+		return sdk.Deps{}
 	})
 }
 
@@ -125,24 +118,10 @@ func TestPluginIndexHoldsTheManifestOfEveryCompiledPluginInWiringOrder(t *testin
 	}
 }
 
-func TestPluginRegistrationsReportAPluginThatRefusesItsEnvironment(t *testing.T) {
-	t.Parallel()
-
-	outcome := registeredOver(map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"})
-
-	if len(outcome.Failed) != 1 || outcome.Failed[0].ID != "feed" ||
-		!strings.Contains(outcome.Failed[0].Err.Error(), "pluginkit: feed register: GOPHENBERG_FEED_ITEMS") {
-		t.Fatalf("RegisterEach() failed %+v, want the feed cap refused and the plugin named", outcome.Failed)
-	}
-	if ids := idsOf(outcome.Registered); slices.Contains(ids, "feed") {
-		t.Errorf("RegisterEach() registered %v, want the refused feed plugin left out", ids)
-	}
-}
-
 func TestPluginRegistrationsWireEveryManifestedPlugin(t *testing.T) {
 	t.Parallel()
 
-	outcome := registeredOver(nil)
+	outcome := registered()
 
 	if len(outcome.Failed) != 0 {
 		t.Fatalf("RegisterEach() failed %+v, want none", outcome.Failed)
@@ -173,22 +152,25 @@ func TestPluginRegistrationsOfferCommands(t *testing.T) {
 	}
 }
 
-func TestAFeedThatCannotRegisterShowsUnderNotLoaded(t *testing.T) {
+func TestAFeedWhoseSettingsAreRejectedShowsUnderNotLoaded(t *testing.T) {
 	t.Parallel()
 
 	env := testkit.Getenv(map[string]string{
-		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
-		"GOPHENBERG_FEED_ITEMS":   "banana",
+		"GOPHENBERG_DATABASE_URL":       unreachableDatabaseURL,
+		"GOPHENBERG_PLUGIN_FEED__ITEMS": "banana",
 	})
 
-	listed := testkit.Run(t, app.Program(env, pluginRegistrations), "", "list")
-	checked := testkit.Run(t, app.Program(env, pluginRegistrations), "", "check")
+	listed := testkit.Run(t, app.ProgramWithIndex(env, pluginRegistrations, pluginIndex), "", "list")
+	checked := testkit.Run(t, app.ProgramWithIndex(env, pluginRegistrations, pluginIndex), "", "check")
 
-	if listed.Code != gonsole.ExitDone || !strings.Contains(listed.Stdout, "\nNot loaded:\n") ||
-		!strings.Contains(listed.Stdout, "GOPHENBERG_FEED_ITEMS") {
-		t.Errorf("list = %d, stdout %q, want 0 and the feed under Not loaded", listed.Code, listed.Stdout)
+	_, notLoaded, found := strings.Cut(listed.Stdout, "\nNot loaded:\n")
+	if listed.Code != gonsole.ExitDone || !found {
+		t.Errorf("list = %d, stdout %q, want 0 and a Not loaded part", listed.Code, listed.Stdout)
 	}
-	if checked.Code != gonsole.ExitFailed || !strings.Contains(checked.Stderr, "GOPHENBERG_FEED_ITEMS") {
+	if !strings.Contains(notLoaded, "GOPHENBERG_PLUGIN_FEED__ITEMS") {
+		t.Errorf("Not loaded part %q, want the feed under it naming its rejected setting", notLoaded)
+	}
+	if checked.Code != gonsole.ExitFailed || !strings.Contains(checked.Stderr, "GOPHENBERG_PLUGIN_FEED__ITEMS") {
 		t.Errorf("check = %d with stderr %q, want 1 and the feed setting named", checked.Code, checked.Stderr)
 	}
 }

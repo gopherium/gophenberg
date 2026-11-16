@@ -22,7 +22,7 @@ func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
-	plugin := mustRegister(t, posts, map[string]string{})
+	plugin := mustRegister(t, posts, defaults())
 	host := pluginkit.NewHost(plugin)
 	handler := server.NewServer(server.Config{
 		Plugins:           host.Routes(),
@@ -44,7 +44,7 @@ func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 func mountedFeedLink(t *testing.T, trusted []string, peer string) string {
 	t.Helper()
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
-	host := pluginkit.NewHost(mustRegister(t, posts, map[string]string{}))
+	host := pluginkit.NewHost(mustRegister(t, posts, defaults()))
 	handler := server.NewServer(server.Config{
 		Plugins:           host.Routes(),
 		PluginPublicPaths: host.PublicPaths(),
@@ -90,7 +90,7 @@ func TestFeedHonorsAForwardedProtocolFromATrustedProxy(t *testing.T) {
 func TestFeedStartsAndStopsWithItsHost(t *testing.T) {
 	t.Parallel()
 
-	host := pluginkit.NewHost(mustRegister(t, &stubPosts{}, map[string]string{}))
+	host := pluginkit.NewHost(mustRegister(t, &stubPosts{}, defaults()))
 
 	if err := host.Start(t.Context(), stopGrace); err != nil {
 		t.Fatalf("Start() error = %v, want nil", err)
@@ -104,7 +104,7 @@ func TestFeedStartsAndStopsWithItsHost(t *testing.T) {
 func TestServerStillGuardsTheRestOfThePlugin(t *testing.T) {
 	t.Parallel()
 
-	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+	plugin := mustRegister(t, &stubPosts{}, defaults())
 	host := pluginkit.NewHost(plugin)
 	handler := server.NewServer(server.Config{
 		Plugins:           host.Routes(),

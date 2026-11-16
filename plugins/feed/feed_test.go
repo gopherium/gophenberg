@@ -62,15 +62,62 @@ func samplePost(title, content string) sdk.Item {
 	}
 }
 
-// settingsOf returns a settings reader carrying the given values under the program prefix.
-func settingsOf(values map[string]string) sdk.Env {
-	return sdk.Env{Prefix: "GOPHENBERG_", Getenv: func(key string) string { return values[key] }}
+// fakeSettings lends the feed the texts and counts a test sets, as the site lends a plugin its settings.
+type fakeSettings struct {
+	sdk.HostOnly
+	texts  map[string]string
+	counts map[string]int
 }
 
-// mustRegister registers the feed plugin over the given posts and environment.
-func mustRegister(t *testing.T, posts sdk.ContentReader, values map[string]string) sdk.Plugin {
+// Text returns the text set under key.
+func (f *fakeSettings) Text(key string) string {
+	return f.texts[key]
+}
+
+// Count returns the count set under key.
+func (f *fakeSettings) Count(key string) int {
+	return f.counts[key]
+}
+
+// Flag returns false for every key.
+func (*fakeSettings) Flag(string) bool {
+	return false
+}
+
+// Duration returns zero for every key.
+func (*fakeSettings) Duration(string) time.Duration {
+	return 0
+}
+
+// Lines returns no items for every key.
+func (*fakeSettings) Lines(string) []string {
+	return nil
+}
+
+// Secret returns nothing for every key.
+func (*fakeSettings) Secret(string) string {
+	return ""
+}
+
+// Core returns nothing for every name.
+func (*fakeSettings) Core(string) string {
+	return ""
+}
+
+// settingsOf returns a reader lending title as the feed's title and items as its post count.
+func settingsOf(title string, items int) *fakeSettings {
+	return &fakeSettings{texts: map[string]string{"title": title}, counts: map[string]int{"items": items}}
+}
+
+// defaults returns a reader lending the title and the post count the feed's manifest defaults to.
+func defaults() *fakeSettings {
+	return settingsOf("Gophenberg", 20)
+}
+
+// mustRegister registers the feed plugin over the given posts and settings.
+func mustRegister(t *testing.T, posts sdk.ContentReader, settings sdk.Settings) sdk.Plugin {
 	t.Helper()
-	plugin, err := feed.Register(sdk.Deps{Content: posts, Env: settingsOf(values)})
+	plugin, err := feed.Register(sdk.Deps{Content: posts, Settings: settings})
 	if err != nil {
 		t.Fatalf("Register() error = %v, want nil", err)
 	}
@@ -95,36 +142,42 @@ func serve(t *testing.T, plugin sdk.Plugin) *httptest.ResponseRecorder {
 	return serveRequest(t, plugin, httptest.NewRequest(http.MethodGet, "/rss.xml", nil))
 }
 
+// titleServed asks the plugin for its feed and returns the title of the channel it serves.
+func titleServed(t *testing.T, plugin sdk.Plugin) string {
+	t.Helper()
+	var parsed channel
+	if err := xml.Unmarshal(serve(t, plugin).Body.Bytes(), &parsed); err != nil {
+		t.Fatalf("parsing the feed: %v", err)
+	}
+	return parsed.Title
+}
+
 func TestFeedRegistersUnderItsOwnID(t *testing.T) {
 	t.Parallel()
 
-	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+	plugin := mustRegister(t, &stubPosts{}, defaults())
 
 	if plugin.ID() != "feed" {
 		t.Errorf("ID() = %q, want %q", plugin.ID(), "feed")
 	}
 }
 
-func TestRegisterReadsItsSettingsThroughEnv(t *testing.T) {
+func TestFeedReadsItsTitleAndPostCountOnEachRequest(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{}
-	env := settingsOf(map[string]string{
-		"GOPHENBERG_FEED_TITLE": "  Field Notes  ",
-		"GOPHENBERG_FEED_ITEMS": " 5 ",
-	})
+	settings := settingsOf("Field Notes", 5)
+	plugin := mustRegister(t, posts, settings)
 
-	plugin, err := feed.Register(sdk.Deps{Content: posts, Env: env})
+	first, firstLimit := titleServed(t, plugin), posts.limit
+	settings.texts["title"], settings.counts["items"] = "Trail Notes", 3
+	second, secondLimit := titleServed(t, plugin), posts.limit
 
-	if err != nil {
-		t.Fatalf("Register() error = %v, want the padded settings read trimmed", err)
+	if first != "Field Notes" || firstLimit != 5 {
+		t.Errorf("first request served %q over %d posts, want %q over 5", first, firstLimit, "Field Notes")
 	}
-	var parsed channel
-	if err := xml.Unmarshal(serve(t, plugin).Body.Bytes(), &parsed); err != nil {
-		t.Fatalf("parsing the feed: %v", err)
-	}
-	if parsed.Title != "Field Notes" || posts.limit != 5 {
-		t.Errorf("channel %q over %d posts, want %q over 5", parsed.Title, posts.limit, "Field Notes")
+	if second != "Trail Notes" || secondLimit != 3 {
+		t.Errorf("second request served %q over %d posts, want the changed %q over 3", second, secondLimit, "Trail Notes")
 	}
 }
 
@@ -135,7 +188,7 @@ func TestRegisterOpensNothingEvenWithAnUnreachableDatabase(t *testing.T) {
 	_, err := feed.Register(sdk.Deps{
 		DatabaseURL: "postgres://postgres@192.0.2.1:5432/none?connect_timeout=5",
 		Content:     &stubPosts{},
-		Env:         settingsOf(map[string]string{}),
+		Settings:    defaults(),
 	})
 
 	if took := time.Since(started); err != nil || took > time.Second {
@@ -146,7 +199,7 @@ func TestRegisterOpensNothingEvenWithAnUnreachableDatabase(t *testing.T) {
 func TestStopNeedsNoStart(t *testing.T) {
 	t.Parallel()
 
-	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+	plugin := mustRegister(t, &stubPosts{}, defaults())
 
 	if err := plugin.Stop(t.Context()); err != nil {
 		t.Errorf("Stop() without Start() = %v, want nil", err)
@@ -157,7 +210,7 @@ func TestFeedServesRSSAReaderCanParse(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
-	response := serve(t, mustRegister(t, posts, map[string]string{}))
+	response := serve(t, mustRegister(t, posts, defaults()))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
@@ -177,8 +230,7 @@ func TestFeedServesRSSAReaderCanParse(t *testing.T) {
 func TestFeedNamesItsChannelAndLinksTheSite(t *testing.T) {
 	t.Parallel()
 
-	values := map[string]string{"GOPHENBERG_FEED_TITLE": "The Gophenberg Feed"}
-	response := serve(t, mustRegister(t, &stubPosts{}, values))
+	response := serve(t, mustRegister(t, &stubPosts{}, settingsOf("The Gophenberg Feed", 20)))
 
 	var parsed channel
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
@@ -196,7 +248,7 @@ func TestFeedLinksEachItemAtItsFutureAddress(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
-	response := serve(t, mustRegister(t, posts, map[string]string{}))
+	response := serve(t, mustRegister(t, posts, defaults()))
 
 	var parsed channel
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
@@ -220,7 +272,7 @@ func TestFeedLinksCarryTheHostTheReaderDialed(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/rss.xml", nil)
 	request.Host = "localhost:8081"
 
-	response := serveRequest(t, mustRegister(t, posts, map[string]string{}), request)
+	response := serveRequest(t, mustRegister(t, posts, defaults()), request)
 
 	var parsed channel
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
@@ -240,7 +292,7 @@ func TestFeedInfersHTTPSFromATLSConnection(t *testing.T) {
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	request := httptest.NewRequest(http.MethodGet, "https://example.com/rss.xml", nil)
 
-	response := serveRequest(t, mustRegister(t, posts, map[string]string{}), request)
+	response := serveRequest(t, mustRegister(t, posts, defaults()), request)
 
 	var parsed channel
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
@@ -259,7 +311,7 @@ func TestFeedHonorsTheForwardedProtocol(t *testing.T) {
 	request.Host = "example.com"
 	request.Header.Set("X-Forwarded-Proto", "https")
 
-	response := serveRequest(t, mustRegister(t, posts, map[string]string{}), request)
+	response := serveRequest(t, mustRegister(t, posts, defaults()), request)
 
 	var parsed channel
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
@@ -280,7 +332,7 @@ func TestFeedStripsBlockCommentsFromTheContent(t *testing.T) {
 		"<!-- wp:heading {\"level\":3} -->\n<h3>Heading</h3>\n<!-- /wp:heading -->"
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", content)}}
 
-	response := serve(t, mustRegister(t, posts, map[string]string{}))
+	response := serve(t, mustRegister(t, posts, defaults()))
 
 	body := response.Body.String()
 	if strings.Contains(body, "wp:") {
@@ -304,7 +356,7 @@ func TestFeedStripsDelimitersCarryingAnAngleBracket(t *testing.T) {
 	content := `<!-- wp:heading {"citation":"a > b"} --><h3>Heading</h3><!-- /wp:heading -->`
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", content)}}
 
-	response := serve(t, mustRegister(t, posts, map[string]string{}))
+	response := serve(t, mustRegister(t, posts, defaults()))
 
 	if body := response.Body.String(); strings.Contains(body, "wp:") {
 		t.Errorf("feed carries block comments, want them stripped: %s", body)
@@ -316,45 +368,25 @@ func TestFeedAsksOnlyForPublishedPostsUpToItsCap(t *testing.T) {
 
 	posts := &stubPosts{}
 
-	serve(t, mustRegister(t, posts, map[string]string{}))
+	serve(t, mustRegister(t, posts, defaults()))
 
 	if posts.postType != "post" {
 		t.Errorf("asked for type %q, want %q", posts.postType, "post")
 	}
 	if posts.limit != 20 {
-		t.Errorf("asked for %d posts, want the default cap of 20", posts.limit)
+		t.Errorf("asked for %d posts, want the cap of 20 its settings lend", posts.limit)
 	}
 }
 
-func TestFeedTakesTheCapFromTheEnvironment(t *testing.T) {
+func TestFeedTakesTheCapFromItsSettings(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{}
 
-	serve(t, mustRegister(t, posts, map[string]string{"GOPHENBERG_FEED_ITEMS": "5"}))
+	serve(t, mustRegister(t, posts, settingsOf("Gophenberg", 5)))
 
 	if posts.limit != 5 {
 		t.Errorf("asked for %d posts, want 5", posts.limit)
-	}
-}
-
-func TestRegisterRejectsAMalformedItemsCap(t *testing.T) {
-	t.Parallel()
-
-	for _, raw := range []string{"banana", "0", "-3", "2.5"} {
-		values := map[string]string{"GOPHENBERG_FEED_ITEMS": raw}
-
-		plugin, err := feed.Register(sdk.Deps{Content: &stubPosts{}, Env: settingsOf(values)})
-
-		if err == nil {
-			t.Errorf("Register() with cap %q error = nil, want it loudly refused", raw)
-		}
-		if plugin != nil {
-			t.Errorf("Register() with cap %q = %v, want nil on failure", raw, plugin)
-		}
-		if err != nil && !strings.Contains(err.Error(), "GOPHENBERG_FEED_ITEMS") {
-			t.Errorf("Register() with cap %q error = %v, want it naming the variable", raw, err)
-		}
 	}
 }
 
@@ -363,7 +395,7 @@ func TestFeedReportsPostsItCouldNotRead(t *testing.T) {
 
 	posts := &stubPosts{listErr: errors.New("database down")}
 
-	response := serve(t, mustRegister(t, posts, map[string]string{}))
+	response := serve(t, mustRegister(t, posts, defaults()))
 
 	if response.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", response.Code, http.StatusInternalServerError)
@@ -395,7 +427,7 @@ func TestFeedGivesUpOnAReaderThatWentAway(t *testing.T) {
 	t.Parallel()
 
 	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
-	plugin := mustRegister(t, posts, map[string]string{})
+	plugin := mustRegister(t, posts, defaults())
 	routes, ok := plugin.(interface{ Routes() http.Handler })
 	if !ok {
 		t.Fatal("plugin does not provide routes")
@@ -407,7 +439,7 @@ func TestFeedGivesUpOnAReaderThatWentAway(t *testing.T) {
 func TestFeedLeavesItsAddressReachableWithoutASession(t *testing.T) {
 	t.Parallel()
 
-	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+	plugin := mustRegister(t, &stubPosts{}, defaults())
 
 	public, ok := plugin.(interface{ PublicPaths() []string })
 	if !ok {
