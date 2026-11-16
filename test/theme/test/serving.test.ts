@@ -42,19 +42,19 @@ async function freePort(): Promise<number> {
 }
 
 /**
- * Waits until the theme process answers its readiness probe at all.
+ * Waits until the theme process reports ready on its readiness probe.
  * @param address - The origin the theme answers on.
  */
-async function answering(address: string): Promise<void> {
+async function untilReady(address: string): Promise<void> {
 	for (let attempt = 0; attempt < 50; attempt++) {
-		try {
-			await fetch(`${address}/_gophenberg/health`, { signal: AbortSignal.timeout(1000) })
+		const probe = fetch(`${address}/_gophenberg/health`, { signal: AbortSignal.timeout(1000) })
+		const response = await probe.catch(() => undefined)
+		if (response?.ok) {
 			return
-		} catch {
-			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
+		await new Promise((resolve) => setTimeout(resolve, 100))
 	}
-	throw new Error(`the theme never answered on ${address}`)
+	throw new Error(`the theme never reported ready on ${address}`)
 }
 
 beforeAll(async () => {
@@ -83,9 +83,7 @@ beforeAll(async () => {
 		},
 		stdio: 'ignore',
 	})
-	// The health probe also answers the handshake the kit remembers, as the supervisor's probe does in production,
-	// so a failing page afterwards reads the content API for nothing but its own content.
-	await answering(origin)
+	await untilReady(origin)
 }, 30_000)
 
 afterAll(async () => {
@@ -98,10 +96,11 @@ afterAll(async () => {
 })
 
 describe.skipIf(!built)('the artifact while the content API fails', () => {
-	test('calls the content API once for a request that fails', async () => {
+	test('calls the content API once for a request that fails, its whole error page included', async () => {
 		reads.length = 0
 
 		const response = await fetch(`${origin}/hello-world`)
+		await response.text()
 
 		expect(response.status).toBe(500)
 		expect(reads).toEqual([`${contentApiPath}/resolve?path=%2Fhello-world&per_page=2`])
@@ -111,5 +110,16 @@ describe.skipIf(!built)('the artifact while the content API fails', () => {
 		const response = await fetch(`${origin}/hello-world`)
 
 		expect(await response.text()).toContain('Something went wrong')
+	})
+
+	test('answers a direct request for /500 with the 404 page, reading no content', async () => {
+		reads.length = 0
+
+		const response = await fetch(`${origin}/500`)
+		const body = await response.text()
+
+		expect(response.status).toBe(404)
+		expect(body).toContain('No page lives at this address.')
+		expect(reads).toEqual([])
 	})
 })
