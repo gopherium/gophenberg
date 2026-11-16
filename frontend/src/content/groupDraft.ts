@@ -251,6 +251,21 @@ function settled<T>(part: DraftPart, sides: Sides<T>, same: (one: T, other: T) =
 }
 
 /**
+ * Returns the Linked from field a group holds under a key with the source it reads, while the pickers can point it.
+ * @param group - The group as saved elsewhere.
+ * @param key - The key of the Linked from field.
+ * @returns The field and its source, or nothing when the group holds no such field or the pickers cannot point it.
+ */
+function savedLink(group: FieldGroup, key: string): { field: ContentField; source: BacklinkPick } | null {
+	const field = linkedField(group, key)
+	if (field === undefined) {
+		return null
+	}
+	const source = pickOf(field)
+	return source === null ? null : { field, source }
+}
+
+/**
  * Returns the picks of a draft moved onto the saved version, each kept pick on the source and stamp saved.
  * @param links - The picks the draft holds.
  * @param saved - The group as saved elsewhere.
@@ -259,14 +274,14 @@ function settled<T>(part: DraftPart, sides: Sides<T>, same: (one: T, other: T) =
  */
 function rebasedLinks(links: Record<string, LinkPick>, saved: FieldGroup, lost: DraftPart[]): Record<string, LinkPick> {
 	const kept: Record<string, LinkPick> = {}
-	for (const [key, pick] of Object.entries(links)) {
-		const field = linkedField(saved, key)
-		const theirs = field === undefined ? null : pickOf(field)
-		if (field === undefined || theirs === null || !moves(pick)) {
+	const moving = Object.entries(links).filter(([, pick]) => moves(pick))
+	for (const [key, pick] of moving) {
+		const theirs = savedLink(saved, key)
+		if (theirs === null) {
 			continue
 		}
-		if (samePick(theirs, pick.was) || samePick(theirs, pick)) {
-			kept[key] = { group: pick.group, field: pick.field, was: theirs, updatedAt: field.updatedAt }
+		if (samePick(theirs.source, pick.was) || samePick(theirs.source, pick)) {
+			kept[key] = { group: pick.group, field: pick.field, was: theirs.source, updatedAt: theirs.field.updatedAt }
 		} else {
 			lost.push(linkPart(key))
 		}

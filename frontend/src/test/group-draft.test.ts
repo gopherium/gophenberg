@@ -241,3 +241,23 @@ test('drops a pick whose field the saved version no longer holds', () => {
 	expect(moved.draft.links).toEqual({})
 	expect(moved.lost).toEqual([])
 })
+
+const UNKEPT = [
+	{
+		picked: 'a pick pointed back to the source its field read',
+		draft: withPick(draftOf(BASE), LINKED, { group: 'cars', field: 'maker' }),
+		saved: linkedAs(BASE, LINKED.settings, NEWER_STAMP),
+	},
+	{
+		picked: 'a pick whose saved field reads through more than one relation',
+		draft: withPick(draftOf(BASE), LINKED, { group: 'cars', field: 'rival' }),
+		saved: linkedAs(BASE, { source_group: 'cars', source_field: ['maker', 'driver'] }, NEWER_STAMP),
+	},
+]
+
+test.each(UNKEPT)('drops $picked once the draft moves onto the saved version, naming no part lost', (asked) => {
+	const moved = rebased(BASE, asked.draft, asked.saved)
+
+	expect(moved.draft.links).toEqual({})
+	expect(moved.lost).toEqual([])
+})
