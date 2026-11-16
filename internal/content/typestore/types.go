@@ -201,9 +201,18 @@ func (s *Store) updateTypeFailure(err error) error {
 	return fmt.Errorf("%s: update content type: %w", s.backend.Engine, err)
 }
 
+// rootHolder returns the type holding the root once a hand over in flight has ended, locked.
+func rootHolder(ctx context.Context, queries Queries) (TypeRow, error) {
+	row, err := queries.LockDefaultContentType(ctx)
+	if !errors.Is(err, sql.ErrNoRows) {
+		return row, err
+	}
+	return queries.LockDefaultContentType(ctx)
+}
+
 // handRootOver moves the type holding the root under a word of its own.
 func handRootOver(ctx context.Context, queries Queries, at time.Time) error {
-	row, err := queries.LockDefaultContentType(ctx)
+	row, err := rootHolder(ctx, queries)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}

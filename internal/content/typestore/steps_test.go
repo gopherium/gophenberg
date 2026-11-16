@@ -182,7 +182,7 @@ var typeArms = map[string]arm{
 			return valued(s.Update(ctx, rootBook(true)))
 		},
 		log: []step{
-			begun, sent("LockContentType", keyed{"book"}), lockedRoot,
+			begun, sent("LockContentType", keyed{"book"}), lockedRoot, lockedRoot,
 			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
