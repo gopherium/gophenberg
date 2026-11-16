@@ -16,6 +16,7 @@ internal/content      content domain package
 internal/postgres     data access (pgx + sqlc)
 internal/sqlite       data access on a sqlite: address (dbkit/sqlite + sqlc), the opener and its settings
 internal/contentbridge published content as the sdk ContentReader seam
+internal/pluginsettings plugin.json settings from the environment then the default, as the sdk Settings seam
 internal/cron         runs named jobs when due, under a lease, with no product words
 internal/publichtml   sanitizer for stored block markup on public surfaces
 internal/publicsite   built-in Go renderer for the public site
