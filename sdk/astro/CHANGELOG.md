@@ -11,6 +11,23 @@ npm-style tag stays invisible to the Go toolchain, unlike a
 `sdk/astro/vX.Y.Z` tag naming the directory as a module. Versions
 through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
+## [Unreleased]
+
+### Added
+
+- The kit injects a 500 page, which renders the theme's optional `ServerError` layout or a plain page inside `Base`.
+
+### Changed
+
+- A direct request for `/500` shows the 404 page, even when an item is stored there.
+- A theme's own `src/pages/500.astro` now collides with the kit's 500 page. Write a `ServerError` layout instead.
+
+### Fixed
+
+- A page that fails no longer reads the content API again to render the 500 page.
+- A page whose frontmatter throws shows the 500 page, no longer the 404 page.
+- The 404 page the kit falls back to carries the title `Not found`.
+
 ## [0.16.0] - 2026-11-06
 
 ### Changed
