@@ -334,15 +334,17 @@ WHERE content_id = @content_id AND kind = 'autosave'
 
 -- name: ContentDepth :one
 WITH RECURSIVE below AS (
-    SELECT c.id, 0 AS level
+    SELECT c.id, 0 AS level, ',' || c.id || ',' AS trail, 0 AS looped
     FROM core_content c
     WHERE c.id = @id
-    UNION ALL
-    SELECT child.id, below.level + 1
+  UNION ALL
+    SELECT child.id, below.level + 1, below.trail || child.id || ',',
+        instr(below.trail, ',' || child.id || ',') > 0
     FROM core_content child
     JOIN below ON child.parent_id = below.id
+    WHERE NOT below.looped
 )
-SELECT CAST(coalesce(max(level), 0) AS INTEGER) FROM below;
+SELECT CAST(coalesce(max(level), 0) AS INTEGER) FROM below WHERE NOT looped;
 
 -- name: LockContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,

@@ -187,6 +187,21 @@ func TestContentDepthCountsTheLevelsBelowAnItem(t *testing.T) {
 	}
 }
 
+func TestContentDepthStopsAtAPlantedLoop(t *testing.T) {
+	t.Parallel()
+
+	tree := newPageTree(t)
+	tree.plantLoop(t)
+	ctx, cancel := context.WithTimeout(t.Context(), loopWait)
+	defer cancel()
+
+	for title, want := range map[string]int{"About": 2, "Team": 1, "Deep": 0, "Contact": 1, "Directions": 0} {
+		if got, err := tree.store.Depth(ctx, tree.pages[title].ID); err != nil || got != want {
+			t.Errorf("Depth(%s) over a planted loop = %d, %v, want %d counted up to the loop", title, got, err, want)
+		}
+	}
+}
+
 func TestContentChildrenCountsTheItemsRightBelowAndKeepsTheirParentOutOfTheTrash(t *testing.T) {
 	t.Parallel()
 

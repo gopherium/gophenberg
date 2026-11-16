@@ -55,15 +55,17 @@ func (q *Queries) ClearRelationsOfField(ctx context.Context, arg ClearRelationsO
 
 const ContentDepth = `-- name: ContentDepth :one
 WITH RECURSIVE below AS (
-    SELECT c.id, 0 AS level
+    SELECT c.id, 0 AS level, ',' || c.id || ',' AS trail, 0 AS looped
     FROM core_content c
     WHERE c.id = ?1
-    UNION ALL
-    SELECT child.id, below.level + 1
+  UNION ALL
+    SELECT child.id, below.level + 1, below.trail || child.id || ',',
+        instr(below.trail, ',' || child.id || ',') > 0
     FROM core_content child
     JOIN below ON child.parent_id = below.id
+    WHERE NOT below.looped
 )
-SELECT CAST(coalesce(max(level), 0) AS INTEGER) FROM below
+SELECT CAST(coalesce(max(level), 0) AS INTEGER) FROM below WHERE NOT looped
 `
 
 func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int64, error) {
