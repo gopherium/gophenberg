@@ -46,10 +46,19 @@ export function FieldGroupScreen() {
 function GroupScreen(props: { groupId: string }) {
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
-	const held = groups.data?.find((listed) => String(listed.id) === props.groupId)
+	const listed = groups.data ?? []
+	const held = listed.find((group) => String(group.id) === props.groupId)
 	const origin = held?.origin ?? ''
-	if (groups.data !== undefined && held !== undefined && origin === '') {
-		return <SiteGroupPage held={held} groups={groups.data} types={types.data ?? []} failed={groups.isError} />
+	if (held !== undefined && origin === '') {
+		return (
+			<SiteGroupPage
+				held={held}
+				groups={listed}
+				types={types.data}
+				failed={groups.isError}
+				typesFailed={types.isError}
+			/>
+		)
 	}
 	return (
 		<GroupPage title={titleOf(held?.title)}>
@@ -108,19 +117,21 @@ function overlapsOf(held: FieldGroup, groups: FieldGroup[], types: ContentType[]
 interface SiteGroupProps {
 	held: FieldGroup
 	groups: FieldGroup[]
-	types: ContentType[]
+	types: ContentType[] | undefined
 	failed: boolean
+	typesFailed: boolean
 }
 
 /**
  * Renders the page of a group the site declared: its fields, its details beside them and the header Save.
- * @param props - The group, every group read, the types, and whether the last read of the groups failed.
+ * @param props - The group, every group read, the types last read, and whether the last read of each failed.
  * @returns The page element.
  */
 function SiteGroupPage(props: SiteGroupProps) {
 	const form = useId()
+	const types = props.types ?? []
 	const details = useGroupDetails(props.held, props.groups)
-	const overlaps = overlapsOf(props.held, props.groups, props.types)
+	const overlaps = overlapsOf(props.held, props.groups, types)
 	const losing = new Set(overlaps.filter((overlap) => overlap.loserID === props.held.id).map((overlap) => overlap.key))
 	const blank = details.draft.title.trim() === ''
 	return (
@@ -137,7 +148,7 @@ function SiteGroupPage(props: SiteGroupProps) {
 					{__('Save', 'gophenberg')}
 				</Button>
 			}
-			aside={<GroupDetails form={form} held={props.held} groups={props.groups} types={props.types} details={details} />}
+			aside={<GroupDetails form={form} held={props.held} groups={props.groups} types={types} details={details} />}
 		>
 			<SaveNotices held={props.held} details={details} />
 			{overlaps.map((overlap) => (
@@ -146,7 +157,8 @@ function SiteGroupPage(props: SiteGroupProps) {
 				</Notice.Root>
 			))}
 			{props.failed && <ReadFailure />}
-			<GroupFields held={props.held} groups={props.groups} types={props.types} shadowed={losing} />
+			{props.typesFailed && <TypesFailure read={props.types !== undefined} />}
+			<GroupFields held={props.held} groups={props.groups} types={types} shadowed={losing} />
 			<UnsavedChangesDialog
 				when={details.changed}
 				title={__('Discard changes?', 'gophenberg')}
@@ -164,6 +176,25 @@ function SiteGroupPage(props: SiteGroupProps) {
  */
 function ReadFailure() {
 	return <ErrorNotice>{__('The field groups could not be loaded.', 'gophenberg')}</ErrorNotice>
+}
+
+/**
+ * Renders the notice that the content types could not be read, for the page of one group.
+ * @param props - Whether an earlier read of the types held, so what the page shows may only be out of date.
+ * @returns The notice element.
+ */
+function TypesFailure(props: { read: boolean }) {
+	const lost = __(
+		'The content types could not be loaded, so where this group appears, which fields it shadows ' +
+			'and what a relation can point at are not shown.',
+		'gophenberg',
+	)
+	const stale = __(
+		'The content types could not be refreshed, so where this group appears, which fields it shadows ' +
+			'and what a relation can point at may be out of date.',
+		'gophenberg',
+	)
+	return <ErrorNotice>{props.read ? stale : lost}</ErrorNotice>
 }
 
 /** What the page of a group with nothing to edit reads. */
