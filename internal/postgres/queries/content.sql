@@ -312,12 +312,12 @@ WITH RECURSIVE below AS (
     SELECT c.id, 0 AS level
     FROM core.content c
     WHERE c.id = @id
-    UNION ALL
+  UNION ALL
     SELECT child.id, below.level + 1
     FROM core.content child
     JOIN below ON child.parent_id = below.id
-)
-SELECT coalesce(max(level), 0)::int FROM below;
+) CYCLE id SET looped USING trail
+SELECT coalesce(max(level), 0)::int FROM below WHERE NOT looped;
 
 -- name: LockContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
