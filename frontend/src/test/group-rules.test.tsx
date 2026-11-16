@@ -12,7 +12,7 @@ import type { FieldGroup } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
-import { expectReadOnly, waitBusy } from './typeFixtures'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -369,7 +369,7 @@ test('reports why the rules were turned away and keeps them on screen', async ()
 	const said = 'content: another group already claims those items'
 	expect(await within(screen.getByRole('main')).findByRole('alert')).toHaveTextContent(said)
 	expect(within(details).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
-	expect(screen.queryByText(said, { selector: '.godmin-toast' })).not.toBeInTheDocument()
+	expect(await findToast(`Could not save the field group. ${said}`)).toBeInTheDocument()
 })
 
 test('abandons the edits when the page is left and they are discarded', async () => {
