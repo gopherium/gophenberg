@@ -111,8 +111,8 @@ so it takes the default.
 | `GOPHENBERG_UPDATE_ATTEMPTS` | No | `3` | How many times the build an update switched to may try to start. The next start goes back to the build before it, or stays down when the update raised the minimum version and its new build reached the database |
 | `GOPHENBERG_UPDATE_VERIFY_TIMEOUT` | No | `1m` | How long the first start of a new build has to check itself: the server listens, then `/admin/` and `/api/locale` answer 200 and `/` answers below 500 over loopback. `server:install` reads its own from [the server settings](#the-server-settings) |
 | `GOPHENBERG_UPDATE_VERSIONS_KEEP` | No | `2` | How many of the newest builds the `versions` folder keeps once a new build passes its check. The builds the `current` and `previous` links name always stay |
-| `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
-| `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
+| `GOPHENBERG_PLUGIN_FEED__TITLE` | No | `Gophenberg` | The RSS channel title, a [plugin setting](#plugin-settings) |
+| `GOPHENBERG_PLUGIN_FEED__ITEMS` | No | `20` | How many posts the RSS feed carries, a [plugin setting](#plugin-settings) |
 
 Three rows deserve a warning:
 
@@ -133,6 +133,37 @@ address nothing holds, a file that is missing or a request the server
 refused is never kept by any cache, however the windows are set. An
 answer to a signed in account is never kept by any cache either, not
 even that person's own browser.
+
+## Plugin settings
+
+A plugin reads the settings its `plugin.json` lists, and each one has
+a variable of its own. Its name is `GOPHENBERG_PLUGIN_`, the plugin's
+id in capitals with each hyphen written as an underscore, two
+underscores, and the setting's key in capitals:
+
+| Plugin id | Key | Variable |
+| --- | --- | --- |
+| `feed` | `title` | `GOPHENBERG_PLUGIN_FEED__TITLE` |
+| `feed` | `items` | `GOPHENBERG_PLUGIN_FEED__ITEMS` |
+| `events-pro` | `max_seats` | `GOPHENBERG_PLUGIN_EVENTS_PRO__MAX_SEATS` |
+
+The two underscores keep these names apart from the site's own
+`GOPHENBERG_PLUGIN_` settings in the table above, such as
+`GOPHENBERG_PLUGIN_DB_CONNS`, which never hold two in a row.
+
+A variable left out or left empty takes the default the plugin's
+manifest gives, or reads empty when it gives none. So a line
+`GOPHENBERG_PLUGIN_FEED__TITLE=` left in `.env` keeps the title
+`Gophenberg`. A plugin's secret, such as an API key, is the one value
+the site does not trim. It is taken exactly as the environment holds
+it.
+
+The site reads these variables when it starts, so a change applies at
+the next start. A value the setting's type rejects, such as a word
+where a number belongs, pauses that plugin with a reason that names
+the variable, and the rest of the site starts, see
+[a plugin that fails at start](#a-plugin-that-fails-at-start).
+`gophenberg check` fails on the same value before a rollout.
 
 ## The PostgreSQL server
 
@@ -1203,8 +1234,10 @@ At every start, `serve` takes the active and paused plugins one by
 one. It pauses a plugin at the first of these steps that returns an
 error or panics, and the rest of the site starts and serves:
 
-- `register`, when its `Register` runs, or when its `ID()` returns
-  anything but the `id` in its manifest
+- `register`, when its `Register` runs, when its `ID()` returns
+  anything but the `id` in its manifest, or when the settings its
+  manifest lists or a value set for one break the rules, see
+  [plugin settings](#plugin-settings)
 - `roles`, when it declares its roles
 - `types`, when it declares its content types
 - `hooks`, when the hooks its manifest lists under `hooks` do not
@@ -1226,10 +1259,11 @@ While a plugin is paused:
   of them to adopt.
 
 `serve` logs each pause as a warning that names the plugin, the step
-and the error. With `GOPHENBERG_FEED_ITEMS=banana`, the line reads:
+and the error. With `GOPHENBERG_PLUGIN_FEED__ITEMS=banana`, the line
+reads:
 
 ```text
-time=2026-11-08T09:30:12.345Z level=WARN msg="plugin paused" plugin=feed step=register error="pluginkit: feed register: GOPHENBERG_FEED_ITEMS: must be a whole number, got \"banana\""
+time=2026-11-08T09:30:12.345Z level=WARN msg="plugin paused" plugin=feed step=register error="pluginkit: feed register: GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got \"banana\""
 ```
 
 Every start tries a paused plugin again. Once it starts, it is

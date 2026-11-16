@@ -26,7 +26,14 @@ func Main(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps,
 
 // Program returns the gophenberg command line over getenv and the compiled plugins, with no manifest index.
 func Program(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin]) gonsole.Program {
-	return commandLine(getenv, binary{plugins: plugins, stamp: version.Stamp()}, &exitCodes{})
+	return ProgramWithIndex(getenv, plugins, nil)
+}
+
+// ProgramWithIndex returns the gophenberg command line over getenv, the compiled plugins and their manifest index.
+func ProgramWithIndex(
+	getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin], index []byte,
+) gonsole.Program {
+	return commandLine(getenv, binary{plugins: plugins, index: index, stamp: version.Stamp()}, &exitCodes{})
 }
 
 // commandLine returns the command line of the binary given, keeping in exits the code a run asks for.
@@ -49,7 +56,7 @@ func commandLine(getenv func(string) string, compiled binary, exits *exitCodes) 
 		Migrations: migrations(getenv),
 		Seed:       postgresOnly(getenv, "seed", composed.seed),
 		Commands:   coreCommands(accountCommands, installs...),
-		Plugins:    loadPlugins(compiled.plugins, roles, composed),
+		Plugins:    loadPlugins(compiled, roles, composed),
 		Authorize:  accounts.Authorize(accountCommands),
 		Record:     accounts.Record(accountCommands),
 	}

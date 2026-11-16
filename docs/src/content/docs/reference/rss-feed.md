@@ -34,20 +34,28 @@ is set correctly for your proxy.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `GOPHENBERG_FEED_TITLE` | `Gophenberg` | The channel title feed readers display |
-| `GOPHENBERG_FEED_ITEMS` | `20` | How many posts the feed carries |
+| `GOPHENBERG_PLUGIN_FEED__TITLE` | `Gophenberg` | The channel title feed readers display |
+| `GOPHENBERG_PLUGIN_FEED__ITEMS` | `20` | How many posts the feed carries |
 
-`GOPHENBERG_FEED_ITEMS` must be a positive whole number. With
-anything else, the server pauses the feed when it starts and serves
-the rest of the site. The feed's address answers 404 until you fix
-the value and restart the server, see
+Both are the feed's
+[plugin settings](/self-hosting/configuration/#plugin-settings), so an
+empty variable keeps the default. Before, they were
+`GOPHENBERG_FEED_TITLE` and `GOPHENBERG_FEED_ITEMS`. Those names no
+longer apply, so a site that still sets them gets the default title
+and 20 posts until you rename them.
+
+Unless it is empty, `GOPHENBERG_PLUGIN_FEED__ITEMS` must be a
+positive whole number. With any other value, the server pauses the
+feed when it starts and serves the rest of the site. The feed's
+address answers 404 until you fix the value and restart the server,
+see
 [a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
 
 `check`, `migrate` and `seed -yes` still fail on a bad value. With
 `banana` as the value, `check` prints:
 
 ```text
-gophenberg: pluginkit: feed register: GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"
+gophenberg: pluginkit: feed register: GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"
 ```
 
 The command listing still works. It shows the feed under

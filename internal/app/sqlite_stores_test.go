@@ -131,7 +131,7 @@ func TestDescribingThePluginsOnSQLiteOpensNoDatabase(t *testing.T) {
 		Describe: true,
 	}
 
-	loaded, err := loadPlugins(keeping(&keeper{}), goncierge.New(), &sitePool{})(t.Context(), call)
+	loaded, err := loadPlugins(binary{plugins: keeping(&keeper{})}, goncierge.New(), &sitePool{})(t.Context(), call)
 
 	if err != nil {
 		t.Fatalf("loadPlugins() error = %v, want the plugins described with no database opened", err)

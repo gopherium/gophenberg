@@ -53,6 +53,26 @@ func TestConfigRefusesAPluginIDTheCommandLineKeeps(t *testing.T) {
 	}
 }
 
+func TestConfigRejectsAPluginIDWhoseSettingsWouldReadOneUnderscoreFromACorePluginSetting(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"db", "query", "tx", "start", "hook", "hook-save", "hook-timed"} {
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			writePlugin(t, root, id, fmt.Sprintf(
+				`{"id": %q, "name": "Near", "backend": "github.com/gopherium/gophenberg/plugins/%s"}`, id, id))
+
+			err := wire.Run(root, config)
+
+			if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("id %q is reserved", id)) {
+				t.Errorf("wire.Run() error = %v, want the id %q rejected as reserved", err, id)
+			}
+		})
+	}
+}
+
 func TestRepositoryWiringIsUpToDate(t *testing.T) {
 	t.Parallel()
 

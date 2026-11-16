@@ -5,14 +5,15 @@ package app
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
 )
 
-// loadPlugins returns the plugin registration, declaring roles into roles and keeping the site's handle in composed.
+// loadPlugins returns the registration of the binary's plugins, declaring roles and keeping the handle in composed.
 func loadPlugins(
-	plugins registrations, roles *goncierge.Registry, composed *sitePool,
+	compiled binary, roles *goncierge.Registry, composed *sitePool,
 ) func(context.Context, gonsole.Call) (gonsole.Loaded, error) {
 	return func(ctx context.Context, call gonsole.Call) (gonsole.Loaded, error) {
 		grace, err := call.Env.Duration("SHUTDOWN_STOP_GRACE", servingDefaults.StopGrace)
@@ -23,6 +24,10 @@ func loadPlugins(
 		if err != nil {
 			return gonsole.Loaded{}, err
 		}
+		index, err := indexOf(compiled.index)
+		if err != nil {
+			return gonsole.Loaded{}, err
+		}
 		databaseURL, handle, err := databaseOf(ctx, call)
 		if err != nil {
 			return gonsole.Loaded{}, err
@@ -30,8 +35,9 @@ func loadPlugins(
 		cfg := composeConfig{
 			databaseURL: databaseURL, handle: handle, describe: call.Describe, fieldDepth: depth,
 			mediaDir: mediaDirFrom(call.Env), getenv: call.Env.Getenv, roles: roles,
+			settings: index.settings, logger: slog.New(slog.NewTextHandler(call.Stderr, nil)),
 		}
-		built, err := compose(cfg, plugins)
+		built, err := compose(cfg, compiled.plugins)
 		if err != nil {
 			return gonsole.Loaded{}, err
 		}

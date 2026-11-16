@@ -73,7 +73,7 @@ Every command is described at https://docs.gophenberg.org/self-hosting/commands/
 - A heading with the word `plugin` beside it holds the commands one
   plugin offers. They are named after the plugin's id.
 - A `Not loaded:` part at the end names each plugin that failed to
-  register, and why, such as a bad `GOPHENBERG_FEED_ITEMS`. The
+  register, and why, such as a bad `GOPHENBERG_PLUGIN_FEED__ITEMS`. The
   listing still exits with code 0, but `check`, `migrate`,
   `seed -yes` and every account command except `account:list` and
   `account:records` fail until the setting is fixed. `serve` pauses

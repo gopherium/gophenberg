@@ -25,6 +25,7 @@ var config = wire.Config{
 	Reserved: []string{
 		"help", "list", "version", "check", "serve", "migrate", "seed", "account", "about", role.Source,
 		"update", "server", "plugin", "theme", "setup", "build", "health",
+		"db", "query", "tx", "start", "hook", "hook-save", "hook-timed",
 	},
 }
 

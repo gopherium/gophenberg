@@ -22,13 +22,34 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 
 | Field | Rules |
 | --- | --- |
-| `id` | Required. Lowercase letters, digits, and hyphens, starting with a letter. Must equal the directory name and what the plugin's `ID()` returns |
+| `id` | Required. Lowercase letters, digits, and hyphens, starting with a letter. Must equal the directory name and what the plugin's `ID()` returns. The id of a plugin with settings must not hold two hyphens in a row or end with one |
 | `name` | Required. The human readable name |
 | `backend` | The Go import path of the plugin package |
 | `frontend` | The package name of an admin screen, if any |
 | `hooks` | The [hooks](/extending/the-plugin-sdk/#hooks) the plugin joins, each one a method it has. `serve` pauses a plugin whose list does not match its methods |
+| `settings` | The [settings](/extending/the-plugin-sdk/#settings) the plugin reads. Each has a `key`, a `type` and, for most types, a `default` written as text. A `count` may add `min` and `max`, a `choice` lists its `options`, and `label` and `help` describe it in plain words. `serve` pauses a plugin whose settings break the rules |
 
 At least one of `backend` and `frontend` is required.
+
+A plugin that reads settings lists them under `settings`. The feed
+lists its two:
+
+```json
+{
+  "id": "feed",
+  "name": "Feed",
+  "backend": "github.com/gopherium/gophenberg/plugins/feed",
+  "hooks": ["public.head-tags"],
+  "settings": [
+    { "key": "title", "type": "text", "default": "Gophenberg", "label": "Feed title", "help": "The channel title feed readers display" },
+    { "key": "items", "type": "count", "default": "20", "min": 1, "label": "Posts in the feed", "help": "How many posts the feed carries" }
+  ]
+}
+```
+
+The site reads `title` from `GOPHENBERG_PLUGIN_FEED__TITLE` and
+`items` from `GOPHENBERG_PLUGIN_FEED__ITEMS`, and takes each default
+when the variable is unset.
 
 A few ids are refused because they would clash with names in the
 generated wiring, such as a Go keyword, `err` or `plugins`. The
@@ -38,6 +59,14 @@ list them all. The id also names the plugin's commands, so
 `account`, `about`, `update`, `server`, `plugin`, `theme`, `setup`,
 `build` and `health` are refused too. Those names belong to the
 command line.
+
+The ids `db`, `query`, `tx`, `start`, `hook`, `hook-save` and
+`hook-timed` are rejected as well. A plugin under one of them would
+read its settings one underscore away from one of the core's
+`GOPHENBERG_PLUGIN_` settings. A plugin `hook` with the setting
+`budget` would read `GOPHENBERG_PLUGIN_HOOK__BUDGET`, beside the
+core's `GOPHENBERG_PLUGIN_HOOK_BUDGET`, so one typo in `.env` would
+set the wrong one.
 
 ## 2. The package
 
@@ -126,11 +155,13 @@ settings and command names without touching the database.
   `lock.NewPostgresSessionLocker()`. Every core schema step waits
   for that same Postgres lock, so two processes never apply your
   migrations together.
-- **Configuration** arrives through `deps.Env`, which reads the
-  settings under the `GOPHENBERG_` prefix. The feed reads
-  `GOPHENBERG_FEED_TITLE` and `GOPHENBERG_FEED_ITEMS` through
-  `deps.Env.Within("FEED_")`. `deps.Getenv` still reads any other
-  environment variable.
+- **Configuration** arrives through `deps.Settings`, which reads the
+  settings the plugin lists in its `plugin.json`. The feed keeps it
+  and reads `Text("title")` and `Count("items")` on each request. An
+  operator sets them as `GOPHENBERG_PLUGIN_FEED__TITLE` and
+  `GOPHENBERG_PLUGIN_FEED__ITEMS`. The
+  [plugin SDK](/extending/the-plugin-sdk/#settings) page lists the
+  seven types and the rules.
 - **Commands**: implement `Commands() []sdk.Command` and the
   `gophenberg` command line offers them as `hello:<command>`. The
   [plugin SDK](/extending/the-plugin-sdk/#commands) page shows one.

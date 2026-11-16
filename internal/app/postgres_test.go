@@ -197,7 +197,7 @@ func TestADescribingCallRegistersThePluginsOverAnAddressDbkitRefuses(t *testing.
 				Env: settingsEnv(testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": address})), Describe: true,
 			}
 
-			loaded, err := loadPlugins(keeping(k), goncierge.New(), &sitePool{})(t.Context(), call)
+			loaded, err := loadPlugins(binary{plugins: keeping(k)}, goncierge.New(), &sitePool{})(t.Context(), call)
 			if err != nil {
 				t.Fatalf("loadPlugins() while describing = %v, want the plugins registered", err)
 			}

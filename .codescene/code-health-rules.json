@@ -69,6 +69,12 @@
       "rules": [
         { "name": "Large Method", "weight": 0.0 }
       ]
+    },
+    {
+      "matching_content_path": "internal/pluginsettings/reader.go",
+      "rules": [
+        { "name": "String Heavy Function Arguments", "weight": 0.0 }
+      ]
     }
   ]
 }
