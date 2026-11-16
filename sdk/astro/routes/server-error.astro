@@ -5,6 +5,10 @@ import { theme } from 'virtual:gophenberg/theme'
 
 export const prerender = false
 
+if (!('error' in Astro.props)) {
+	return Astro.rewrite('/404')
+}
+
 const ServerError = theme.layouts.ServerError
 ---
 
