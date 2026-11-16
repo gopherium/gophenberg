@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/dbkit v0.3.0
 	github.com/gopherium/framework/dbkit/postgres v0.4.0
-	github.com/gopherium/framework/dbkit/sqlite v0.4.1-0.20261114214001-4933b8cc1a18
+	github.com/gopherium/framework/dbkit/sqlite v0.4.1-0.20261116212118-1570fe86ca39
 	github.com/gopherium/framework/goncierge v0.1.0
 	github.com/gopherium/framework/gonsole v0.9.0
 	github.com/gopherium/framework/gonsole/auth v0.9.0
@@ -114,10 +114,10 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.61.1 // indirect
+	modernc.org/sqlite v1.62.0 // indirect
 )
 
 replace github.com/gopherium/gophenberg/sdk => ./sdk
