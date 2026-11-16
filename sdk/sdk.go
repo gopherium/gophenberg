@@ -41,8 +41,7 @@ type Deps struct {
 	DB          DB
 	Content     ContentReader
 	Accounts    AccountReader
-	Getenv      func(string) string
-	Env         Env
+	Settings    Settings
 }
 
 // Item is a published content item as plugins see it: the Content field holds sanitized block HTML, and
