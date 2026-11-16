@@ -40,13 +40,14 @@ describe('defineTheme', () => {
 })
 
 describe('the contract a theme declares', () => {
-	test('asks for the four layouts the routes render through, and one the kit falls back for', () => {
+	test('asks for the four layouts the routes render through, and two the kit falls back for', () => {
 		expectTypeOf<ThemeLayouts>().toEqualTypeOf<{
 			Base: AstroComponentFactory
 			Post: AstroComponentFactory
 			Archive: AstroComponentFactory
 			Term: AstroComponentFactory
 			NotFound?: AstroComponentFactory
+			ServerError?: AstroComponentFactory
 		}>()
 	})
 

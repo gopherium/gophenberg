@@ -236,6 +236,7 @@ describe('the routes it injects', () => {
 			'/': `${kitName}/routes/content.astro`,
 			'/[...path]': `${kitName}/routes/content.astro`,
 			'/404': `${kitName}/routes/not-found.astro`,
+			'/500': `${kitName}/routes/server-error.astro`,
 			'/_gophenberg/health': `${kitName}/routes/health.ts`,
 		})
 	})

@@ -7,6 +7,15 @@ import { GophenbergClient } from '@gophenberg/astro'
 import type { Resolved } from '@gophenberg/astro'
 import Content from '@gophenberg/astro/routes/content.astro'
 import NotFound from '@gophenberg/astro/routes/not-found.astro'
+import ServerError from '@gophenberg/astro/routes/server-error.astro'
+
+import theme from '../src/theme.ts'
+
+/** The NotFound layout the starter names. */
+const starterNotFound = theme.layouts.NotFound
+
+/** The props Astro hands the 500 route when a page fails. */
+const failed = { props: { error: new Error('down') } }
 
 /** The published item the route renders after resolving its address. */
 const resolved: Resolved = {
@@ -36,6 +45,8 @@ const resolved: Resolved = {
 }
 
 afterEach(() => {
+	delete theme.layouts.ServerError
+	theme.layouts.NotFound = starterNotFound
 	vi.restoreAllMocks()
 	vi.unstubAllGlobals()
 	vi.unstubAllEnvs()
@@ -84,5 +95,60 @@ describe('the public address the injected content route resolves', () => {
 		})
 
 		expect(html).toContain('Published body')
+	})
+})
+
+describe('the page the injected 500 route serves', () => {
+	test('falls back to a page in the Base layout when the theme names no ServerError', async () => {
+		const resolve = vi.spyOn(GophenbergClient.prototype, 'resolve')
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(ServerError, failed)
+
+		expect(html).toContain('<title>Something went wrong | Gophenberg Starter</title>')
+		expect(resolve).not.toHaveBeenCalled()
+	})
+
+	test('renders the ServerError layout a theme names', async () => {
+		theme.layouts.ServerError = theme.layouts.NotFound
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(ServerError, failed)
+
+		expect(html).toContain('No page lives at this address.')
+		expect(html).not.toContain('Something went wrong')
+	})
+
+	test('falls back to the 500 page for a failure that carries no error value', async () => {
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(ServerError, { props: { error: null } })
+
+		expect(html).toContain('<title>Something went wrong | Gophenberg Starter</title>')
+	})
+
+	test('answers a direct request with the 404 page, reading no content', async () => {
+		const resolve = vi.spyOn(GophenbergClient.prototype, 'resolve')
+		const container = await AstroContainer.create()
+		container.insertPageRoute('/404', NotFound)
+
+		const html = await container.renderToString(ServerError)
+
+		expect(html).toContain('No page lives at this address.')
+		expect(html).not.toContain('Something went wrong')
+		expect(resolve).not.toHaveBeenCalled()
+	})
+})
+
+describe('the page the injected 404 route serves', () => {
+	test('falls back to a page titled Not found in the Base layout when the theme names no NotFound', async () => {
+		delete theme.layouts.NotFound
+		const container = await AstroContainer.create()
+
+		const html = await container.renderToString(NotFound)
+
+		expect(html).toContain('<title>Not found | Gophenberg Starter</title>')
+		expect(html).toContain('No page lives at this address.')
+		expect(html).not.toContain('front page')
 	})
 })
