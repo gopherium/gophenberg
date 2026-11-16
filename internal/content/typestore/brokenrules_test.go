@@ -217,6 +217,7 @@ var tailRules = []Rule{
 	{Code: "reference", Name: "field group", Broken: FieldGroupExists},
 	{Code: "unique", Name: "type key", Broken: TypeKeyUnique},
 	{Code: "unique", Name: "route word", Broken: RouteWordUnique},
+	{Code: "unique", Name: "one default", Broken: DefaultUnique},
 	{Code: "restrict", Name: "held type", Broken: TypeHeldByContent},
 	{Code: "unique", Name: "content path", Broken: ContentPathUnique},
 }
@@ -414,6 +415,7 @@ var fieldWriteMeanings = map[Constraint]error{
 var typeUpdateMeanings = map[Constraint]error{
 	TypeKeyUnique:     content.ErrTypeTaken,
 	RouteWordUnique:   content.ErrRouteWordTaken,
+	DefaultUnique:     content.ErrRootTaken,
 	ContentPathUnique: content.ErrSlugTaken,
 }
 
