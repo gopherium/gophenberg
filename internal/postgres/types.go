@@ -91,7 +91,7 @@ var rulesBroken = []typestore.Rule{
 	{Code: uniqueViolationCode, Name: containerKeyConstraint, Broken: typestore.FieldKeyUnique},
 	{Code: uniqueViolationCode, Name: typeKeyConstraint, Broken: typestore.TypeKeyUnique},
 	{Code: uniqueViolationCode, Name: routeWordConstraint, Broken: typestore.RouteWordUnique},
-	{Code: uniqueViolationCode, Name: oneDefaultConstraint, Broken: typestore.RootTaken},
+	{Code: uniqueViolationCode, Name: oneDefaultConstraint, Broken: typestore.DefaultUnique},
 	{Code: foreignKeyViolationCode, Name: fieldTargetConstraint, Broken: typestore.FieldTargetExists},
 	{Code: foreignKeyViolationCode, Name: fieldGroupConstraint, Broken: typestore.FieldGroupExists},
 }

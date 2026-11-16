@@ -105,8 +105,8 @@ func TestRulesBrokenListsEachRuleThePostgreSQLErrorsNameInMatchOrder(t *testing.
 		{"a route word taken", typestore.Rule{
 			Code: uniqueViolationCode, Name: routeWordConstraint, Broken: typestore.RouteWordUnique,
 		}},
-		{"one default type", typestore.Rule{
-			Code: uniqueViolationCode, Name: oneDefaultConstraint, Broken: typestore.RootTaken,
+		{"the root taken", typestore.Rule{
+			Code: uniqueViolationCode, Name: oneDefaultConstraint, Broken: typestore.DefaultUnique,
 		}},
 		{"a relation target reference broken", typestore.Rule{
 			Code: foreignKeyViolationCode, Name: fieldTargetConstraint, Broken: typestore.FieldTargetExists,
