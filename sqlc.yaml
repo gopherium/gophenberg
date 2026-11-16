@@ -104,3 +104,77 @@ sql:
             go_type:
               import: "github.com/gopherium/gophenberg/internal/sqlite/columns"
               type: "Sizes"
+          - column: "core_content.id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content.author_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content.parent_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          - column: "core_content.published_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+              pointer: true
+          - column: "core_content.created_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content.updated_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content.fields"
+            go_type:
+              import: "github.com/gopherium/gophenberg/internal/sqlite/columns"
+              type: "Values"
+          - column: "core_content_revisions.id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content_revisions.content_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content_revisions.author_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content_revisions.created_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content_revisions.fields"
+            go_type:
+              import: "github.com/gopherium/gophenberg/internal/sqlite/columns"
+              type: "Values"
+          - column: "core_content_relations.from_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_content_relations.to_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "core_field_groups.created_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_field_groups.updated_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content_fields.created_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content_fields.updated_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"

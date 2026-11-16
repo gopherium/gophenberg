@@ -21,6 +21,7 @@ import (
 	authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
 	"github.com/gopherium/gouncer/authkit/storetest"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/cron/crontest"
 	"github.com/gopherium/gophenberg/internal/media/mediatest"
@@ -68,6 +69,139 @@ func sqliteStores(t *testing.T) contenttest.Stores {
 		UserSettings: sqlite.NewUserSettingStore(handle),
 		AddAuthor:    authorsIn(handle),
 	}
+}
+
+// typeStoreWait is the one reason a content case that needs the type store skips on SQLite.
+const typeStoreWait = "waits for the SQLite type store"
+
+// waitingTypes stands in for the SQLite type store, skipping the case that calls it.
+type waitingTypes struct {
+	t *testing.T
+}
+
+// skip skips the case that called the stand-in.
+func (w waitingTypes) skip() error {
+	w.t.Helper()
+	w.t.Skip(typeStoreWait)
+	return nil
+}
+
+// List skips the case.
+func (w waitingTypes) List(context.Context) ([]content.Type, error) { return nil, w.skip() }
+
+// ByKey skips the case.
+func (w waitingTypes) ByKey(context.Context, string) (content.Type, error) {
+	return content.Type{}, w.skip()
+}
+
+// Create skips the case.
+func (w waitingTypes) Create(context.Context, content.Type) (content.Type, error) {
+	return content.Type{}, w.skip()
+}
+
+// Update skips the case.
+func (w waitingTypes) Update(context.Context, content.Type) (content.Type, error) {
+	return content.Type{}, w.skip()
+}
+
+// Delete skips the case.
+func (w waitingTypes) Delete(context.Context, string) error { return w.skip() }
+
+// Nested skips the case.
+func (w waitingTypes) Nested(context.Context, string) (int, error) { return 0, w.skip() }
+
+// ListGroups skips the case.
+func (w waitingTypes) ListGroups(context.Context) ([]content.Group, error) { return nil, w.skip() }
+
+// CreateGroup skips the case.
+func (w waitingTypes) CreateGroup(context.Context, content.Group) (content.Group, error) {
+	return content.Group{}, w.skip()
+}
+
+// UpdateGroup skips the case.
+func (w waitingTypes) UpdateGroup(
+	context.Context, content.Group, []content.Field, content.Recheck,
+) (content.Group, error) {
+	return content.Group{}, w.skip()
+}
+
+// DeleteGroup skips the case.
+func (w waitingTypes) DeleteGroup(context.Context, int, content.Recheck) error { return w.skip() }
+
+// DeleteFieldsOfGroup skips the case.
+func (w waitingTypes) DeleteFieldsOfGroup(context.Context, int, []string, content.Recheck) error {
+	return w.skip()
+}
+
+// ReorderGroups skips the case.
+func (w waitingTypes) ReorderGroups(context.Context, []int) error { return w.skip() }
+
+// CreateFieldInGroup skips the case.
+func (w waitingTypes) CreateFieldInGroup(
+	context.Context, int, content.Field, content.Recheck,
+) (content.Field, error) {
+	return content.Field{}, w.skip()
+}
+
+// CreateSubField skips the case.
+func (w waitingTypes) CreateSubField(context.Context, int, content.Field, int) (content.Field, error) {
+	return content.Field{}, w.skip()
+}
+
+// DeleteSubField skips the case.
+func (w waitingTypes) DeleteSubField(context.Context, int, content.Recheck) error { return w.skip() }
+
+// UpdateSubField skips the case.
+func (w waitingTypes) UpdateSubField(context.Context, int, content.Field, time.Time) (content.Field, error) {
+	return content.Field{}, w.skip()
+}
+
+// ReorderSubFields skips the case.
+func (w waitingTypes) ReorderSubFields(context.Context, int, []string) error { return w.skip() }
+
+// UpdateFieldInGroup skips the case.
+func (w waitingTypes) UpdateFieldInGroup(
+	context.Context, int, content.Field, time.Time, content.Recheck,
+) (content.Field, error) {
+	return content.Field{}, w.skip()
+}
+
+// DeleteFieldInGroup skips the case.
+func (w waitingTypes) DeleteFieldInGroup(context.Context, int, string, content.Recheck) error {
+	return w.skip()
+}
+
+// ReorderFieldsInGroup skips the case.
+func (w waitingTypes) ReorderFieldsInGroup(context.Context, int, []string) error { return w.skip() }
+
+// MoveField skips the case.
+func (w waitingTypes) MoveField(context.Context, int, int, int, int, content.Recheck) (content.Field, error) {
+	return content.Field{}, w.skip()
+}
+
+// AdoptType skips the case.
+func (w waitingTypes) AdoptType(context.Context, string) error { return w.skip() }
+
+// AdoptGroup skips the case.
+func (w waitingTypes) AdoptGroup(context.Context, string) error { return w.skip() }
+
+// sqliteContentStores returns a fresh content store over a migrated copy of its own, beside the waiting type store.
+func sqliteContentStores(t *testing.T) contenttest.Stores {
+	t.Helper()
+	handle := migrated(t)
+	return contenttest.Stores{
+		Content:      sqlite.NewContentStore(handle),
+		Types:        waitingTypes{t: t},
+		SiteSettings: sqlite.NewSettingStore(handle),
+		UserSettings: sqlite.NewUserSettingStore(handle),
+		AddAuthor:    authorsIn(handle),
+	}
+}
+
+func TestContentStoreSuite(t *testing.T) {
+	t.Parallel()
+
+	contenttest.Run(t, sqliteContentStores)
 }
 
 // sqliteMediaStores returns a fresh media store over a migrated copy of its own.

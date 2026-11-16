@@ -29,6 +29,24 @@ func TestEveryFreshConnectionCallsTheSiteFunctions(t *testing.T) {
 	}
 }
 
+func TestFieldsContainOnAFreshConnection(t *testing.T) {
+	t.Parallel()
+
+	settings := testSettings()
+	db := sqlitetest.Open(t, settings.Options())
+
+	for i, conn := range fullPool(t, db, settings.MaxConns) {
+		var held bool
+		query := `SELECT fields_contain('{"count":4,"tags":["red"]}', '{"count":4.0,"tags":["red"]}')`
+		if err := conn.QueryRowContext(t.Context(), query).Scan(&held); err != nil {
+			t.Fatalf("fields_contain on connection %d error = %v, want nil", i, err)
+		}
+		if !held {
+			t.Errorf("fields_contain on connection %d = false, want true for a filter the fields hold", i)
+		}
+	}
+}
+
 func TestOpenRegistersTheSiteFunctions(t *testing.T) {
 	t.Parallel()
 

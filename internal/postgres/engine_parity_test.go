@@ -86,6 +86,10 @@ const (
 		SELECT core.%s($1::text::jsonb, ARRAY(SELECT jsonb_array_elements_text($2::text::jsonb))) AS doc
 	)
 	SELECT doc::text, doc IS NOT DISTINCT FROM $3::text::jsonb FROM answer`
+	// postgresContainment asks jsonb's @> whether the first document holds the second.
+	postgresContainment = `SELECT $1::text::jsonb @> $2::text::jsonb`
+	// sqliteContainment asks fields_contain whether the first document holds the second.
+	sqliteContainment = `SELECT fields_contain(?, ?)`
 )
 
 var (
@@ -247,6 +251,70 @@ var (
 		{nil, `["a"]`},
 		{nil, `["rows","a"]`},
 	}
+	// fieldFilterInputs are the stored fields and filters both engines match, each trap of a field filter among them.
+	fieldFilterInputs = []containmentInput{
+		{`{"done":1}`, `{"done":true}`},
+		{`{"done":true}`, `{"done":1}`},
+		{`{"done":0}`, `{"done":false}`},
+		{`{"done":true}`, `{"done":true}`},
+		{`{"done":false}`, `{"done":true}`},
+		{`{"count":4}`, `{"count":4.0}`},
+		{`{"count":4.0}`, `{"count":4}`},
+		{`{"count":1E2}`, `{"count":100}`},
+		{`{"ratio":1.0e-3}`, `{"ratio":0.001}`},
+		{`{"count":-0}`, `{"count":0}`},
+		{`{"count":4}`, `{"count":5}`},
+		{`{"n":9007199254740993}`, `{"n":9007199254740992}`},
+		{`{"n":9007199254740993}`, `{"n":9007199254740993.0}`},
+		{`{"ratio":0.1}`, `{"ratio":0.1000000000000000055511151231257827}`},
+		{`{"count":"4"}`, `{"count":4}`},
+		{`{"tags":["red"]}`, `{"tags":"red"}`},
+		{`{"tags":"red"}`, `{"tags":["red"]}`},
+		{`{"tags":["red","blue"]}`, `{"tags":["red"]}`},
+		{`{"tags":["red","blue"]}`, `{"tags":["green"]}`},
+		{`{"tags":["red"]}`, `{"tags":["red","blue"]}`},
+		{`{"tags":["blue","red"]}`, `{"tags":["red","blue"]}`},
+		{`{"tags":["red"]}`, `{"tags":["red","red"]}`},
+		{`{"tags":["red"]}`, `{"tags":[]}`},
+		{`{"tags":[]}`, `{"tags":["red"]}`},
+		{`{"sizes":[4,8]}`, `{"sizes":[8.0]}`},
+		{`{"sizes":[1]}`, `{"sizes":[true]}`},
+		{`{"grid":[["a","b"],["c"]]}`, `{"grid":[["b"]]}`},
+		{`{"grid":[["a","b"]]}`, `{"grid":["a"]}`},
+		{`{"grid":["a"]}`, `{"grid":[["a"]]}`},
+		{`{"rows":[{"a":1,"b":2},{"c":3}]}`, `{"rows":[{"b":2}]}`},
+		{`{"rows":[{"a":1},{"b":2}]}`, `{"rows":[{"a":1,"b":2}]}`},
+		{`{"meta":{"a":1,"b":2}}`, `{"meta":{"a":1}}`},
+		{`{"meta":{"a":1}}`, `{"meta":{}}`},
+		{`{"meta":{}}`, `{"meta":{"a":1}}`},
+		{`{"meta":{}}`, `{"meta":[]}`},
+		{`{"meta":[]}`, `{"meta":{}}`},
+		{`{"color":"red"}`, `{"size":"red"}`},
+		{`{"color":"red"}`, `{}`},
+		{`{}`, `{}`},
+		{`{"color":"red","size":4}`, `{"color":"red","size":4}`},
+		{`{"color":"red","size":5}`, `{"color":"red","size":4}`},
+		{`{"note":null}`, `{"note":null}`},
+		{`{"note":"x"}`, `{"note":null}`},
+		{`{"note":null}`, `{"note":""}`},
+		{`{}`, `{"note":null}`},
+		{`{"menu":"café"}`, `{"menu":"café"}`},
+		{`{"menu":"café"}`, `{"menu":"CAFÉ"}`},
+		{`{"menu":"café"}`, "{\"menu\":\"caf\x5cu00e9\"}"},
+		{`{"menu":"café"}`, `{"menu":"café"}`},
+		{`{"naïve":4}`, `{"naïve":4}`},
+		{`{"color":"red","color":"blue"}`, `{"color":"blue"}`},
+		{`{"color":"red","color":"blue"}`, `{"color":"red"}`},
+		{`["red","blue"]`, `"red"`},
+		{`[["red"]]`, `"red"`},
+		{`"red"`, `["red"]`},
+		{`4`, `4.0`},
+		{`{"a":1}`, `[]`},
+		{`[]`, `{}`},
+		{`[null]`, `null`},
+		{nil, `{}`},
+		{`{}`, nil},
+	}
 	// indexPredicate finds the predicate after the key list of a CREATE INDEX statement.
 	indexPredicate = regexp.MustCompile(`(?s)\)\s+WHERE\s+(.+)$`)
 	// indexKeyList finds the parenthesis that opens the key list of a CREATE INDEX statement.
@@ -322,6 +390,12 @@ type allowedDifference struct {
 type stripInput struct {
 	doc  any
 	path string
+}
+
+// containmentInput is one stored fields document and one filter, either of them NULL as a nil.
+type containmentInput struct {
+	fields any
+	filter any
 }
 
 // table returns the shape of the named table, adding an empty one when the schema holds none yet.
@@ -883,12 +957,40 @@ func (in stripInput) String() string {
 	return fmt.Sprintf("%s, %s", in.doc, in.path)
 }
 
+// sqliteContains returns what fields_contain answers for in on SQLite.
+func sqliteContains(t *testing.T, db *sql.DB, in containmentInput) sql.NullBool {
+	t.Helper()
+	var answer sql.NullBool
+	if err := db.QueryRowContext(t.Context(), sqliteContainment, in.fields, in.filter).Scan(&answer); err != nil {
+		t.Fatalf("fields_contain(%v, %v) on SQLite: %v", in.fields, in.filter, err)
+	}
+	return answer
+}
+
+// postgresContains returns what jsonb's @> answers for in on PostgreSQL.
+func postgresContains(t *testing.T, pool *pgxpool.Pool, in containmentInput) sql.NullBool {
+	t.Helper()
+	var answer sql.NullBool
+	if err := pool.QueryRow(t.Context(), postgresContainment, in.fields, in.filter).Scan(&answer); err != nil {
+		t.Fatalf("%v @> %v on PostgreSQL: %v", in.fields, in.filter, err)
+	}
+	return answer
+}
+
 // shown returns answer as a failure reads it, NULL when it is SQL NULL.
 func shown(answer sql.NullString) string {
 	if !answer.Valid {
 		return "NULL"
 	}
 	return answer.String
+}
+
+// shownMatch returns a containment answer as a failure reads it, NULL when it is SQL NULL.
+func shownMatch(answer sql.NullBool) string {
+	if !answer.Valid {
+		return "NULL"
+	}
+	return fmt.Sprint(answer.Bool)
 }
 
 func TestEngineParityKeepsTheCoreSchemaAlikeOnBothEngines(t *testing.T) {
@@ -915,6 +1017,20 @@ func TestEngineParityStripsEveryDocumentAlikeOnBothEngines(t *testing.T) {
 			if !same {
 				t.Errorf("%s(%v) is %s on SQLite and %s on PostgreSQL", run.fn, in, shown(onSQLite), shown(onPostgres))
 			}
+		}
+	}
+}
+
+func TestEngineParityMatchesEveryFieldFilterAlikeOnBothEngines(t *testing.T) {
+	t.Parallel()
+
+	pool, db := migratedPool(t), migratedSQLite(t)
+
+	for _, in := range fieldFilterInputs {
+		onSQLite, onPostgres := sqliteContains(t, db, in), postgresContains(t, pool, in)
+		if onSQLite != onPostgres {
+			t.Errorf("fields_contain(%v, %v) is %s on SQLite and jsonb @> is %s on PostgreSQL", in.fields, in.filter,
+				shownMatch(onSQLite), shownMatch(onPostgres))
 		}
 	}
 }

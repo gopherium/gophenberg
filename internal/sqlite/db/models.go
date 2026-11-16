@@ -16,20 +16,20 @@ type AuthUser struct {
 }
 
 type CoreContent struct {
-	ID          string
+	ID          uuid.UUID
 	Type        string
 	Status      string
 	Slug        string
 	Title       string
 	Content     string
 	Excerpt     string
-	AuthorID    string
-	PublishedAt *int64
-	CreatedAt   int64
-	UpdatedAt   int64
-	ParentID    *string
+	AuthorID    uuid.UUID
+	PublishedAt *dbkit.Time
+	CreatedAt   dbkit.Time
+	UpdatedAt   dbkit.Time
+	ParentID    *uuid.UUID
 	Path        string
-	Fields      string
+	Fields      columns.Values
 }
 
 type CoreContentField struct {
@@ -40,8 +40,8 @@ type CoreContentField struct {
 	RelatesTo     *string
 	Many          bool
 	Required      bool
-	CreatedAt     int64
-	UpdatedAt     int64
+	CreatedAt     dbkit.Time
+	UpdatedAt     dbkit.Time
 	Position      int64
 	GroupID       int64
 	Settings      string
@@ -51,24 +51,24 @@ type CoreContentField struct {
 }
 
 type CoreContentRelation struct {
-	FromID   string
+	FromID   uuid.UUID
 	FieldID  int64
-	ToID     string
+	ToID     uuid.UUID
 	Position int64
 	SortAt   int64
 	Visible  bool
 }
 
 type CoreContentRevision struct {
-	ID        string
-	ContentID string
+	ID        uuid.UUID
+	ContentID uuid.UUID
 	Kind      string
-	AuthorID  string
+	AuthorID  uuid.UUID
 	Title     string
 	Content   string
 	Excerpt   string
-	CreatedAt int64
-	Fields    string
+	CreatedAt dbkit.Time
+	Fields    columns.Values
 }
 
 type CoreContentType struct {
@@ -104,8 +104,8 @@ type CoreFieldGroup struct {
 	Location  string
 	Position  int64
 	Active    bool
-	CreatedAt int64
-	UpdatedAt int64
+	CreatedAt dbkit.Time
+	UpdatedAt dbkit.Time
 	Origin    *string
 	Key       string
 }

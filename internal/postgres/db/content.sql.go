@@ -57,12 +57,12 @@ WITH RECURSIVE below AS (
     SELECT c.id, 0 AS level
     FROM core.content c
     WHERE c.id = $1
-    UNION ALL
+  UNION ALL
     SELECT child.id, below.level + 1
     FROM core.content child
     JOIN below ON child.parent_id = below.id
-)
-SELECT coalesce(max(level), 0)::int FROM below
+) CYCLE id SET looped USING trail
+SELECT coalesce(max(level), 0)::int FROM below WHERE NOT looped
 `
 
 func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error) {
