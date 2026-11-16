@@ -532,12 +532,13 @@ var groupSequences = map[string]sequence{
 				},
 				{Key: "author", Label: "Writer", UpdatedAt: shelvedAt},
 			}
-			g := content.Group{ID: 1, Title: "Book facts", Location: bookOnly, Active: true}
+			g := content.Group{ID: 1, Title: "Book facts", Location: bookOnly, Active: true, UpdatedAt: shelvedAt}
 			return valued(s.UpdateGroup(ctx, g, repointed, check))
 		},
 		golden: slices.Concat([]step{begun, lockedGroups}, checkUnderLock, checkReads, []step{
 			sent("UpdateFieldGroup", groupColumns{
 				ID: 1, Title: "Book facts", Location: bookLocation, Active: true, UpdatedAt: mintedStamp,
+				Expected: shelvedAt,
 			}),
 			sent("UpdateContentField", fieldColumns{
 				GroupID: 1, Key: "rating", Label: "Score", Settings: `{"max":5}`, Required: true,
@@ -551,13 +552,13 @@ var groupSequences = map[string]sequence{
 	},
 	"UpdateGroup turning a group off with no field pointed anew": {
 		run: func(ctx context.Context, s *Store, _ content.Recheck) (any, error) {
-			g := content.Group{ID: 3, Title: "Shared fields", Location: everyTypeRules}
+			g := content.Group{ID: 3, Title: "Shared fields", Location: everyTypeRules, UpdatedAt: shelvedAt}
 			return valued(s.UpdateGroup(ctx, g, nil, nil))
 		},
 		golden: []step{
 			begun, lockedGroups, readGroups, readFields, readTypeKeys,
 			sent("UpdateFieldGroup", groupColumns{
-				ID: 3, Title: "Shared fields", Location: everyLocation, UpdatedAt: mintedStamp,
+				ID: 3, Title: "Shared fields", Location: everyLocation, UpdatedAt: mintedStamp, Expected: shelvedAt,
 			}),
 			committed,
 		},

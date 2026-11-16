@@ -65,6 +65,7 @@ func adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites(t *testing.T, s St
 	}
 	if _, err := registry.UpdateGroup(t.Context(), content.Group{
 		ID: held.ID, Key: held.Key, Title: "Event facts", Location: held.Location, Active: held.Active,
+		UpdatedAt: held.UpdatedAt,
 	}); err != nil {
 		t.Errorf("UpdateGroup() error = %v, want the adopted group open to the site", err)
 	}

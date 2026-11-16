@@ -3,7 +3,6 @@
 import {
 	Badge,
 	Button,
-	Dialog,
 	IconButton,
 	InputControl,
 	SelectControl,
@@ -12,7 +11,7 @@ import {
 	downIcon,
 	upIcon,
 } from '@gophenberg/frontend-sdk'
-import { ConfirmDialog, ErrorNotice, FormDialog } from '@gopherium/godmin'
+import { ConfirmDialog, ErrorNotice, FormDialog, SectionTitle, useToaster } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -58,10 +57,28 @@ import type { BacklinkSources, FieldGroup } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType, NewField, PickedKind } from './types'
 
+/** The kinds of field write a failure toast names. */
+type FieldWrite = 'save' | 'add' | 'order' | 'delete'
+
 /** What a field control reports back once its write settles. */
 interface Reporter {
 	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => Promise<void>
+	onRefused: (cause: unknown, write?: FieldWrite) => Promise<void>
+}
+
+/**
+ * Returns the toast naming a field write that failed, its reason left to fill in.
+ * @param write - The kind of write that failed.
+ * @returns The toast before the reason is written in.
+ */
+function failedWrite(write: FieldWrite) {
+	const sentences = {
+		save: __('Could not save the field. %s', 'gophenberg'),
+		add: __('Could not add the field. %s', 'gophenberg'),
+		order: __('Could not order the fields. %s', 'gophenberg'),
+		delete: __('Could not delete the field. %s', 'gophenberg'),
+	}
+	return sentences[write]
 }
 
 /** The group a field control acts inside. */
@@ -72,27 +89,27 @@ interface Inside extends Reporter {
 }
 
 /**
- * Renders the control managing the fields a group holds.
- * @param props - The group, the other groups, the types, and what to report.
- * @returns The control and its dialog.
+ * Renders the fields a group holds, the controls managing them and the notice naming the last failed write.
+ * @param props - The group, the other groups, the types and the keys an earlier group serves in its place.
+ * @returns The fields element.
  */
-export function GroupFieldsDialog(props: {
+export function GroupFields(props: {
 	held: FieldGroup
 	groups: FieldGroup[]
 	types: ContentType[]
-	onDone: (said: string) => void
+	shadowed: Set<string>
 }) {
 	const client = useQueryClient()
-	const [open, setOpen] = useState(false)
+	const toaster = useToaster()
 	const [notice, setNotice] = useState('')
 
 	/**
-	 * Reports what a field write did and refreshes what the screen holds.
+	 * Reports what a field write did in a toast and refreshes what the screen holds.
 	 * @param said - The sentence naming what was done.
 	 */
 	async function done(said: string) {
 		setNotice('')
-		props.onDone(said)
+		toaster.show(said)
 		await Promise.all([
 			client.invalidateQueries({ queryKey: groupsQueryKey }),
 			client.invalidateQueries({ queryKey: typesQueryKey }),
@@ -100,71 +117,48 @@ export function GroupFieldsDialog(props: {
 	}
 
 	/**
-	 * Reports why a field write was turned away, where the operator is looking.
+	 * Reports why a field write was turned away, in a toast naming what failed and above the fields.
 	 * @param cause - What the write failed with.
+	 * @param write - The kind of write that failed, a field save when none is given.
 	 */
-	async function refused(cause: unknown) {
-		setNotice(groupErrorMessage(cause))
+	async function refused(cause: unknown, write: FieldWrite = 'save') {
+		const said = groupErrorMessage(cause)
+		setNotice(said)
+		toaster.show(sprintf(failedWrite(write), said))
 		if (cause instanceof StaleWriteError) {
 			await client.invalidateQueries({ queryKey: groupsQueryKey })
 		}
 	}
 
-	/**
-	 * Opens the dialog on the stored fields, or closes it.
-	 * @param next - Whether the dialog is opening.
-	 */
-	function change(next: boolean) {
-		if (next) {
-			setNotice('')
-		}
-		setOpen(next)
-	}
-
 	return (
-		<>
-			<Button variant="outline" onClick={() => change(true)}>
-				{__('Fields', 'gophenberg')}
-			</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>
-							{sprintf(__('Fields of %(group)s', 'gophenberg'), { group: props.held.title })}
-						</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
-							<FieldsBody
-								held={props.held}
-								groups={props.groups}
-								types={props.types}
-								onDone={done}
-								onRefused={refused}
-							/>
-						</Stack>
-					</Dialog.Content>
-				</Dialog.Popup>
-			</Dialog.Root>
-		</>
+		<Stack direction="column" gap="md">
+			{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+			<FieldsBody
+				held={props.held}
+				groups={props.groups}
+				types={props.types}
+				shadowed={props.shadowed}
+				onDone={done}
+				onRefused={refused}
+			/>
+		</Stack>
 	)
 }
 
 /**
  * Renders the fields a group holds and the control declaring another.
- * @param props - The group, the other groups, the types, and what to report.
+ * @param props - The group, the other groups, the types, the keys an earlier group serves in its place, and what to
+ * report.
  * @returns The body element.
  */
 function FieldsBody(
-	props: Reporter & { held: FieldGroup; groups: FieldGroup[]; types: ContentType[] },
+	props: Reporter & { held: FieldGroup; groups: FieldGroup[]; types: ContentType[]; shadowed: Set<string> },
 ) {
 	const declared = props.held.fields
 	const reorder = useMutation({
 		mutationFn: (keys: string[]) => reorderFieldsInGroup(props.held.id, keys),
 		onSuccess: () => props.onDone(__('Order stored.', 'gophenberg')),
-		onError: props.onRefused,
+		onError: (cause: unknown) => props.onRefused(cause, 'order'),
 	})
 
 	/**
@@ -185,16 +179,12 @@ function FieldsBody(
 			{declared.length === 0 ? (
 				<Text>{__('This group holds no fields yet.', 'gophenberg')}</Text>
 			) : (
-				<ul className="gophenberg-fields__list">
+				<ul className="gophenberg-fields__list gophenberg-fields__list--top">
 					{declared.map((field, index) => (
 						<li key={field.key} aria-label={field.label}>
 							<Stack direction="column" gap="xs">
 								<Stack direction="row" gap="sm" align="center" justify="space-between">
-									<Stack direction="row" gap="xs" align="center">
-										<Text>{field.label}</Text>
-										<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-										{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
-									</Stack>
+									<FieldTitle field={field} shadowed={props.shadowed.has(field.key)} />
 									<Stack direction="row" gap="xs" align="center">
 										<IconButton
 											icon={upIcon}
@@ -216,7 +206,7 @@ function FieldsBody(
 										/>
 									</Stack>
 								</Stack>
-								<Stack direction="row" gap="xs" align="center">
+								<Stack direction="row" gap="xs" align="center" wrap="wrap">
 									<RequireField
 										group={props.held.id}
 										field={field}
@@ -284,13 +274,32 @@ function FieldsBody(
 					))}
 				</ul>
 			)}
-			<AddField
-				group={props.held.id}
-				types={props.types}
-				groups={props.groups}
-				onDone={props.onDone}
-				onRefused={props.onRefused}
-			/>
+			<Stack direction="column" gap="sm">
+				<SectionTitle>{__('Add a field', 'gophenberg')}</SectionTitle>
+				<AddField
+					group={props.held.id}
+					types={props.types}
+					groups={props.groups}
+					onDone={props.onDone}
+					onRefused={props.onRefused}
+				/>
+			</Stack>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the name of a field, its kind and the badges it carries.
+ * @param props - The field and whether an earlier group serves its key in the group's place.
+ * @returns The name row.
+ */
+function FieldTitle(props: { field: ContentField; shadowed: boolean }) {
+	return (
+		<Stack direction="row" gap="xs" align="center">
+			<Text>{props.field.label}</Text>
+			<Text variant="body-sm">{kindLabel(props.field.kind)}</Text>
+			{props.field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+			{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
 		</Stack>
 	)
 }
@@ -315,9 +324,9 @@ interface FieldDraft {
 }
 
 /**
- * Renders the control declaring a new field at the top of the group, its failure reported in the dialog around it.
+ * Renders the form declaring a new field at the top of the group, its controls in one row and its button after them.
  * @param props - The group, the groups a backlinks field reads, the types, and what to report.
- * @returns The controls and the button sending them.
+ * @returns The form.
  */
 function AddField(props: Reporter & FieldPlace) {
 	const draft = useFieldDraft(props)
@@ -325,19 +334,28 @@ function AddField(props: Reporter & FieldPlace) {
 	/** Declares the field, empties its name once it landed, and reports how the write went. */
 	function declare() {
 		const said = draft.said
-		void draft.declare().then(async () => {
-			draft.clear()
-			await props.onDone(said)
-		}, props.onRefused)
+		void draft.declare().then(
+			async () => {
+				draft.clear()
+				await props.onDone(said)
+			},
+			(cause: unknown) => props.onRefused(cause, 'add'),
+		)
 	}
 
 	return (
-		<Stack direction="column" gap="sm">
-			{draft.controls}
-			<Button loading={draft.pending} disabled={draft.blocked} onClick={declare}>
+		<form
+			className="godmin-form godmin-form--inline"
+			onSubmit={(event) => {
+				event.preventDefault()
+				declare()
+			}}
+		>
+			<div className="godmin-form__row">{draft.controls}</div>
+			<Button type="submit" loading={draft.pending} disabled={draft.blocked || draft.pending}>
 				{__('Add field', 'gophenberg')}
 			</Button>
-		</Stack>
+		</form>
 	)
 }
 
@@ -480,6 +498,7 @@ function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change
 	return (
 		<>
 			<InputControl
+				className="godmin-form__grow"
 				label={_x('Name', 'field', 'gophenberg')}
 				autoComplete="off"
 				value={draft.label}
@@ -849,7 +868,7 @@ function RequireField(props: Inside) {
 				: __('%(field)s is required now.', 'gophenberg')
 			await props.onDone(sprintf(said, { field: props.field.label }))
 		},
-		onError: props.onRefused,
+		onError: (cause: unknown) => props.onRefused(cause),
 	})
 	const asking = props.field.required
 		? sprintf(__('Make %(field)s optional', 'gophenberg'), { field: props.field.label })
@@ -894,7 +913,7 @@ function ListField(props: Inside) {
 				: __('%(field)s stands in the list.', 'gophenberg')
 			await props.onDone(sprintf(said, { field: props.field.label }))
 		},
-		onError: props.onRefused,
+		onError: (cause: unknown) => props.onRefused(cause),
 	})
 	if (props.path !== undefined || !LISTABLE.includes(props.field.kind)) {
 		return null
@@ -1140,7 +1159,7 @@ function HeldFields(
 	const reorder = useMutation({
 		mutationFn: (keys: string[]) => reorderSubFields(props.group, props.at, keys),
 		onSuccess: () => props.onDone(__('Order stored.', 'gophenberg')),
-		onError: props.onRefused,
+		onError: (cause: unknown) => props.onRefused(cause, 'order'),
 	})
 
 	/**
@@ -1165,11 +1184,7 @@ function HeldFields(
 				<li key={field.key} aria-label={field.label}>
 					<Stack direction="column" gap="xs">
 						<Stack direction="row" gap="sm" align="center" justify="space-between">
-							<Stack direction="row" gap="xs" align="center">
-								<Text>{field.label}</Text>
-								<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-								{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
-							</Stack>
+							<FieldTitle field={field} shadowed={false} />
 							<Stack direction="row" gap="xs" align="center">
 								<IconButton
 									icon={upIcon}
@@ -1191,7 +1206,7 @@ function HeldFields(
 								/>
 							</Stack>
 						</Stack>
-						<Stack direction="row" gap="xs" align="center">
+						<Stack direction="row" gap="xs" align="center" wrap="wrap">
 							<RequireField
 								group={props.group}
 								field={field}
@@ -1356,9 +1371,12 @@ function DeleteField(props: Inside) {
 					confirmLabel={__('Delete the field', 'gophenberg')}
 					cancelLabel={__('Cancel', 'gophenberg')}
 					onConfirm={() =>
-						remove.mutateAsync().then(() => {
-							void props.onDone(said)
-						}, props.onRefused)
+						remove.mutateAsync().then(
+							() => {
+								void props.onDone(said)
+							},
+							(cause: unknown) => props.onRefused(cause, 'delete'),
+						)
 					}
 					onClose={asked.onClose}
 				/>

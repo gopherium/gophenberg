@@ -925,6 +925,11 @@ is a different one, from `@wordpress/components`. Reach for it inside
 the block editor, and for its `Popover.Slot`, which a dialog needs to
 show the controls a components overlay draws.
 
+`Checkbox` from `@gophenberg/frontend-sdk` is the bare box from
+`@wordpress/ui`. It carries no words of its own, so wrap it and its
+words in a `label`. `CheckboxControl` is a different one, the labelled
+box from `@wordpress/components`.
+
 A block that fails at something, such as an upload the server
 refused, leaves a message for the block editor and draws nothing
 itself. `useBlockNotices` from `@gophenberg/frontend-sdk/editor`

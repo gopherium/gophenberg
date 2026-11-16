@@ -18,6 +18,10 @@ const RUN = Math.random().toString(36).slice(2, 8)
 
 const LONG_NAME = Array.from({ length: 11 }, () => 'Maria Perez').join(' ')
 
+const madeGroups: number[] = []
+
+const madeTypes: string[] = []
+
 const LONG_NAMES = [
 	{ reads: 'of many words', condition: 'spaced', name: LONG_NAME },
 	{ reads: 'with no spaces', condition: 'unspaced', name: LONG_NAME.replaceAll(' ', '') },
@@ -157,8 +161,48 @@ async function spills(page: Page) {
 	})
 }
 
+/**
+ * Registers a type of its own and a group placed on that type alone, holding one text field, through the API.
+ * @param page - The page of the signed in administrator.
+ * @returns The id of the group.
+ */
+async function groupOfItsOwn(page: Page): Promise<number> {
+	const key = `fitting-${RUN}`
+	const typed = await page.request.post('/api/types', {
+		data: {
+			key,
+			singular_label: `Fitting ${RUN}`,
+			plural_label: `Fittings ${RUN}`,
+			description: '',
+			route_word: `fittings-${RUN}`,
+		},
+	})
+	expect(typed.status()).toBe(201)
+	madeTypes.push(key)
+	const grouped = await page.request.post('/api/groups', {
+		data: { title: `${LONG_TITLE} ${RUN}`, location: [[{ source: 'content_type', operator: '==', value: key }]] },
+	})
+	expect(grouped.status()).toBe(201)
+	const { id } = (await grouped.json()) as { id: number }
+	madeGroups.push(id)
+	const field = await page.request.post(`/api/groups/${id}/fields`, {
+		data: { key: 'measure', label: 'Measure', kind: 'text', many: false, required: false },
+	})
+	expect(field.status()).toBe(201)
+	return id
+}
+
 test.beforeEach(async ({ page }) => {
 	await page.setViewportSize(PHONE)
+})
+
+test.afterEach(async ({ page }) => {
+	for (const id of madeGroups.splice(0)) {
+		await page.request.delete(`/api/groups/${id}`)
+	}
+	for (const key of madeTypes.splice(0)) {
+		await page.request.delete(`/api/types/${key}`)
+	}
 })
 
 test('seeds a hostile post and fits every screen to a phone', async ({ page }) => {
@@ -166,6 +210,7 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 		data: { type: 'post', title: `${LONG_TITLE} ${UNBREAKABLE}` },
 	})
 	expect(created.status()).toBe(201)
+	const group = await groupOfItsOwn(page)
 
 	const screens = [
 		'/admin/',
@@ -174,6 +219,7 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 		'/admin/content/page',
 		'/admin/content/category',
 		'/admin/content-types',
+		'/admin/field-groups',
 		'/admin/media',
 		'/admin/users',
 		'/admin/users/new',
@@ -186,6 +232,11 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 		expect(overflow.document, `${path} spills the document`).toBeLessThanOrEqual(0)
 		expect(overflow.canvas, `${path} spills the canvas`).toBeLessThanOrEqual(0)
 	}
+	await page.goto(`/admin/field-groups/${group}`)
+	await expect(page.getByRole('main').getByRole('listitem', { name: 'Measure' })).toBeVisible()
+	const grouped = await spills(page)
+	expect(grouped.document, 'the page of a group spills the document').toBeLessThanOrEqual(0)
+	expect(grouped.canvas, 'the page of a group spills the canvas').toBeLessThanOrEqual(0)
 })
 
 test('keeps the posts table in its card at 1280 beside a long title and the widest date, its actions in view and its listed fields in reach', async ({

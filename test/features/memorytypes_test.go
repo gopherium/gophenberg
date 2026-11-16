@@ -124,7 +124,7 @@ func (s *memoryTypes) rechecked(recheck content.Recheck) error {
 	return recheck(s.listing(), s.types)
 }
 
-// UpdateGroup stores the group's title, location and resting flag with the fields it points anew, once it stands alone.
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew while its stamp holds.
 func (s *memoryTypes) UpdateGroup(
 	_ context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
@@ -139,6 +139,9 @@ func (s *memoryTypes) UpdateGroup(
 		}
 		if err := s.standsAlone(g, held); err != nil {
 			return content.Group{}, err
+		}
+		if !held.UpdatedAt.Equal(g.UpdatedAt) {
+			return content.Group{}, content.ErrConflict
 		}
 		now := time.Now().UTC()
 		fields, err := repointedIn(held.Fields, repointed, now)

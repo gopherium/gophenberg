@@ -341,13 +341,13 @@ var groupArms = map[string]arm{
 	},
 	"UpdateGroup answers the group as stored once it is written": {
 		run: func(ctx context.Context, s *Store) (any, error) {
-			g := content.Group{ID: 3, Title: "Shared fields", Location: everyTypeRules}
+			g := content.Group{ID: 3, Title: "Shared fields", Location: everyTypeRules, UpdatedAt: shelvedAt}
 			return valued(s.UpdateGroup(ctx, g, nil, nil))
 		},
 		log: []step{
 			begun, lockedGroups, readGroups, readFields, readTypeKeys,
 			sent("UpdateFieldGroup", groupColumns{
-				ID: 3, Title: "Shared fields", Location: everyLocation, UpdatedAt: mintedStamp,
+				ID: 3, Title: "Shared fields", Location: everyLocation, UpdatedAt: mintedStamp, Expected: shelvedAt,
 			}),
 			committed,
 		},
@@ -356,9 +356,24 @@ var groupArms = map[string]arm{
 			CreatedAt: shelvedAt, UpdatedAt: mintedStamp,
 		},
 	},
+	"UpdateGroup holding a stamp the row moved past rolls back and wraps the conflict": {
+		run: func(ctx context.Context, s *Store) (any, error) {
+			g := content.Group{ID: 3, Title: "Shared fields", Location: everyTypeRules, UpdatedAt: staleAt}
+			return valued(s.UpdateGroup(ctx, g, nil, nil))
+		},
+		log: []step{
+			begun, lockedGroups, readGroups, readFields, readTypeKeys,
+			sent("UpdateFieldGroup", groupColumns{
+				ID: 3, Title: "Shared fields", Location: everyLocation, UpdatedAt: mintedStamp, Expected: staleAt,
+			}),
+			rolledBack,
+		},
+		ends: content.ErrConflict,
+		text: "postgres: update field group: content: conflicting update",
+	},
 	"UpdateGroup pointing anew a field whose stamp moved rolls back and wraps the conflict": {
 		run: func(ctx context.Context, s *Store) (any, error) {
-			g := content.Group{ID: 1, Title: "Book details", Location: bookOnly, Active: true}
+			g := content.Group{ID: 1, Title: "Book details", Location: bookOnly, Active: true, UpdatedAt: shelvedAt}
 			repointed := []content.Field{{Key: "rating", Label: "Score", UpdatedAt: staleAt}}
 			return valued(s.UpdateGroup(ctx, g, repointed, nil))
 		},
@@ -366,6 +381,7 @@ var groupArms = map[string]arm{
 			begun, lockedGroups, readGroups, readFields, readTypeKeys,
 			sent("UpdateFieldGroup", groupColumns{
 				ID: 1, Title: "Book details", Location: bookLocation, Active: true, UpdatedAt: mintedStamp,
+				Expected: shelvedAt,
 			}),
 			sent("UpdateContentField", fieldColumns{
 				GroupID: 1, Key: "rating", Label: "Score", Settings: "{}", UpdatedAt: mintedStamp, Expected: staleAt,

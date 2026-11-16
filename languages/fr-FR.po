@@ -1129,12 +1129,12 @@ msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and sav
 msgstr "%(field)s accepte au plus %(limit)s lettres. Raccourcissez ce que vous avez écrit et enregistrez de nouveau."
 
 #, fuzzy
-msgid "%(group)s created."
-msgstr "%(group)s créé."
+msgid "%(group)s comes from %(plugin)s, so it is read only. Its fields show from the Field Groups list."
+msgstr "%(group)s vient de %(plugin)s, donc il est en lecture seule. Ses champs s'affichent depuis la liste Groupes de champs."
 
 #, fuzzy
-msgid "%(group)s now appears where you said."
-msgstr "%(group)s apparaît maintenant là où vous avez dit."
+msgid "%(group)s created."
+msgstr "%(group)s créé."
 
 #, fuzzy
 msgid "%(group)s removed."
@@ -1177,6 +1177,10 @@ msgid "A type that still holds items, even in the trash, is not deleted."
 msgstr "Un type qui contient encore des éléments, même dans la corbeille, n'est pas supprimé."
 
 #, fuzzy
+msgid "Add a field"
+msgstr "Ajouter un champ"
+
+#, fuzzy
 msgid "Add choice"
 msgstr "Ajouter un choix"
 
@@ -1213,6 +1217,10 @@ msgid "Button group"
 msgstr "Groupe de boutons"
 
 #, fuzzy
+msgid "Changed elsewhere too. Your edit was not kept."
+msgstr "Modifié ailleurs aussi. Votre modification n'a pas été conservée."
+
+#, fuzzy
 msgid "Checkbox group"
 msgstr "Groupe de cases à cocher"
 
@@ -1237,12 +1245,24 @@ msgid "Create a field group"
 msgstr "Créer un groupe de champs"
 
 #, fuzzy
+msgid "Created %(date)s"
+msgstr "Créé le %(date)s"
+
+#, fuzzy
 msgid "Delete \"%(group)s\"?"
 msgstr "Supprimer « %(group)s » ?"
 
 #, fuzzy
 msgid "Delete the group"
 msgstr "Supprimer le groupe"
+
+#, fuzzy
+msgid "Discard"
+msgstr "Abandonner"
+
+#, fuzzy
+msgid "Discard changes?"
+msgstr "Abandonner les modifications ?"
 
 #, fuzzy
 msgid "Every content type"
@@ -1257,8 +1277,16 @@ msgid "Every value stored under this field goes with it, in every item the group
 msgstr "Toutes les valeurs enregistrées dans ce champ partent avec lui, dans chaque élément que le groupe atteint et dans les révisions qui les suivent."
 
 #, fuzzy
+msgid "Field Group"
+msgstr "Groupe de champs"
+
+#, fuzzy
 msgid "Field Groups"
 msgstr "Groupes de champs"
+
+#, fuzzy
+msgid "Field group settings"
+msgstr "Réglages du groupe de champs"
 
 #, fuzzy
 msgid "Fields of %(group)s"
@@ -1285,12 +1313,24 @@ msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr "Il commence sur %(type)s, et les règles peuvent être modifiées ensuite."
 
 #, fuzzy
+msgid "Keep editing"
+msgstr "Continuer à modifier"
+
+#, fuzzy
 msgid "Label"
 msgstr "Libellé"
 
 #, fuzzy
+msgid "Load saved version"
+msgstr "Charger la version enregistrée"
+
+#, fuzzy
 msgid "Loading field groups."
 msgstr "Chargement des groupes de champs."
+
+#, fuzzy
+msgid "Location rules"
+msgstr "Règles d'emplacement"
 
 #, fuzzy
 msgid "Longest"
@@ -1369,6 +1409,10 @@ msgid "Shadowed"
 msgstr "Masqué"
 
 #, fuzzy
+msgid "Someone saved %(group)s after you opened it."
+msgstr "Quelqu'un a enregistré %(group)s après que vous l'avez ouvert."
+
+#, fuzzy
 msgid "Source"
 msgstr "Source"
 
@@ -1385,12 +1429,24 @@ msgid "That field group no longer exists. Reload the page to see the groups your
 msgstr "Ce groupe de champs n'existe plus. Rechargez la page pour voir les groupes que votre site contient maintenant."
 
 #, fuzzy
+msgid "The changes to this field group are not saved."
+msgstr "Les modifications de ce groupe de champs ne sont pas enregistrées."
+
+#, fuzzy
 msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
 msgstr "Les types de contenu n'ont pas pu être chargés, donc où ces groupes apparaissent et quels champs ils masquent ne sont pas affichés."
 
 #, fuzzy
+msgid "The content types could not be loaded, so where this group appears, which fields it shadows and what a relation can point at are not shown."
+msgstr "Les types de contenu n'ont pas pu être chargés, donc où ce groupe apparaît, quels champs il masque et ce qu'une relation peut viser ne sont pas affichés."
+
+#, fuzzy
 msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
 msgstr "Les types de contenu n'ont pas pu être actualisés, donc où ces groupes apparaissent et ce qu'ils masquent peut être obsolète."
+
+#, fuzzy
+msgid "The content types could not be refreshed, so where this group appears, which fields it shadows and what a relation can point at may be out of date."
+msgstr "Les types de contenu n'ont pas pu être actualisés, donc où ce groupe apparaît, quels champs il masque et ce qu'une relation peut viser peuvent être obsolètes."
 
 #, fuzzy
 msgid "The database was busy with another change, so nothing was saved. Try again."
@@ -1441,6 +1497,10 @@ msgid "The source %(source)s does not offer %(operator)s. Pick one of the compar
 msgstr "La source %(source)s n'offre pas %(operator)s. Choisissez une des comparaisons qu'elle offre."
 
 #, fuzzy
+msgid "This field group does not exist, and it may have been deleted. Go back to the list to see what is there."
+msgstr "Ce groupe de champs n'existe pas, et il a peut-être été supprimé. Revenez à la liste pour voir ce qui s'y trouve."
+
+#, fuzzy
 msgid "This group holds no fields yet."
 msgstr "Ce groupe ne contient pas encore de champs."
 
@@ -1459,10 +1519,6 @@ msgstr "Valeur"
 #, fuzzy
 msgid "Web address"
 msgstr "Adresse web"
-
-#, fuzzy
-msgid "Where %(group)s appears"
-msgstr "Où apparaît %(group)s"
 
 #, fuzzy
 msgid "Without a rule this group appears nowhere."
@@ -2539,12 +2595,24 @@ msgid "Could not activate the theme. %s"
 msgstr "Impossible d’activer le thème. %s"
 
 #, fuzzy
+msgid "Could not add the field. %s"
+msgstr "Impossible d’ajouter le champ. %s"
+
+#, fuzzy
 msgid "Could not deactivate the theme. %s"
 msgstr "Impossible de désactiver le thème. %s"
 
 #, fuzzy
+msgid "Could not delete the field. %s"
+msgstr "Impossible de supprimer le champ. %s"
+
+#, fuzzy
 msgid "Could not install the theme. %s"
 msgstr "Impossible d’installer le thème. %s"
+
+#, fuzzy
+msgid "Could not order the fields. %s"
+msgstr "Impossible d’ordonner les champs. %s"
 
 #, fuzzy
 msgid "Could not roll back the theme. %s"
@@ -2561,6 +2629,14 @@ msgstr "Impossible d’enregistrer le média. %s"
 #, fuzzy
 msgid "Could not save the change. %s"
 msgstr "Impossible d’enregistrer la modification. %s"
+
+#, fuzzy
+msgid "Could not save the field group. %s"
+msgstr "Impossible d’enregistrer le groupe de champs. %s"
+
+#, fuzzy
+msgid "Could not save the field. %s"
+msgstr "Impossible d’enregistrer le champ. %s"
 
 #, fuzzy
 msgid "Could not save the settings. %s"
@@ -3011,6 +3087,11 @@ msgstr "Éditeur"
 msgctxt "role"
 msgid "Member"
 msgstr "Membre"
+
+#, fuzzy
+msgctxt "field group"
+msgid "Active"
+msgstr "Actif"
 
 #, fuzzy
 msgctxt "field group"

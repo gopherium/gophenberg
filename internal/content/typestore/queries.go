@@ -36,7 +36,7 @@ type GroupQueries interface {
 	ListFieldGroups(ctx context.Context) ([]GroupRow, error)
 	FieldGroupKeys(ctx context.Context) ([]string, error)
 	CreateFieldGroup(ctx context.Context, g GroupRow) (GroupRow, error)
-	UpdateFieldGroup(ctx context.Context, g GroupRow) (GroupRow, error)
+	UpdateFieldGroup(ctx context.Context, g GroupRow, expected time.Time) (GroupRow, error)
 	ReorderFieldGroups(ctx context.Context, ids []int) error
 	CarryStrayFieldsOfGroup(ctx context.Context, groupID int) error
 	DeleteFieldGroup(ctx context.Context, id int) (int64, error)

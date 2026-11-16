@@ -7,6 +7,8 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { operatorLabel } from '../content/RulesDialog'
+import { groupsQueryKey } from '../content/groups'
+import type { FieldGroup } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
@@ -67,12 +69,29 @@ function listing(group: unknown) {
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [group] })))
 }
 
-/** Opens the rules of the only listed group and answers with its dialog. */
+/** Opens the page of the listed group by its title and answers with the details column holding its rules. */
 async function openRules() {
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
-	const row = within(table).getByRole('row', { name: /Article details/ })
-	await userEvent.click(within(row).getByRole('button', { name: 'Rules' }))
-	return screen.findByRole('dialog')
+	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
+	return screen.findByRole('region', { name: 'Field group settings' })
+}
+
+/** Returns the Save button in the header of the group's page. */
+function saveButton() {
+	return within(screen.getByRole('main')).getByRole('button', { name: 'Save' })
+}
+
+/** Presses the Save button in the header of the group's page. */
+async function save() {
+	await userEvent.click(saveButton())
+}
+
+/** Leaves the group's page by its breadcrumb and drops the draft when asked. */
+async function leaveDiscarding() {
+	const trail = within(screen.getByRole('main')).getByRole('navigation', { name: 'Breadcrumbs' })
+	await userEvent.click(within(trail).getByRole('link', { name: 'Field Groups' }))
+	const asking = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+	await userEvent.click(within(asking).getByRole('button', { name: 'Discard' }))
 }
 
 /** A type a plugin declared under the built-in page key, with the page's shipped names. */
@@ -97,19 +116,19 @@ async function openSpanishValues() {
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/field-groups')
 	const table = await screen.findByRole('region', { name: 'Grupos de campos' })
-	const row = within(table).getByRole('row', { name: /Article details/ })
-	await userEvent.click(within(row).getByRole('button', { name: 'Reglas' }))
-	const dialog = await screen.findByRole('dialog')
-	const rule = within(dialog).getByRole('group', { name: 'Regla 1 del conjunto 1' })
+	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
+	const rule = await screen.findByRole('group', { name: 'Regla 1 del conjunto 1' })
 	await userEvent.click(within(rule).getByLabelText('Valor'))
 	return rule
 }
 
-/** Answers the group edit and records what the dialog sent. */
-function recording(sent: { body?: unknown }) {
+/** Answers the group edit and records what the page sent, the stamp it held apart from the parts it edits. */
+function recording(sent: { body?: unknown; stamp?: unknown }) {
 	server.use(
 		http.patch('/api/groups/3', async ({ request }) => {
-			sent.body = await request.json()
+			const { updated_at: stamp, ...parts } = (await request.json()) as Record<string, unknown>
+			sent.body = parts
+			sent.stamp = stamp
 			return HttpResponse.json(ON_POSTS)
 		}),
 	)
@@ -124,10 +143,10 @@ beforeEach(() => {
 test('shows a stored rule under the source, condition and value it carries', async () => {
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const details = await openRules()
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 
-	expect(within(rule).getByLabelText('Source')).toHaveTextContent('Content type')
+	await waitFor(() => expect(within(rule).getByLabelText('Source')).toHaveTextContent('Content type'))
 	expect(within(rule).getByLabelText('Condition')).toHaveTextContent('is')
 	expect(within(rule).getByLabelText('Value')).toHaveTextContent('Posts')
 })
@@ -177,21 +196,21 @@ test('shows each alternative as its own rule set', async () => {
 	})
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
+	const details = await openRules()
 
-	expect(within(dialog).getByRole('group', { name: 'Rule set 1' })).toBeInTheDocument()
-	expect(within(dialog).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
+	expect(within(details).getByRole('group', { name: 'Rule set 1' })).toBeInTheDocument()
+	expect(within(details).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
 })
 
 test('narrows a set by adding a condition every item has to meet', async () => {
 	const sent: { body?: unknown } = {}
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const set = within(dialog).getByRole('group', { name: 'Rule set 1' })
+	const set = within(details).getByRole('group', { name: 'Rule set 1' })
 	await userEvent.click(within(set).getByRole('button', { name: 'Add condition' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -209,10 +228,10 @@ test('widens the placement by adding an alternative set', async () => {
 	const sent: { body?: unknown } = {}
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -228,12 +247,12 @@ test('stores the value the operator picked', async () => {
 	const sent: { body?: unknown } = {}
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Value'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -246,12 +265,12 @@ test('turns a rule around when the condition is negated', async () => {
 	const sent: { body?: unknown } = {}
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Condition'))
 	await userEvent.click(await screen.findByRole('option', { name: 'is not' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -264,22 +283,37 @@ test('drops the whole set when its last condition goes', async () => {
 	const sent: { body?: unknown } = {}
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByRole('button', { name: 'Remove' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() => expect(sent.body).toEqual({ location: [] }))
+})
+
+test('sends the stamp the group held when the draft began, even after the groups are read again', async () => {
+	const sent: { body?: unknown; stamp?: unknown } = {}
+	recording(sent)
+	const client = renderAt('/field-groups')
+	const details = await openRules()
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	listing({ ...ON_POSTS, updated_at: '2026-08-02T09:30:00Z' })
+	await client.refetchQueries({ queryKey: groupsQueryKey })
+	expect(client.getQueryData<FieldGroup[]>(groupsQueryKey)?.[0].updatedAt).toBe('2026-08-02T09:30:00Z')
+
+	await save()
+
+	await waitFor(() => expect(sent.stamp).toBe(ON_POSTS.updated_at))
 })
 
 test('warns that a group with no rules appears nowhere', async () => {
 	listing({ ...ON_POSTS, location: [] })
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
+	const details = await openRules()
 
-	expect(within(dialog).getByText(/nowhere/i)).toBeInTheDocument()
+	expect(within(details).getByText(/nowhere/i)).toBeInTheDocument()
 })
 
 test('gives a group with no rules a first one to fill in', async () => {
@@ -287,10 +321,10 @@ test('gives a group with no rules a first one to fill in', async () => {
 	listing({ ...ON_POSTS, location: [] })
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -308,9 +342,9 @@ test('offers only the conditions the source declares', async () => {
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Condition'))
 
 	expect(await screen.findByRole('option', { name: 'is' })).toBeInTheDocument()
@@ -327,19 +361,18 @@ test('reports why the rules were turned away and keeps them on screen', async ()
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
 
 	const said = 'content: another group already claims those items'
-	expect(await within(dialog).findByText(said)).toBeInTheDocument()
-	expect(screen.getByRole('dialog', { name: 'Where Article details appears' })).toBe(dialog)
-	expect(within(dialog).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
-	expect(screen.queryByText(said, { selector: '.godmin-toast' })).not.toBeInTheDocument()
+	expect(await within(screen.getByRole('main')).findByRole('alert')).toHaveTextContent(said)
+	expect(within(details).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
+	expect(await findToast(`Could not save the field group. ${said}`)).toBeInTheDocument()
 })
 
-test('abandons the edits when the dialog is dismissed', async () => {
+test('abandons the edits when the page is left and they are discarded', async () => {
 	let hit = false
 	server.use(
 		http.patch('/api/groups/3', () => {
@@ -348,12 +381,13 @@ test('abandons the edits when the dialog is dismissed', async () => {
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await leaveDiscarding()
+	const reopened = await openRules()
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	expect(within(reopened).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
 	expect(hit).toBe(false)
 })
 
@@ -361,9 +395,9 @@ test('reports rules it could not offer sources for', async () => {
 	server.use(http.get('/api/groups/params', () => new HttpResponse(null, { status: 500 })))
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
+	const details = await openRules()
 
-	expect(within(dialog).getByText('The rules could not be loaded.')).toBeInTheDocument()
+	expect(within(details).getByText('The rules could not be loaded.')).toBeInTheDocument()
 })
 
 const ROLE_SOURCE = {
@@ -379,9 +413,9 @@ test('names a source the admin has no word for by the key the server gave it', a
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Source'))
 
 	expect(await screen.findByRole('option', { name: 'user_role' })).toBeInTheDocument()
@@ -396,12 +430,12 @@ test('starts the condition and value afresh when the source changes', async () =
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Source'))
 	await userEvent.click(await screen.findByRole('option', { name: 'user_role' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -417,8 +451,8 @@ test('shows a value the registry no longer offers as the rule stored it', async 
 	})
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const details = await openRules()
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 
 	expect(within(rule).getByLabelText('Value')).toHaveTextContent('vanished')
 })
@@ -430,49 +464,38 @@ test('leaves a rule whose source is gone with nothing to choose from', async () 
 	})
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const details = await openRules()
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Condition'))
 
 	expect(screen.queryByRole('option', { name: 'is' })).not.toBeInTheDocument()
 })
 
 test('adds nothing while the server offers no source to build a rule from', async () => {
-	const sent: { body?: unknown } = {}
-	recording(sent)
 	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
 
-	await waitFor(() =>
-		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
-		}),
-	)
+	expect(within(details).getByRole('button', { name: 'Add rule set' })).toHaveAttribute('aria-disabled', 'true')
+	expect(within(details).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
+	expect(saveButton()).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('adds nothing from a source that offers no value to match', async () => {
-	const sent: { body?: unknown } = {}
-	recording(sent)
 	server.use(
 		http.get('/api/groups/params', () =>
 			HttpResponse.json({ items: [{ source: 'content_type', operators: [], values: [] }] }),
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
 
-	await waitFor(() =>
-		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
-		}),
-	)
+	expect(within(details).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
+	expect(saveButton()).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('edits only the set the rule belongs to', async () => {
@@ -486,11 +509,11 @@ test('edits only the set the rule belongs to', async () => {
 		],
 	})
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const second = within(dialog).getByRole('group', { name: 'Rule 1 of set 2' })
+	const second = within(details).getByRole('group', { name: 'Rule 1 of set 2' })
 	await userEvent.click(within(second).getByRole('button', { name: 'Remove' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -510,11 +533,11 @@ test('adds a condition to the set it was asked from', async () => {
 		],
 	})
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const second = within(dialog).getByRole('group', { name: 'Rule set 2' })
+	const second = within(details).getByRole('group', { name: 'Rule set 2' })
 	await userEvent.click(within(second).getByRole('button', { name: 'Add condition' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -540,12 +563,12 @@ test('changes the rule asked for and leaves the other set alone', async () => {
 		],
 	})
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const second = within(dialog).getByRole('group', { name: 'Rule 1 of set 2' })
+	const second = within(details).getByRole('group', { name: 'Rule 1 of set 2' })
 	await userEvent.click(within(second).getByLabelText('Value'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -570,12 +593,12 @@ test('changes the condition asked for and leaves its neighbour alone', async () 
 		],
 	})
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const second = within(dialog).getByRole('group', { name: 'Rule 2 of set 1' })
+	const second = within(details).getByRole('group', { name: 'Rule 2 of set 1' })
 	await userEvent.click(within(second).getByLabelText('Value'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -590,26 +613,20 @@ test('changes the condition asked for and leaves its neighbour alone', async () 
 })
 
 test('leaves the rule untouched when the source picked offers no value', async () => {
-	const sent: { body?: unknown } = {}
-	recording(sent)
 	server.use(
 		http.get('/api/groups/params', () =>
 			HttpResponse.json({ items: [{ source: 'content_type', operators: [], values: [] }] }),
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Source'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Content type' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
-	await waitFor(() =>
-		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
-		}),
-	)
+	expect(within(rule).getByLabelText('Value')).toHaveTextContent('post')
+	expect(saveButton()).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('names every condition an operator stands for', () => {
@@ -670,17 +687,17 @@ test('offers no source to pick for a group without a Linked from field', async (
 	listingAll([ON_POSTS, CARS])
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
+	const details = await openRules()
 
-	expect(within(dialog).queryByRole('combobox', { name: 'Reads from' })).not.toBeInTheDocument()
+	expect(within(details).queryByRole('combobox', { name: 'Reads from' })).not.toBeInTheDocument()
 })
 
 test('shows the relation each Linked from field reads', async () => {
 	listingAll([READING, CARS])
 	renderAt('/field-groups')
 
-	const dialog = await openRules()
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const details = await openRules()
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 
 	expect(within(reading).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Cars')
 	expect(within(reading).getByRole('combobox', { name: 'Through' })).toHaveTextContent('Maker')
@@ -696,18 +713,23 @@ test('keeps every rule and Linked from picker read only while the rules are save
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitBusy(dialog, 'Save rules')
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
+	await waitBusy(screen.getByRole('main'), 'Save')
 
-	expectReadOnly(dialog)
-	expect(within(dialog).getByRole('combobox', { name: 'Through' })).toHaveAttribute('aria-readonly', 'true')
+	expectReadOnly(details)
+	expect(within(details).getByRole('combobox', { name: 'Through' })).toHaveAttribute('aria-readonly', 'true')
+	expect(within(details).getByRole('checkbox', { name: 'Active' })).toHaveAttribute('aria-readonly', 'true')
 	for (const name of ['Add condition', 'Remove', 'Add rule set']) {
-		expect(within(dialog).getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
+		for (const button of within(details).getAllByRole('button', { name })) {
+			expect(button).toHaveAttribute('aria-disabled', 'true')
+		}
 	}
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(saveButton()).toHaveAttribute('aria-disabled', 'true'))
+	expect(within(details).getByRole('textbox', { name: 'Title' })).not.toHaveAttribute('readonly')
 })
 
 test('points a Linked from field at the relation picked as the group moves', async () => {
@@ -715,15 +737,15 @@ test('points a Linked from field at the relation picked as the group moves', asy
 	listingAll([READING, CARS])
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Value'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
@@ -740,16 +762,15 @@ test('points a Linked from field at the first relation of the group picked', asy
 	listingAll([READING, CARS, VANS])
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 	await userEvent.click(within(reading).getByRole('combobox', { name: 'Reads from' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Vans' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 			backlinks: {
 				'linked-from': { source_group: 'vans', source_field: ['driver'], updated_at: '2026-08-01T10:00:00Z' },
 			},
@@ -762,13 +783,17 @@ test('leaves a Linked from field nobody touched out of the save', async () => {
 	listingAll([READING, CARS])
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
+			location: [
+				[{ source: 'content_type', operator: '==', value: 'post' }],
+				[{ source: 'content_type', operator: '==', value: '*' }],
+			],
 		}),
 	)
 })
@@ -784,28 +809,32 @@ test('shows a Linked from reading inside a container without pickers and leaves 
 	])
 	recording(sent)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 	expect(within(reading).getByText(/inside a container/i)).toBeInTheDocument()
 	expect(within(reading).queryByRole('combobox', { name: 'Reads from' })).not.toBeInTheDocument()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(details).getByRole('button', { name: 'Add rule set' }))
+	await save()
 
 	await waitFor(() =>
 		expect(sent.body).toEqual({
-			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
+			location: [
+				[{ source: 'content_type', operator: '==', value: 'post' }],
+				[{ source: 'content_type', operator: '==', value: '*' }],
+			],
 		}),
 	)
 })
 
-test('closes on a save someone else beat and reopens on the rules and sources they stored', async () => {
+test('keeps the draft on a save someone else beat, then takes the rules and sources they stored', async () => {
 	let listed = [READING, CARS, VANS]
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
 	server.use(
 		http.patch('/api/groups/3', () => {
 			const moved = { ...READING.fields[0], settings: { source_group: 'vans', source_field: ['driver'] } }
 			const recipes = [[{ source: 'content_type', operator: '==', value: 'recipe' }]]
-			listed = [{ ...READING, location: recipes, fields: [moved] }, CARS, VANS]
+			listed = [{ ...READING, location: recipes, fields: [moved], updated_at: '2026-08-02T09:30:00Z' }, CARS, VANS]
 			return HttpResponse.json(
 				{ error: 'content: conflicting update', code: 'content_stale_update' },
 				{ status: 409 },
@@ -813,40 +842,36 @@ test('closes on a save someone else beat and reopens on the rules and sources th
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
 	await userEvent.click(within(rule).getByLabelText('Value'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Any content type' }))
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await save()
 
-	expect(await findToast(/^Could not save the change\. Someone else saved/)).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-	const table = screen.getByRole('region', { name: 'Field Groups' })
-	await waitFor(() =>
-		expect(within(table).getByRole('row', { name: /Article details/ })).toHaveTextContent('Recipes'),
-	)
-	const reopened = await openRules()
+	const main = screen.getByRole('main')
+	expect(await within(main).findByText('Someone saved Article details after you opened it.')).toBeInTheDocument()
+	expect(within(rule).getByLabelText('Value')).toHaveTextContent('Any content type')
+	await userEvent.click(within(main).getByRole('button', { name: 'Load saved version' }))
 
-	const stored = within(reopened).getByRole('group', { name: 'Rule 1 of set 1' })
-	expect(within(stored).getByLabelText('Value')).toHaveTextContent('Recipes')
-	const again = within(reopened).getByRole('group', { name: 'Linked from' })
-	expect(within(again).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Vans')
+	await waitFor(() => expect(within(rule).getByLabelText('Value')).toHaveTextContent('Recipes'))
+	expect(within(reading).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Vans')
+	expect(within(details).getAllByText('Changed elsewhere too. Your edit was not kept.')).toHaveLength(2)
+	expect(saveButton()).toHaveAttribute('aria-disabled', 'true')
 })
 
-test('forgets a Linked from pick when the dialog is dismissed', async () => {
+test('forgets a Linked from pick when the page is left and the pick is discarded', async () => {
 	listingAll([READING, CARS])
 	renderAt('/field-groups')
-	const dialog = await openRules()
+	const details = await openRules()
 
-	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	const reading = within(details).getByRole('group', { name: 'Linked from' })
 	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await leaveDiscarding()
 	const reopened = await openRules()
 
 	const again = within(reopened).getByRole('group', { name: 'Linked from' })

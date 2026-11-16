@@ -7,12 +7,14 @@ import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
+import { adminBasepath } from '../basepath'
 import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
+import { declarations } from './stylesheet'
 import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
@@ -173,8 +175,67 @@ test('names the plugin that declared a group and keeps its shape out of reach', 
 	expect(within(declared).queryByRole('button', { name: 'Rules' })).not.toBeInTheDocument()
 	expect(within(declared).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
 	expect(within(declared).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
-	expect(within(site).getByRole('button', { name: 'Rules' })).toBeInTheDocument()
 	expect(within(site).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+})
+
+test('offers no Rules button on any row, the rules of a site group living on its page', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	expect(within(table).queryByRole('button', { name: 'Rules' })).not.toBeInTheDocument()
+	expect(within(table).getByRole('link', { name: 'Extras' })).toBeInTheDocument()
+})
+
+test('links the title of a site group to its page and leaves the title of a plugin group plain', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	const title = within(site).getByRole('link', { name: 'Extras' })
+	expect(title).toHaveAttribute('href', `${adminBasepath}/field-groups/4`)
+	expect(title.closest('td')).toHaveClass('godmin-table__title')
+	expect(within(declared).queryByRole('link')).not.toBeInTheDocument()
+	expect(within(declared).getByText('Article details').closest('td')).toHaveClass('godmin-table__title')
+})
+
+test('opens the page of a site group from its title', async () => {
+	const { router } = renderRoutedAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
+
+	const main = screen.getByRole('main')
+	expect(await within(main).findByRole('heading', { level: 2, name: 'Article details' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+})
+
+test('keeps the Fields button for a plugin group alone, a site group opening its fields from its title', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	expect(within(declared).getByRole('button', { name: 'Fields' })).toBeInTheDocument()
+	expect(within(site).queryByRole('button', { name: 'Fields' })).not.toBeInTheDocument()
+})
+
+test('wraps the actions of a group row so its buttons keep their words whole', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	const actions = within(row).getByRole('button', { name: 'Deactivate' }).parentElement
+	expect(actions).toHaveStyle({ flexWrap: 'wrap' })
+	expect(actions).toHaveClass('gophenberg-groups__actions')
+	expect(declarations('.gophenberg-groups__actions button')).toEqual({ 'overflow-wrap': 'normal' })
 })
 
 test('shows the fields a plugin declared without offering to change them', async () => {
@@ -233,6 +294,28 @@ test('creates a group named after what the operator typed', async () => {
 	await waitFor(() => expect(sent).toMatchObject({ title: 'Extras' }))
 })
 
+test('opens the page of a new group once it is created, read again with the group in it', async () => {
+	listing([DETAILS_GROUP])
+	server.use(
+		http.post('/api/groups', () => {
+			listing([DETAILS_GROUP, EXTRAS_GROUP])
+			return HttpResponse.json(EXTRAS_GROUP, { status: 201 })
+		}),
+	)
+	const { router } = renderRoutedAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
+	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+	const main = screen.getByRole('main')
+	expect(await within(main).findByRole('heading', { level: 2, name: 'Extras' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/4')
+	expect(within(main).getByText('This group holds no fields yet.')).toBeInTheDocument()
+	expect(await findToast('Extras created.')).toBeInTheDocument()
+})
+
 test('seeds a new group with a rule so it is never born matching nowhere', async () => {
 	let sent: { location?: unknown } = {}
 	server.use(
@@ -265,7 +348,47 @@ test('deactivates a group so it stops appearing anywhere', async () => {
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
 
-	await waitFor(() => expect(sent).toEqual([{ active: false }]))
+	await waitFor(() => expect(sent).toEqual([{ active: false, updated_at: DETAILS_GROUP.updated_at }]))
+})
+
+test('sends the stamp the list read when a group is turned off', async () => {
+	const sent: unknown[] = []
+	listing([{ ...DETAILS_GROUP, updated_at: '2026-08-02T09:30:00Z' }, EXTRAS_GROUP])
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...DETAILS_GROUP, active: false })
+		}),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	await waitFor(() => expect(sent).toEqual([{ active: false, updated_at: '2026-08-02T09:30:00Z' }]))
+})
+
+test('says the group was not saved when Activate comes back stale, and reads the groups again', async () => {
+	let listed = [DETAILS_GROUP, EXTRAS_GROUP]
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3', () => {
+			listed = [{ ...DETAILS_GROUP, active: false, updated_at: '2026-08-02T09:30:00Z' }, EXTRAS_GROUP]
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	const said = 'Could not save the field group. Someone saved Article details after you opened it.'
+	expect(await findToast(said)).toBeInTheDocument()
+	await waitFor(() =>
+		expect(within(table).getByRole('row', { name: /Article details/ })).toHaveTextContent('Inactive'),
+	)
 })
 
 test('deletes a group once the warning is accepted', async () => {
@@ -566,6 +689,37 @@ test('phrases where a group appears with the built-in types in the words of Word
 			types,
 		),
 	).toBe('Entradas o Excepto Leaflets o Recipes')
+})
+
+test.each([
+	{
+		locale: 'es-ES',
+		list: 'Grupos de campos',
+		deactivate: 'Desactivar',
+		said: 'No se ha podido guardar el grupo de campos. Alguien guardó Article details después de que lo abrieras.',
+	},
+	{
+		locale: 'fr-FR',
+		list: 'Groupes de champs',
+		deactivate: 'Désactiver',
+		said:
+			"Impossible d’enregistrer le groupe de champs. Quelqu'un a enregistré Article details après que vous l'avez ouvert.",
+	},
+])('says the group was not saved since someone saved it after it was opened in $locale', async (reader) => {
+	setLocaleData(await catalogFor(reader.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	server.use(
+		http.patch('/api/groups/3', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: reader.list })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: reader.deactivate }))
+
+	expect(await findToast(reader.said)).toBeInTheDocument()
 })
 
 test('names the built-in type a new group starts on for a Spanish reader', async () => {

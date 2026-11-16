@@ -5,6 +5,7 @@ import { __, _x, sprintf } from '@wordpress/i18n'
 import { ConfirmDialog, ErrorNotice, FormDialog, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { irreversible } from '../lists/itemWords'
@@ -16,16 +17,16 @@ import {
 	groupsQueryKey,
 	listGroups,
 	reorderGroups,
+	StaleWriteError,
+	staleGroupMessage,
 	typeSource,
 	updateGroup,
 } from './groups'
 import { definitionsDownloadPath } from './definitions'
 import { DriftNotices } from './DriftNotices'
 import { typesQueryKey } from './nav'
-import { GroupFieldsDialog } from './GroupFieldsDialog'
 import { ImportDefinitions } from './ImportDefinitions'
 import { PluginFieldsDialog } from './PluginFieldsDialog'
-import { RulesDialog } from './RulesDialog'
 import { pluralOf } from './typeText'
 import { listTypes } from './types'
 import type { FieldGroup, GroupEdit, Location, LocationRule } from './groups'
@@ -114,6 +115,7 @@ interface PlacedGroup {
 export interface Shadowing {
 	key: string
 	winner: string
+	winnerID: number
 	loser: string
 	loserID: number
 	where: string[]
@@ -178,7 +180,14 @@ function noteOverlap(noted: Map<string, Shadowing>, { key, winner, loser }: Over
 		known.where.push(label)
 		return
 	}
-	noted.set(at, { key, winner: winner.title, loser: loser.title, loserID: loser.id, where: [label] })
+	noted.set(at, {
+		key,
+		winner: winner.title,
+		winnerID: winner.id,
+		loser: loser.title,
+		loserID: loser.id,
+		where: [label],
+	})
 }
 
 /**
@@ -186,7 +195,7 @@ function noteOverlap(noted: Map<string, Shadowing>, { key, winner, loser }: Over
  * @param held - The overlap to phrase.
  * @returns The sentence the notice shows.
  */
-function shadowingSentence(held: Shadowing): string {
+export function shadowingSentence(held: Shadowing): string {
 	return sprintf(
 		__('%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s.', 'gophenberg'),
 		{
@@ -204,6 +213,7 @@ function shadowingSentence(held: Shadowing): string {
  */
 export function GroupsScreen() {
 	const client = useQueryClient()
+	const navigate = useNavigate()
 	const toaster = useToaster()
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
@@ -235,6 +245,18 @@ export function GroupsScreen() {
 		toaster.show(sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)))
 	}
 
+	/**
+	 * Opens the page of a group just created once the groups are read again with it, then says it was created.
+	 * @param created - The group the server stored.
+	 * @param said - The sentence naming what was done.
+	 */
+	async function opened(created: FieldGroup, said: string) {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+		await client.invalidateQueries({ queryKey: typesQueryKey })
+		await navigate({ to: '/field-groups/$groupId', params: { groupId: String(created.id) } })
+		toaster.show(said)
+	}
+
 	return (
 		<Page
 			title={__('Field Groups', 'gophenberg')}
@@ -244,7 +266,7 @@ export function GroupsScreen() {
 				<>
 					<ExportDefinitions />
 					<ImportDefinitions />
-					<AddGroup types={types.data ?? []} onDone={done} />
+					<AddGroup types={types.data ?? []} onCreated={opened} />
 				</>
 			}
 		>
@@ -323,7 +345,6 @@ function GroupsBody(
 						<GroupRow
 							key={held.id}
 							held={held}
-							groups={props.groups}
 							types={props.types}
 							shadowed={props.shadowed.has(held.id)}
 							order={props.groups.map((listed) => listed.id)}
@@ -346,7 +367,6 @@ function GroupsBody(
 function GroupRow(
 	props: Reporter & {
 		held: FieldGroup
-		groups: FieldGroup[]
 		types: ContentType[]
 		shadowed: boolean
 		order: number[]
@@ -357,9 +377,15 @@ function GroupRow(
 	const origin = held.origin ?? ''
 	const declared = origin !== ''
 	const edit = useMutation({
-		mutationFn: (asked: GroupEdit) => updateGroup(held.id, asked),
+		mutationFn: (asked: GroupEdit) => updateGroup(held, asked),
 		onSuccess: () => props.onDone(sprintf(__('%(group)s updated.', 'gophenberg'), { group: held.title })),
-		onError: props.onRefused,
+		onError: (cause: unknown) => {
+			if (cause instanceof StaleWriteError) {
+				props.onDone(sprintf(__('Could not save the field group. %s', 'gophenberg'), staleGroupMessage(held.title)))
+				return
+			}
+			props.onRefused(cause)
+		},
 	})
 	const move = useMutation({
 		mutationFn: (ids: number[]) => reorderGroups(ids),
@@ -368,7 +394,7 @@ function GroupRow(
 	})
 	return (
 		<tr>
-			<td>{held.title}</td>
+			<GroupTitle held={held} declared={declared} />
 			<td>{placementOf(held.location, props.types)}</td>
 			<td>{formatNumber(held.fields.length)}</td>
 			<td>
@@ -381,27 +407,9 @@ function GroupRow(
 				</Stack>
 			</td>
 			<td>
-				<Stack direction="row" gap="xs">
+				<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-groups__actions">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
-					{declared ? (
-						<PluginFieldsDialog held={held} origin={origin} />
-					) : (
-						<GroupFieldsDialog
-							held={held}
-							groups={props.groups}
-							types={props.types}
-							onDone={props.onDone}
-						/>
-					)}
-					{!declared && (
-						<RulesDialog
-							held={held}
-							groups={props.groups}
-							types={props.types}
-							onDone={props.onDone}
-							onRefused={props.onRefused}
-						/>
-					)}
+					{declared && <PluginFieldsDialog held={held} origin={origin} />}
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 					</Button>
@@ -409,6 +417,25 @@ function GroupRow(
 				</Stack>
 			</td>
 		</tr>
+	)
+}
+
+/**
+ * Renders the title cell of a group, a link to its page unless a plugin declared it.
+ * @param props - The group and whether a plugin declared it.
+ * @returns The title cell.
+ */
+function GroupTitle(props: { held: FieldGroup; declared: boolean }) {
+	return (
+		<td className="godmin-table__title">
+			{props.declared ? (
+				props.held.title
+			) : (
+				<Link to="/field-groups/$groupId" params={{ groupId: String(props.held.id) }}>
+					{props.held.title}
+				</Link>
+			)}
+		</td>
 	)
 }
 
@@ -503,12 +530,12 @@ function ExportDefinitions() {
 /** What the control storing a new field group takes. */
 interface AddGroupProps {
 	types: ContentType[]
-	onDone: (said: string) => void
+	onCreated: (created: FieldGroup, said: string) => Promise<void>
 }
 
 /**
  * Renders the control storing a new field group and, while it asks, its form.
- * @param props - The registered types and what reports the group created.
+ * @param props - The registered types and what opens the group created.
  * @returns The control and its form.
  */
 function AddGroup(props: AddGroupProps) {
@@ -525,7 +552,7 @@ function AddGroup(props: AddGroupProps) {
 
 /**
  * Renders the form storing a new field group, its title empty on each ask and kept after a failure.
- * @param props - The registered types, what reports the group created and what takes the form away.
+ * @param props - The registered types, what opens the group created and what takes the form away.
  * @returns The form dialog.
  */
 function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
@@ -537,9 +564,7 @@ function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
 	})
 	const create = () =>
 		add.mutateAsync().then(
-			() => {
-				props.onDone(sprintf(__('%(group)s created.', 'gophenberg'), { group: title }))
-			},
+			(created) => props.onCreated(created, sprintf(__('%(group)s created.', 'gophenberg'), { group: title })),
 			(cause: unknown) => ({
 				error: sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)),
 			}),

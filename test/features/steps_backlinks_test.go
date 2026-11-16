@@ -58,25 +58,25 @@ func theAdministratorDeclaresABacklinksReading(ctx context.Context, typeKey, sou
 
 // theAdministratorPlacesTheGroup asks for the group to appear on the named type alone.
 func theAdministratorPlacesTheGroup(ctx context.Context, title, typeKey string) error {
-	return patchGroup(ctx, title, fmt.Sprintf(`{"location":%s}`, namingType(typeKey)))
+	return patchGroup(ctx, title, map[string]any{"location": json.RawMessage(namingType(typeKey))})
 }
 
 // pointingBody returns the group the title names and the backlinks body pointing its key at a relation of the holder.
-func pointingBody(w *world, title, key, source, holder string) (int, string, error) {
+func pointingBody(w *world, title, key, source, holder string) (groupHeld, json.RawMessage, error) {
 	placed, err := groupNamed(w, title)
 	if err != nil {
-		return 0, "", err
+		return groupHeld{}, nil, err
 	}
 	stamp, err := stampReadOf(w, placed.ID, key)
 	if err != nil {
-		return 0, "", err
+		return groupHeld{}, nil, err
 	}
 	held, err := groupNamed(w, holder)
 	if err != nil {
-		return 0, "", err
+		return groupHeld{}, nil, err
 	}
-	return placed.ID, fmt.Sprintf(`{%q:{"source_group":%q,"source_field":[%q],"updated_at":%q}}`,
-		key, held.Key, source, stamp), nil
+	return placed, json.RawMessage(fmt.Sprintf(`{%q:{"source_group":%q,"source_field":[%q],"updated_at":%q}}`,
+		key, held.Key, source, stamp)), nil
 }
 
 // theAdministratorPlacesTheGroupReading asks in one save for the group on the type and its backlinks on a relation.
@@ -85,12 +85,13 @@ func theAdministratorPlacesTheGroupReading(ctx context.Context, title, typeKey, 
 	if err != nil {
 		return err
 	}
-	id, backlinks, err := pointingBody(w, title, key, source, holder)
+	placed, backlinks, err := pointingBody(w, title, key, source, holder)
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(groupsPath+"/"+strconv.Itoa(id),
-		fmt.Sprintf(`{"location":%s,"backlinks":%s}`, namingType(typeKey), backlinks))
+	return sendGroupEdit(w, placed, map[string]any{
+		"location": json.RawMessage(namingType(typeKey)), "backlinks": backlinks,
+	}, placed.UpdatedAt)
 }
 
 // theAdministratorPointsTheBacklinks asks in one save for the group's backlinks on a relation, the group staying put.
@@ -99,11 +100,11 @@ func theAdministratorPointsTheBacklinks(ctx context.Context, key, title, source,
 	if err != nil {
 		return err
 	}
-	id, backlinks, err := pointingBody(w, title, key, source, holder)
+	placed, backlinks, err := pointingBody(w, title, key, source, holder)
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(groupsPath+"/"+strconv.Itoa(id), fmt.Sprintf(`{"backlinks":%s}`, backlinks))
+	return sendGroupEdit(w, placed, map[string]any{"backlinks": backlinks}, placed.UpdatedAt)
 }
 
 // theAdministratorDeletesAndDeclaresAtOnce deletes a field and declares a backlinks reading it at the same moment.

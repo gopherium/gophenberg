@@ -4,6 +4,7 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -92,6 +93,33 @@ func TestUpdateGroupWaitsForAGroupWriteAlreadyUnderway(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil once the lock is free", err)
+	}
+}
+
+func TestUpdateGroupWritesNothingOnceTheRowMovedPastTheStampItHolds(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	read, err := store.CreateGroup(t.Context(), content.Group{Title: "Cars", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.field_groups SET title = 'Motors', updated_at = updated_at + interval '1 second' WHERE id = $1`,
+		read.ID,
+	); err != nil {
+		t.Fatalf("moving the row past the stamp read: %v", err)
+	}
+	read.Title = "Vehicles"
+
+	_, err = store.UpdateGroup(t.Context(), read, nil, nil)
+
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrConflict)
+	}
+	if held := contenttest.GroupAt(t, store, read.ID); held.Title != "Motors" {
+		t.Errorf("title = %q, want the row the other write left", held.Title)
 	}
 }
 

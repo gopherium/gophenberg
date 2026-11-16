@@ -124,10 +124,10 @@ msgstr ""
 msgid "%(file)s: %(reason)s"
 msgstr ""
 
-msgid "%(group)s created."
+msgid "%(group)s comes from %(plugin)s, so it is read only. Its fields show from the Field Groups list."
 msgstr ""
 
-msgid "%(group)s now appears where you said."
+msgid "%(group)s created."
 msgstr ""
 
 msgid "%(group)s removed."
@@ -422,6 +422,9 @@ msgstr ""
 msgid "Add User"
 msgstr ""
 
+msgid "Add a field"
+msgstr ""
+
 msgid "Add block"
 msgstr ""
 
@@ -565,6 +568,9 @@ msgstr ""
 msgid "Change address…"
 msgstr ""
 
+msgid "Changed elsewhere too. Your edit was not kept."
+msgstr ""
+
 msgid "Check again."
 msgstr ""
 
@@ -625,13 +631,22 @@ msgstr ""
 msgid "Could not activate the theme. %s"
 msgstr ""
 
+msgid "Could not add the field. %s"
+msgstr ""
+
 msgid "Could not deactivate the theme. %s"
+msgstr ""
+
+msgid "Could not delete the field. %s"
 msgstr ""
 
 msgid "Could not install the theme. %s"
 msgstr ""
 
 msgid "Could not load that post."
+msgstr ""
+
+msgid "Could not order the fields. %s"
 msgstr ""
 
 msgid "Could not roll back the theme. %s"
@@ -647,6 +662,12 @@ msgid "Could not save that post."
 msgstr ""
 
 msgid "Could not save the change. %s"
+msgstr ""
+
+msgid "Could not save the field group. %s"
+msgstr ""
+
+msgid "Could not save the field. %s"
 msgstr ""
 
 msgid "Could not save the settings. %s"
@@ -668,6 +689,9 @@ msgid "Create a field group"
 msgstr ""
 
 msgid "Created"
+msgstr ""
+
+msgid "Created %(date)s"
 msgstr ""
 
 msgid "Current version: %(version)s"
@@ -758,6 +782,12 @@ msgstr ""
 msgid "Dimensions"
 msgstr ""
 
+msgid "Discard"
+msgstr ""
+
+msgid "Discard changes?"
+msgstr ""
+
 msgid "Dismiss"
 msgstr ""
 
@@ -836,10 +866,16 @@ msgstr ""
 msgid "Field"
 msgstr ""
 
+msgid "Field Group"
+msgstr ""
+
 msgid "Field Groups"
 msgstr ""
 
 msgid "Field group"
+msgstr ""
+
+msgid "Field group settings"
 msgstr ""
 
 msgid "Fields"
@@ -986,6 +1022,9 @@ msgstr ""
 msgid "Keep %(field)s out of the list"
 msgstr ""
 
+msgid "Keep editing"
+msgstr ""
+
 msgid "Key"
 msgstr ""
 
@@ -1013,6 +1052,9 @@ msgstr ""
 msgid "List view"
 msgstr ""
 
+msgid "Load saved version"
+msgstr ""
+
 msgid "Loading field groups."
 msgstr ""
 
@@ -1032,6 +1074,9 @@ msgid "Loading themes."
 msgstr ""
 
 msgid "Loading…"
+msgstr ""
+
+msgid "Location rules"
 msgstr ""
 
 msgid "Longest"
@@ -1493,6 +1538,9 @@ msgstr ""
 msgid "Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in."
 msgstr ""
 
+msgid "Someone saved %(group)s after you opened it."
+msgstr ""
+
 msgid "Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening."
 msgstr ""
 
@@ -1594,6 +1642,9 @@ msgstr ""
 msgid "The built-in renderer is serving the public site."
 msgstr ""
 
+msgid "The changes to this field group are not saved."
+msgstr ""
+
 msgid "The check on %(date)s at %(time)s failed: %(error)s"
 msgstr ""
 
@@ -1603,10 +1654,16 @@ msgstr ""
 msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
 msgstr ""
 
+msgid "The content types could not be loaded, so where this group appears, which fields it shadows and what a relation can point at are not shown."
+msgstr ""
+
 msgid "The content types could not be loaded."
 msgstr ""
 
 msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
+msgstr ""
+
+msgid "The content types could not be refreshed, so where this group appears, which fields it shadows and what a relation can point at may be out of date."
 msgstr ""
 
 msgid "The database was busy with another change, so nothing was saved. Try again."
@@ -1864,6 +1921,9 @@ msgstr ""
 msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
 msgstr ""
 
+msgid "This field group does not exist, and it may have been deleted. Go back to the list to see what is there."
+msgstr ""
+
 msgid "This field holds no layouts yet."
 msgstr ""
 
@@ -2069,9 +2129,6 @@ msgstr ""
 msgid "What it points at changed, so its stored values go with it."
 msgstr ""
 
-msgid "Where %(group)s appears"
-msgstr ""
-
 msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
 msgstr ""
 
@@ -2194,6 +2251,10 @@ msgstr ""
 
 msgctxt "field"
 msgid "Name"
+msgstr ""
+
+msgctxt "field group"
+msgid "Active"
 msgstr ""
 
 msgctxt "field group"

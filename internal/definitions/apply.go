@@ -283,10 +283,11 @@ func (r *run) oneGroup(ctx context.Context, declared GroupDefinition, planned Ch
 			r.did(planned)
 			return nil
 		}
-		wanted.ID = created.ID
+		wanted.ID, wanted.UpdatedAt = created.ID, created.UpdatedAt
 	}
 	if wanted.ID == 0 {
-		wanted.ID = r.groupKeyed(declared.Key).ID
+		stored := r.groupKeyed(declared.Key)
+		wanted.ID, wanted.UpdatedAt = stored.ID, stored.UpdatedAt
 	}
 	if _, err := r.registry.UpdateGroupSettled(ctx, wanted, r.repointed(declared)); err != nil {
 		return err

@@ -3,6 +3,8 @@ Feature: Grouping fields and placing them by rule
   content types it appears on. Two groups may hold the same field key
   only while they never meet on one type, so a group that is edited
   into another's company is refused before it can shadow a value.
+  A group edit carries the stamp the administrator read, so a save made
+  in between is never lost without a word.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -38,6 +40,38 @@ Feature: Grouping fields and placing them by rule
   Scenario: Renaming a group
     Given the group "Article details" for "post"
     When the administrator renames the group "Article details" to "Article extras"
+    Then the group "Article extras" is listed
+
+  Scenario: A group edit carrying the stamp it read is stored
+    Given the group "Article details" for "post"
+    When the administrator renames the group "Article details" to "Article extras" holding the stamp it read
+    Then the group "Article extras" is listed
+
+  Scenario: A group edit carrying an older stamp is rejected as changed elsewhere
+    Given the group "Article details" for "post"
+    And someone renamed the group "Article details" to "Article facts" after the administrator read it
+    When the administrator renames the group "Article facts" to "Article extras" holding the stamp it read
+    Then the request is rejected with the code "content_stale_update"
+    And the group "Article facts" is listed
+
+  Scenario: A group edit without a stamp is rejected
+    Given the group "Article details" for "post"
+    When the administrator renames the group "Article details" to "Article extras" without a stamp
+    Then the request is rejected with the code "body_field_required"
+    And the group "Article details" is listed
+
+  Scenario: One group edit carries the title, the rules and the active flag together
+    Given the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    And the resting group "Article details" for "post"
+    When the administrator renames the group "Article details" to "Recipe details", places it on "recipe" and wakes it in one edit
+    Then the group "Recipe details" appears on "recipe"
+
+  Scenario: A field edit leaves its group's stamp as it was
+    Given the group "Article details" for "post"
+    And the administrator read the group "Article details"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the administrator relabels the field "subtitle" in "Article details" as "Strapline"
+    When the administrator renames the group "Article details" to "Article extras" holding the stamp it read
     Then the group "Article extras" is listed
 
   Scenario: A resting group serves its fields nowhere

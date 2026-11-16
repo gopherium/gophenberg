@@ -167,42 +167,54 @@ func repointsOf(asked map[string]backlinksPatch) (map[string]content.Repoint, bo
 	return repoints, false
 }
 
+// groupPatchRequest is a group edit as the admin API reads it, with the stamp its editor read the group at.
+type groupPatchRequest struct {
+	Title     *string                   `json:"title"`
+	Location  *content.Rules            `json:"location"`
+	Active    *bool                     `json:"active"`
+	Backlinks map[string]backlinksPatch `json:"backlinks"`
+	UpdatedAt *time.Time                `json:"updated_at"`
+}
+
+// onto returns the stored group carrying the parts the edit names.
+func (req groupPatchRequest) onto(stored content.Group) content.Group {
+	if req.Title != nil {
+		stored.Title = *req.Title
+	}
+	if req.Location != nil {
+		stored.Location = *req.Location
+	}
+	if req.Active != nil {
+		stored.Active = *req.Active
+	}
+	return stored
+}
+
 // handleGroupPatch returns an http.HandlerFunc carrying a group's title, location, resting flag and backlinks sources.
 func (s *server) handleGroupPatch() http.HandlerFunc {
-	type request struct {
-		Title     *string                   `json:"title"`
-		Location  *content.Rules            `json:"location"`
-		Active    *bool                     `json:"active"`
-		Backlinks map[string]backlinksPatch `json:"backlinks"`
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		stored, err := s.storedGroup(r)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		req, err := decodeKnown[request](w, r)
+		req, err := decodeKnown[groupPatchRequest](w, r)
 		if err != nil {
 			respondBodyError(w, err)
 			return
 		}
-		if req.Title != nil {
-			stored.Title = *req.Title
-		}
-		if req.Location != nil {
-			stored.Location = *req.Location
-		}
-		if req.Active != nil {
-			stored.Active = *req.Active
-		}
 		repoints, stampless := repointsOf(req.Backlinks)
-		if stampless {
+		if stampless || req.UpdatedAt == nil {
 			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
 			})
 			return
 		}
-		updated, err := s.types.UpdateGroupRepointed(r.Context(), stored, repoints)
+		if !req.UpdatedAt.Equal(stored.UpdatedAt) {
+			respondDomainError(w, content.ErrConflict)
+			return
+		}
+		updated, err := s.types.UpdateGroupRepointed(r.Context(), req.onto(stored), repoints)
 		if err != nil {
 			respondDomainError(w, err)
 			return

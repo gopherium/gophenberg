@@ -271,7 +271,7 @@ func TestGroupPatchCarriesANewLocation(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id),
 		groupBody(t, map[string]any{"location": []any{[]any{map[string]any{
 			"source": content.ScreenContentType, "operator": content.OperatorIs, "value": content.AnyContentType,
-		}}}}))
+		}}}, "updated_at": groupStamp(t, handler, id)}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -289,7 +289,7 @@ func TestGroupPatchRefusesALocationBringingAKeyIntoCollision(t *testing.T) {
 	held := createGroup(t, handler, "Article details")
 	rival := createGroup(t, handler, "Extras")
 	resting := doRequest(t, handler, http.MethodPatch, groupPath(rival),
-		groupBody(t, map[string]any{"active": false}))
+		groupBody(t, map[string]any{"active": false, "updated_at": groupStamp(t, handler, rival)}))
 	if resting.Code != http.StatusOK {
 		t.Fatalf("resting the rival: status = %d, body %s", resting.Code, resting.Body.String())
 	}
@@ -302,7 +302,7 @@ func TestGroupPatchRefusesALocationBringingAKeyIntoCollision(t *testing.T) {
 	}
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(rival),
-		groupBody(t, map[string]any{"active": true}))
+		groupBody(t, map[string]any{"active": true, "updated_at": groupStamp(t, handler, rival)}))
 
 	if code := errorCode(t, recorder); code != "field_taken" {
 		t.Errorf("code = %q, want field_taken, body %s", code, recorder.Body.String())

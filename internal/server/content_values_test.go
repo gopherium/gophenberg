@@ -184,8 +184,9 @@ func TestContentPatchKeepsAValueItsGroupStoppedServing(t *testing.T) {
 	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text"}`)
 	declaredOn(t, handler, `{"key":"doors","label":"Doors","kind":"number"}`)
 	held := patchValues(t, handler, draftedPost(t, handler), `{"color":"red","doors":4}`)
-	resting := doRequest(t, handler, http.MethodPatch,
-		fmt.Sprintf("/api/groups/%d", groupOver(t, handler, content.TypePost)), `{"active":false}`)
+	over := groupOver(t, handler, content.TypePost)
+	resting := doRequest(t, handler, http.MethodPatch, groupPath(over),
+		groupBody(t, map[string]any{"active": false, "updated_at": groupStamp(t, handler, over)}))
 	if resting.Code != http.StatusOK {
 		t.Fatalf("resting the group: %d: %s", resting.Code, resting.Body.String())
 	}

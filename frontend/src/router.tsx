@@ -82,6 +82,13 @@ const fieldGroupsRoute = createRoute({
 	component: lazyRouteComponent(() => import('./content/GroupsScreen'), 'GroupsScreen'),
 })
 
+const fieldGroupRoute = createRoute({
+	getParentRoute: () => adminRoute,
+	path: '/field-groups/$groupId',
+	staticData: { capability: MANAGE_TYPES },
+	component: lazyRouteComponent(() => import('./content/FieldGroupScreen'), 'FieldGroupScreen'),
+})
+
 const usersRoute = createRoute({
 	getParentRoute: () => adminRoute,
 	path: '/users',
@@ -146,6 +153,7 @@ const routeTree = rootRoute.addChildren([
 		adminRoute.addChildren([
 			contentTypesRoute,
 			fieldGroupsRoute,
+			fieldGroupRoute,
 			usersRoute,
 			newUserRoute,
 			themesRoute,

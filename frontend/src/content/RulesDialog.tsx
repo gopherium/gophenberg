@@ -1,35 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
-import { ErrorNotice, FormDialog } from '@gopherium/godmin'
+import { ErrorNotice } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 
-import {
-	backlinkSettings,
-	backlinkSources,
-	groupErrorMessage,
-	groupsQueryKey,
-	listRuleSources,
-	pickOf,
-	ruleSourcesQueryKey,
-	StaleWriteError,
-	typeSource,
-	updateGroup,
-} from './groups'
+import { changedElsewhere, linkPart } from './groupDraft'
+import { backlinkSources, pickOf, typeSource } from './groups'
 import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import { pluralOf } from './typeText'
+import type { DraftPart } from './groupDraft'
 import type { BacklinkPick, FieldGroup, Location, LocationRule, RuleSource } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
-
-/** A Linked from source the operator picked, with the stamp its field carried when they picked it. */
-interface Touched extends BacklinkPick {
-	updatedAt: string
-}
 
 /**
  * Returns the phrase a rule operator is offered under.
@@ -85,7 +69,7 @@ function namedType(offered: Choice, types: ContentType[]): Choice {
  * @param types - The registered types, each naming the plugin that declared it.
  * @returns The sources the selects offer.
  */
-function namedSources(sources: RuleSource[], types: ContentType[]): RuleSource[] {
+export function namedSources(sources: RuleSource[], types: ContentType[]): RuleSource[] {
 	return sources.map((offered) =>
 		offered.source === typeSource
 			? { ...offered, values: offered.values.map((value) => namedType(value, types)) }
@@ -137,132 +121,17 @@ function withoutRule(held: Location, at: { set: number; rule: number }): Locatio
 }
 
 /**
- * Returns the settings naming what each Linked from field the operator touched now reads.
- * @param groups - The groups a relation may stand in.
- * @param picked - The pairs the operator picked, by field key.
- * @returns The settings to send, or nothing when no field was touched.
- */
-function pointedAnew(
-	groups: FieldGroup[],
-	picked: Record<string, Touched>,
-): Record<string, Record<string, unknown>> | undefined {
-	const touched = Object.entries(picked)
-	if (touched.length === 0) {
-		return undefined
-	}
-	return Object.fromEntries(
-		touched.map(([key, pick]) => [
-			key,
-			{ ...backlinkSettings(backlinkSources(groups, pick.group, pick.field)), updated_at: pick.updatedAt },
-		]),
-	)
-}
-
-/** What the control editing where a group appears takes. */
-interface RulesProps {
-	held: FieldGroup
-	groups: FieldGroup[]
-	types: ContentType[]
-	onDone: (said: string) => void
-	onRefused: (cause: unknown) => void
-}
-
-/**
- * Renders the control editing where a group appears and, while it asks, its form.
- * @param props - The group, the groups a relation may stand in, the registered types, and the reporters.
- * @returns The control and its form.
- */
-export function RulesDialog(props: RulesProps) {
-	const [asking, setAsking] = useState(false)
-	const sources = useQuery({ queryKey: ruleSourcesQueryKey, queryFn: listRuleSources })
-	return (
-		<>
-			<Button variant="outline" onClick={() => setAsking(true)}>
-				{__('Rules', 'gophenberg')}
-			</Button>
-			{asking ? (
-				<RulesForm
-					{...props}
-					sources={sources.data ?? []}
-					failed={sources.isError}
-					onClose={() => setAsking(false)}
-				/>
-			) : null}
-		</>
-	)
-}
-
-/**
- * Renders the form editing where a group appears, its draft started from the stored rules on each ask.
- * @param props - The group, the groups, the types, the reporters, the sources offered and what takes the form away.
- * @returns The form dialog, kept open with the draft after a failure other than a stale write.
- */
-function RulesForm(props: RulesProps & { sources: RuleSource[]; failed: boolean; onClose: () => void }) {
-	const [draft, setDraft] = useState<Location>(props.held.location)
-	const [picked, setPicked] = useState<Record<string, Touched>>({})
-	const client = useQueryClient()
-	const save = useMutation({
-		mutationFn: () =>
-			updateGroup(props.held.id, { location: draft, backlinks: pointedAnew(props.groups, picked) }),
-	})
-	const said = sprintf(__('%(group)s now appears where you said.', 'gophenberg'), { group: props.held.title })
-	const send = () =>
-		save.mutateAsync().then(
-			() => {
-				props.onDone(said)
-			},
-			(cause: unknown) => {
-				if (!(cause instanceof StaleWriteError)) {
-					return { error: groupErrorMessage(cause) }
-				}
-				props.onRefused(cause)
-				void client.invalidateQueries({ queryKey: groupsQueryKey })
-				return undefined
-			},
-		)
-	return (
-		<FormDialog
-			title={sprintf(__('Where %(group)s appears', 'gophenberg'), { group: props.held.title })}
-			submitLabel={__('Save rules', 'gophenberg')}
-			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={send}
-			onClose={props.onClose}
-		>
-			{(busy) => (
-				<>
-					<RulesBody
-						draft={draft}
-						sources={namedSources(props.sources, props.types)}
-						failed={props.failed}
-						readOnly={busy}
-						onDraft={setDraft}
-					/>
-					<LinkedSources
-						held={props.held}
-						groups={props.groups}
-						picked={picked}
-						readOnly={busy}
-						onPick={(field, pick) =>
-							setPicked((was) => ({ ...was, [field.key]: { ...pick, updatedAt: field.updatedAt } }))
-						}
-					/>
-				</>
-			)}
-		</FormDialog>
-	)
-}
-
-/**
  * Renders the pickers naming what each Linked from field of the group reads.
  * @param props - The group, the groups a relation may stand in, the pairs picked so far, whether the pickers are read
- *   only, and what to call with a pick.
+ *   only, the keys of the fields whose pick the saved version won over, and what to call with a pick.
  * @returns The pickers element, or nothing when the group holds no Linked from field.
  */
-function LinkedSources(props: {
+export function LinkedSources(props: {
 	held: FieldGroup
 	groups: FieldGroup[]
-	picked: Record<string, Touched>
+	picked: Record<string, BacklinkPick>
 	readOnly: boolean
+	lost: DraftPart[]
 	onPick: (field: ContentField, pick: BacklinkPick) => void
 }) {
 	const reading = props.held.fields.filter((field) => field.kind === 'backlinks')
@@ -277,6 +146,7 @@ function LinkedSources(props: {
 				return (
 					<Stack key={field.key} direction="column" gap="sm" role="group" aria-label={field.label}>
 						<Text variant="body-sm">{field.label}</Text>
+						{props.lost.includes(linkPart(field.key)) && <Text variant="body-sm">{changedElsewhere()}</Text>}
 						{pick === null ? (
 							<Text variant="body-sm">
 								{__(
@@ -285,7 +155,7 @@ function LinkedSources(props: {
 								)}
 							</Text>
 						) : (
-							<Stack direction="row" gap="sm" align="end">
+							<Stack direction="row" gap="sm" align="end" wrap="wrap">
 								<SourceOfLinks
 									sources={backlinkSources(props.groups, pick.group, pick.field)}
 									readOnly={props.readOnly}
@@ -314,13 +184,13 @@ interface Drafting {
  * @param props - The rules held, the sources, whether the sources failed or the body is read only, and what to do.
  * @returns The body element.
  */
-function RulesBody(props: Drafting & { failed: boolean }) {
+export function RulesBody(props: Drafting & { failed: boolean }) {
 	if (props.failed) {
 		return <ErrorNotice>{__('The rules could not be loaded.', 'gophenberg')}</ErrorNotice>
 	}
 	const fresh = blankRule(props.sources)
 	return (
-		<Stack direction="column" gap="md">
+		<Stack direction="column" gap="md" align="start">
 			{props.draft.length === 0 && (
 				<Text>{__('Without a rule this group appears nowhere.', 'gophenberg')}</Text>
 			)}
@@ -339,24 +209,22 @@ function RulesBody(props: Drafting & { failed: boolean }) {
 }
 
 /**
- * Renders one set of conditions an item has to meet all of.
+ * Renders one set of conditions an item has to meet all of, named above them.
  * @param props - The set, where it sits, the rules held, the sources, and what to do.
  * @returns The set element.
  */
 function RuleSet(props: Drafting & { set: LocationRule[]; at: number }) {
 	const fresh = blankRule(props.sources)
+	const name = sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(props.at + 1) })
 	return (
-		<Stack
-			direction="column"
-			gap="sm"
-			role="group"
-			aria-label={sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(props.at + 1) })}
-		>
+		<Stack direction="column" gap="sm" align="start" role="group" aria-label={name}>
+			<Text variant="body-sm">{name}</Text>
 			{props.set.map((rule, spot) => (
 				<RuleRow key={spot} rule={rule} spot={spot} {...props} />
 			))}
 			<Button
 				variant="outline"
+				size="compact"
 				disabled={fresh === null || props.readOnly}
 				onClick={() =>
 					fresh !== null &&
@@ -409,6 +277,7 @@ function RuleRow(props: Drafting & { rule: LocationRule; at: number; spot: numbe
 			direction="row"
 			gap="sm"
 			align="end"
+			wrap="wrap"
 			role="group"
 			aria-label={sprintf(__('Rule %(number)s of set %(set)s', 'gophenberg'), {
 				number: formatNumber(props.spot + 1),
