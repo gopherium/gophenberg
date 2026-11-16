@@ -1186,8 +1186,16 @@ msgid "The content types could not be loaded, so where these groups appear and w
 msgstr "No se han podido cargar los tipos de contenido, así que no se muestra dónde aparecen estos grupos ni qué campos eclipsan."
 
 #, fuzzy
+msgid "The content types could not be loaded, so where this group appears, which fields it shadows and what a relation can point at are not shown."
+msgstr "No se han podido cargar los tipos de contenido, así que no se muestra dónde aparece este grupo, qué campos eclipsa ni a qué puede apuntar una relación."
+
+#, fuzzy
 msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
 msgstr "No se han podido actualizar los tipos de contenido, así que dónde aparecen estos grupos y qué eclipsan puede estar desactualizado."
+
+#, fuzzy
+msgid "The content types could not be refreshed, so where this group appears, which fields it shadows and what a relation can point at may be out of date."
+msgstr "No se han podido actualizar los tipos de contenido, así que dónde aparece este grupo, qué campos eclipsa y a qué puede apuntar una relación puede estar desactualizado."
 
 #, fuzzy
 msgid "The database was busy with another change, so nothing was saved. Try again."
