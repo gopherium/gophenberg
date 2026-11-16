@@ -51,7 +51,8 @@ export default defineTheme({
 })
 ```
 
-`NotFound` and `ServerError` are optional, and a `blocks` map can
+`NotFound` and `ServerError` are optional. Leave one out and the
+kit renders a plain page inside `Base` instead. A `blocks` map can
 join the object to override single block types, covered in
 [rendering blocks](/themes/rendering-blocks/).
 
@@ -64,21 +65,29 @@ decides instead, whatever the site chose.
 
 You write no pages for content. The integration injects the front
 page, one catch-all route serving every stored address, the 404
-page, the 500 page shown when a page fails to render, and the
-health route Gophenberg probes at startup. The 500 page asks
-Gophenberg for no content, so a page whose content read fails reads
-the content API once. The catch-all asks Gophenberg what an address
-holds and renders your Post layout for an item, your Archive layout
-for a listing, or your Term layout for an item that lists what
-points at it, with the content already fetched.
+page, the 500 page, and the health route Gophenberg probes at
+startup. The catch-all asks Gophenberg what an address holds and
+renders your Post layout for an item, your Archive layout for a
+listing, or your Term layout for an item that lists what points at
+it, with the content already fetched.
+
+The 500 page shows when the code between a page's `---` fences
+throws, for example when the catch-all cannot read its content. It
+reads no content, so it still shows while the content API fails.
+Keep `Base` and your own `ServerError` layout free of content reads
+too. A layout that throws cuts the page short instead, because by
+then the page has started to send.
 
 Your own pages coexist with them: `src/pages/about.astro` serves
 `/about` as in any Astro site. To put posts on a page of your own,
-read the [content API](/reference/content-api/) directly.
+read the [content API](/reference/content-api/) directly. For your
+own 404 and 500 pages, write the `NotFound` and `ServerError`
+layouts. A `src/pages/404.astro` or `src/pages/500.astro` collides
+with the kit's routes.
 
-The 404 and 500 pages take precedence over the catch-all, so a
-stored item at `/404` or `/500` is not served. Give such an item
-another address.
+While your theme serves, `/404` and a direct request for `/500`
+show its 404 page, even when an item is stored at that address.
+Give such an item another address.
 
 ## The layouts
 
