@@ -93,7 +93,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the drift report names no orphan from "([^"]*)"$`, p.noOrphanFrom)
 	sc.Then(`^the route of "([^"]*)" answers (\d+)$`, p.routeAnswers)
 	sc.Then(`^the plugin records hold "([^"]*)" as (active|inactive|not installed) with no error$`, p.holdsClean)
-	sc.Then(`^the plugin records hold "([^"]*)" as paused, its error saying "([^"]*)"$`, p.holdsPaused)
+	sc.Then(`^the plugin records hold "([^"]*)" as paused, its error saying "(.*)"$`, p.holdsPaused)
 	sc.Then(`^the plugin records hold no record$`, p.holdsNone)
 	sc.Then(`^the plugin records hold no record of "([^"]*)"$`, p.holdsNoneOf)
 	sc.Then(`^the site logged that "([^"]*)" is paused at the step "([^"]*)"$`, p.loggedPause)
@@ -104,6 +104,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	p.bindRoutePanics(sc)
 	p.bindHooks(sc)
 	p.bindContentChanges(sc)
+	p.bindSettings(sc)
 }
 
 // compile compiles the plugins first and second into the scenario's binary, in that order.
