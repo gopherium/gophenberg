@@ -18,6 +18,9 @@ var _ content.TypeStore = (*TypeStore)(nil)
 // routeWordConstraint names the unique index over the route words in use.
 const routeWordConstraint = "content_types_route_word_idx"
 
+// oneDefaultConstraint names the unique index allowing only one default content type.
+const oneDefaultConstraint = "content_types_one_default_idx"
+
 // typeKeyConstraint names the primary key over the type keys in use.
 const typeKeyConstraint = "content_types_pkey"
 
@@ -88,6 +91,7 @@ var rulesBroken = []typestore.Rule{
 	{Code: uniqueViolationCode, Name: containerKeyConstraint, Broken: typestore.FieldKeyUnique},
 	{Code: uniqueViolationCode, Name: typeKeyConstraint, Broken: typestore.TypeKeyUnique},
 	{Code: uniqueViolationCode, Name: routeWordConstraint, Broken: typestore.RouteWordUnique},
+	{Code: uniqueViolationCode, Name: oneDefaultConstraint, Broken: typestore.DefaultUnique},
 	{Code: foreignKeyViolationCode, Name: fieldTargetConstraint, Broken: typestore.FieldTargetExists},
 	{Code: foreignKeyViolationCode, Name: fieldGroupConstraint, Broken: typestore.FieldGroupExists},
 }

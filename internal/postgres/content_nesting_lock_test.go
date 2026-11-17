@@ -37,6 +37,12 @@ func rivalTransaction(t *testing.T, pool *pgxpool.Pool) pgx.Tx {
 // waitingOn waits until a statement matching the pattern stands blocked on a lock.
 func waitingOn(t *testing.T, pool *pgxpool.Pool, pattern string) {
 	t.Helper()
+	waitingFor(t, pool, pattern, 1)
+}
+
+// waitingFor waits until at least the given number of statements matching the pattern stand blocked on a lock.
+func waitingFor(t *testing.T, pool *pgxpool.Pool, pattern string, want int) {
+	t.Helper()
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		var waiting int
@@ -46,11 +52,11 @@ func waitingOn(t *testing.T, pool *pgxpool.Pool, pattern string) {
 			pattern).Scan(&waiting); err != nil {
 			t.Fatalf("polling pg_stat_activity: %v", err)
 		}
-		if waiting > 0 {
+		if waiting >= want {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("no statement matching %q ever blocked on a lock", pattern)
+			t.Fatalf("%d statements matching %q blocked on a lock, want %d", waiting, pattern, want)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

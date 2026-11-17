@@ -20,6 +20,7 @@ const (
 	FieldGroupExists
 	TypeKeyUnique
 	RouteWordUnique
+	DefaultUnique
 	TypeHeldByContent
 	ContentPathUnique
 	RelationTargetExists
@@ -89,6 +90,7 @@ var typeWriteErrors = map[Constraint]error{
 var typeUpdateErrors = map[Constraint]error{
 	TypeKeyUnique:     content.ErrTypeTaken,
 	RouteWordUnique:   content.ErrRouteWordTaken,
+	DefaultUnique:     content.ErrRootTaken,
 	ContentPathUnique: content.ErrSlugTaken,
 }
 
