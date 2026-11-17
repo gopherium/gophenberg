@@ -66,7 +66,7 @@ var orderedRules = []Rule{
 }
 
 // catchAll lends one rule naming neither a code nor a name.
-var catchAll = []Rule{{Broken: FieldGroupExists}}
+var catchAll = []Rule{{Broken: RelationTargetExists}}
 
 func TestBrokenTakesTheFirstRuleMatchingTheCodeAndTheName(t *testing.T) {
 	t.Parallel()
@@ -108,8 +108,8 @@ func TestBrokenMatchesAnyFoundFailureUnderARuleNamingNeitherCodeNorName(t *testi
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := storeReading(catchAll).broken(err); got != FieldGroupExists {
-				t.Errorf("broken(%v) = %d, want %d", err, got, FieldGroupExists)
+			if got := storeReading(catchAll).broken(err); got != RelationTargetExists {
+				t.Errorf("broken(%v) = %d, want %d", err, got, RelationTargetExists)
 			}
 		})
 	}
@@ -189,7 +189,7 @@ func TestBrokenMatchesWhatTheReaderItIsHandedFindsAgainstTheRulesItIsHanded(t *t
 		},
 		"a name under any code": {orderedRules, readBrokenRule, brokeRule{"reference", "content path"}, ContentPathUnique},
 		"a code and a name":     {orderedRules, readBrokenRule, brokeRule{"unique", "type key"}, TypeKeyUnique},
-		"a rule naming neither": {catchAll, readBrokenRule, brokeRule{}, FieldGroupExists},
+		"a rule naming neither": {catchAll, readBrokenRule, brokeRule{}, RelationTargetExists},
 		"a failure carried inside a wrap": {
 			orderedRules, readBrokenRule, fmt.Errorf("create: %w", brokeRule{"unique", "route word"}), RouteWordUnique,
 		},
@@ -214,7 +214,6 @@ var tailRules = []Rule{
 	{Code: "unique", Name: "group key", Broken: GroupKeyUnique},
 	{Code: "unique", Name: "field key", Broken: FieldKeyUnique},
 	{Code: "reference", Name: "field target", Broken: FieldTargetExists},
-	{Code: "reference", Name: "field group", Broken: FieldGroupExists},
 	{Code: "unique", Name: "type key", Broken: TypeKeyUnique},
 	{Code: "unique", Name: "route word", Broken: RouteWordUnique},
 	{Code: "unique", Name: "one default", Broken: DefaultUnique},
@@ -408,7 +407,6 @@ func checkWrapped(t *testing.T, engine dbkit.Engine, prefix string, given, got e
 var fieldWriteMeanings = map[Constraint]error{
 	FieldKeyUnique:    content.ErrFieldTaken,
 	FieldTargetExists: content.ErrTargetUnknown,
-	FieldGroupExists:  content.ErrGroupNotFound,
 }
 
 // typeUpdateMeanings holds the error each rule a type update breaks stands for.

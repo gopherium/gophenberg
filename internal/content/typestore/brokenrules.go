@@ -17,7 +17,6 @@ const (
 	GroupKeyUnique
 	FieldKeyUnique
 	FieldTargetExists
-	FieldGroupExists
 	TypeKeyUnique
 	RouteWordUnique
 	DefaultUnique
@@ -77,7 +76,6 @@ var groupWriteErrors = map[Constraint]error{
 var fieldWriteErrors = map[Constraint]error{
 	FieldKeyUnique:    content.ErrFieldTaken,
 	FieldTargetExists: content.ErrTargetUnknown,
-	FieldGroupExists:  content.ErrGroupNotFound,
 }
 
 // typeWriteErrors maps each rule a type write can break to the error it stands for.
