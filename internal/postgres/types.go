@@ -42,9 +42,6 @@ const containerKeyConstraint = "content_fields_container_key_unique"
 // groupKeyConstraint names the unique constraint over field group keys.
 const groupKeyConstraint = "field_groups_key_unique"
 
-// fieldGroupConstraint names the reference a field keeps to its group.
-const fieldGroupConstraint = "content_fields_group_fkey"
-
 // fieldTargetConstraint names the reference a relation field keeps to its target type.
 const fieldTargetConstraint = "content_fields_relates_to_fkey"
 
@@ -89,7 +86,6 @@ var rulesBroken = []typestore.Rule{
 	{Code: uniqueViolationCode, Name: typeKeyConstraint, Broken: typestore.TypeKeyUnique},
 	{Code: uniqueViolationCode, Name: routeWordConstraint, Broken: typestore.RouteWordUnique},
 	{Code: foreignKeyViolationCode, Name: fieldTargetConstraint, Broken: typestore.FieldTargetExists},
-	{Code: foreignKeyViolationCode, Name: fieldGroupConstraint, Broken: typestore.FieldGroupExists},
 }
 
 // readError returns the code, the constraint name and the context a Postgres error carries, and whether err holds one.

@@ -108,9 +108,6 @@ func TestRulesBrokenListsEachRuleThePostgreSQLErrorsNameInMatchOrder(t *testing.
 		{"a relation target reference broken", typestore.Rule{
 			Code: foreignKeyViolationCode, Name: fieldTargetConstraint, Broken: typestore.FieldTargetExists,
 		}},
-		{"a field group reference broken", typestore.Rule{
-			Code: foreignKeyViolationCode, Name: fieldGroupConstraint, Broken: typestore.FieldGroupExists,
-		}},
 	}
 
 	if len(rulesBroken) != len(want) {
