@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
 import { AdminHost } from '../AdminHost'
 import { SiteFormatGate } from '../settings/SiteFormatGate'
@@ -17,6 +17,13 @@ const NO_ANSWER = 'Could not get a valid response from the server.'
 
 /** A time limit far shorter than any test. */
 const SHORT_LIMIT = 20
+
+/** The longest time a browser timer holds. */
+const LONGEST_TIMER = 2 ** 31 - 1
+
+afterEach(() => {
+	vi.useRealTimers()
+})
 
 /**
  * Returns a write the server never answers.
@@ -69,16 +76,38 @@ test('gives up on a dialog write once the time the site serves runs out', async 
 	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
 
 	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
-	expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+	expect(screen.getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-disabled', 'true')
 })
 
-test('waits on a dialog write as long as it takes while the site settings are not loaded', async () => {
+test('waits on a dialog write as long as it takes while the site settings are not loaded yet', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
 	renderHosted(<HangingConfirm />)
 
 	await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
-	await new Promise((resolve) => setTimeout(resolve, SHORT_LIMIT * 3))
+	await vi.advanceTimersByTimeAsync(LONGEST_TIMER)
 
 	expect(screen.queryByText(NO_ANSWER)).toBeNull()
+})
+
+test('opens the screens and gives a dialog write no time limit once the site settings could not be read', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }),
+		),
+	)
+	renderHosted(
+		<SiteFormatGate loading={null}>
+			<HangingConfirm />
+		</SiteFormatGate>,
+	)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+	await vi.advanceTimersByTimeAsync(LONGEST_TIMER)
+
+	expect(screen.queryByText(NO_ANSWER)).toBeNull()
+	expect(screen.getByRole('alertdialog', { name: 'Delete the draft?' })).toBeVisible()
+	expect(screen.getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('leaves the settings for the screens to load', async () => {
