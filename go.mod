@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/dbkit v0.3.0
 	github.com/gopherium/framework/dbkit/postgres v0.4.0
-	github.com/gopherium/framework/dbkit/sqlite v0.4.1-0.20261116212118-1570fe86ca39
+	github.com/gopherium/framework/dbkit/sqlite v0.4.1-0.20261116220319-98f6be8ccd10
 	github.com/gopherium/framework/goncierge v0.1.0
 	github.com/gopherium/framework/gonsole v0.9.0
 	github.com/gopherium/framework/gonsole/auth v0.9.0
