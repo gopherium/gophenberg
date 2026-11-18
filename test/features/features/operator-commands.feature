@@ -139,6 +139,12 @@ Feature: Operators run Gophenberg from one command line
     And the answer says nothing changed until it is confirmed
     And the database holds no demo content
 
+  Scenario: Seeding stores the demo data once it is confirmed
+    When the operator runs "seed -yes"
+    Then the command succeeds
+    And the account "admin@example.com" holds the role "admin"
+    And the database holds the demo posts
+
   Scenario: The first administrator is created from the command line
     When the operator creates the administrator "admin@example.com" with a password on standard input
     Then the command succeeds
