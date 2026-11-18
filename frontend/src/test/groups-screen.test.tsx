@@ -316,6 +316,34 @@ test('opens the page of a new group once it is created, read again with the grou
 	expect(await findToast('Extras created.')).toBeInTheDocument()
 })
 
+test('opens the page of a new group as soon as the server stores it, while the groups are read again', async () => {
+	const reread = gate()
+	onTestFinished(reread.release)
+	listing([DETAILS_GROUP])
+	server.use(
+		http.post('/api/groups', () => {
+			server.use(
+				http.get('/api/groups', async () => {
+					await reread.held
+					return HttpResponse.json({ items: [DETAILS_GROUP, EXTRAS_GROUP] })
+				}),
+			)
+			return HttpResponse.json(EXTRAS_GROUP, { status: 201 })
+		}),
+	)
+	const { router } = renderRoutedAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
+	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+	await waitFor(() => expect(router.state.location.pathname).toBe('/field-groups/4'))
+	const main = screen.getByRole('main')
+	expect(await within(main).findByRole('heading', { level: 2, name: 'Extras' })).toBeInTheDocument()
+	expect(await findToast('Extras created.')).toBeInTheDocument()
+})
+
 test('seeds a new group with a rule so it is never born matching nowhere', async () => {
 	let sent: { location?: unknown } = {}
 	server.use(

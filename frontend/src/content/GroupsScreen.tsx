@@ -247,14 +247,15 @@ export function GroupsScreen() {
 	}
 
 	/**
-	 * Opens the page of a group just created once the groups are read again with it, then says it was created.
+	 * Opens the page of a group the server just stored, reads the lists again behind it and says it was created.
 	 * @param created - The group the server stored.
 	 * @param said - The sentence naming what was done.
 	 */
-	async function opened(created: FieldGroup, said: string) {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-		await client.invalidateQueries({ queryKey: typesQueryKey })
-		await navigate({ to: '/field-groups/$groupId', params: { groupId: String(created.id) } })
+	function opened(created: FieldGroup, said: string) {
+		client.setQueryData<FieldGroup[]>(groupsQueryKey, (listed) => listed?.concat(created))
+		void client.invalidateQueries({ queryKey: groupsQueryKey })
+		void client.invalidateQueries({ queryKey: typesQueryKey })
+		void navigate({ to: '/field-groups/$groupId', params: { groupId: String(created.id) } })
 		toaster.show(said)
 	}
 
@@ -536,7 +537,7 @@ function ExportDefinitions() {
 /** What the control storing a new field group takes. */
 interface AddGroupProps {
 	types: ContentType[]
-	onCreated: (created: FieldGroup, said: string) => Promise<void>
+	onCreated: (created: FieldGroup, said: string) => void
 }
 
 /**
