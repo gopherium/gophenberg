@@ -193,10 +193,23 @@ Some things work differently after this update:
 - On a SQLite file, every account command and every plugin command
   that names a capability now run as on PostgreSQL, and the accounts
   and their records are kept in the file. The release before this one
-  stops each of them with the `account commands:` error. `serve` and
-  `seed -yes` still stop, and their error no longer names accounts. A
-  plugin can read account names on SQLite too, see
+  stops each of them with the `account commands:` error. `serve` still
+  stops, and its error no longer names accounts. A plugin can read
+  account names on SQLite too, see
   [reading account names](/extending/the-plugin-sdk/#reading-account-names).
+- On a SQLite file, `seed -yes` now stores the demo data in the file,
+  as on PostgreSQL. The release before this one stops it after it
+  migrates the file. `serve`, `database:create-owner` and
+  `update:apply` still stop, and their error now reads:
+
+  ```text
+  gophenberg: serve: this command runs only on a PostgreSQL database, so GOPHENBERG_DATABASE_URL must name one
+  ```
+
+  Older releases say `do not run on SQLite yet` in that error, so
+  update any script or alert that matches those words. A plugin can
+  read posts on SQLite too, see
+  [reading content](/extending/the-plugin-sdk/#reading-content).
 - On a SQLite file, two `migrate` runs started at the same moment on a
   new file no longer stop with `the database is busy`. Opening the
   file while another connection holds it locked now waits up to

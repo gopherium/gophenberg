@@ -432,8 +432,8 @@ only a failed program leaves it stopped, so keep it unset there.
 
 Gophenberg can also keep its data in one SQLite file instead of a
 PostgreSQL server. Only part of Gophenberg runs on SQLite so far:
-`check`, `migrate`, `database:backup` and the account commands work,
-but the site cannot serve from the file yet.
+`check`, `migrate`, `seed`, `database:backup` and the account
+commands work, but the site cannot serve from the file yet.
 
 ### The address
 
@@ -502,10 +502,10 @@ backup included, run only while `serve` runs, so none run on a SQLite
 site yet. `check` still checks the cron settings.
 
 Plugins get no database on SQLite. Their database address is empty,
-their share of the database answers every statement with an error,
-and they cannot read posts yet, see
-[the plugin SDK](/extending/the-plugin-sdk/#the-database). They can
-read account names, see
+and their share of the database answers every statement with an
+error, see [the plugin SDK](/extending/the-plugin-sdk/#the-database).
+They can read posts and account names, see
+[reading content](/extending/the-plugin-sdk/#reading-content) and
 [reading account names](/extending/the-plugin-sdk/#reading-account-names).
 
 ### Backups of the file
