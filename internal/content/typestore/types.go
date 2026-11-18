@@ -117,16 +117,20 @@ func updateParams(t content.Type) TypeRow {
 	}
 }
 
-// carryContent moves every address of the type from the route word it answered under.
+// carryContent moves every address of the type from the route word it answered under, rejecting a root page address.
 func carryContent(ctx context.Context, queries Queries, t content.Type, was string) error {
 	if err := queries.DeferAddressCheck(ctx); err != nil {
 		return err
 	}
-	return queries.RetypeContentPaths(ctx, TypeRow{
+	paths, err := queries.RetypeContentPaths(ctx, TypeRow{
 		RouteWord: t.RouteWord,
 		UpdatedAt: t.UpdatedAt,
 		Key:       t.Key,
 	}, was)
+	if err != nil {
+		return err
+	}
+	return content.CheckPaginationPaths(paths)
 }
 
 // writeType stores the edited type through the queries, handing the root over when the edit asks for it.

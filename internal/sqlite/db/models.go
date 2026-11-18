@@ -82,8 +82,8 @@ type CoreContentType struct {
 	PageKind      string
 	IsDefault     bool
 	Active        bool
-	CreatedAt     int64
-	UpdatedAt     int64
+	CreatedAt     dbkit.Time
+	UpdatedAt     dbkit.Time
 	Origin        *string
 	Description   string
 }

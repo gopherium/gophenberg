@@ -126,7 +126,7 @@ When `GOPHENBERG_DATABASE_URL` names a SQLite file, such as
 | `list`, `help` and `version` | Work as on PostgreSQL |
 | `check` | Works, and also checks the SQLite settings and the file |
 | `migrate` | Works. When a new version opens a file an older one migrated, it backs the file up first |
-| `seed` | Without `-yes` it still prints `would store the demo data` and exits with code 0. With `-yes` it migrates the file, then exits with code 1 |
+| `seed` | Works as on PostgreSQL. With `-yes` it migrates the file first, then stores the demo data in it |
 | `serve` | Exits with code 1 before it opens anything |
 | `account:create-admin` | Works as on PostgreSQL. It migrates the file first, then asks for the password |
 | Every other `account:` command | Works as on PostgreSQL, on the accounts and the records kept in the file |
@@ -137,20 +137,19 @@ When `GOPHENBERG_DATABASE_URL` names a SQLite file, such as
 | `update:check` | Works as on PostgreSQL. It migrates the file first |
 | `update:rollback` and `update:status` | Work as on PostgreSQL, since they never open the database. With an install root, `update:status` also lists the SQLite backups beside the dumps |
 
-`serve`, `seed -yes`, `database:create-owner` and `update:apply` stop
-and name what they need:
+`serve`, `database:create-owner` and `update:apply` stop and name
+what they need:
 
 ```text
-gophenberg: serve: content and types do not run on SQLite yet, so this command needs GOPHENBERG_DATABASE_URL to name a PostgreSQL database
+gophenberg: serve: this command runs only on a PostgreSQL database, so GOPHENBERG_DATABASE_URL must name one
 ```
 
-`seed -yes` says `seed:` in place of `serve:`, and the other two say
-their own names.
+The other two say their own names in place of `serve:`.
 
-`seed -yes` migrates the file before it stops, `account:create-admin`
-migrates it first, and every other account command and every plugin
-command opens it. So a missing file, a bad address or a bad SQLite
-setting stops each of them with its own error, as it stops `migrate`.
+`seed -yes` and `account:create-admin` migrate the file first, and
+every other account command and every plugin command opens it. So a
+missing file, a bad address or a bad SQLite setting stops each of
+them with its own error, as it stops `migrate`.
 On a file that was never migrated, run `migrate` first. Until then
 `account:records` and every command that takes `-as` stop with
 `the command records are missing, run migrate first`, and
@@ -406,9 +405,9 @@ A later run stops with an error naming the group when the demo's
 Post fields or Category fields group is turned off or no longer
 reaches its type. Never seed a production database.
 
-On a SQLite database the dry run still prints
-`would store the demo data` and exits with code 0, although `-yes`
-stops with code 1 after it migrates the file, see
+On a SQLite database `-yes` migrates the file, then stores the same
+demo data in it as on PostgreSQL. The site cannot serve that data yet,
+since `serve` still stops on SQLite, see
 [on a SQLite database](#on-a-sqlite-database).
 
 ### serve

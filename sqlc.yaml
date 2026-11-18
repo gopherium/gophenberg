@@ -162,6 +162,14 @@ sql:
             go_type:
               import: "github.com/google/uuid"
               type: "UUID"
+          - column: "core_content_types.created_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
+          - column: "core_content_types.updated_at"
+            go_type:
+              import: "github.com/gopherium/framework/dbkit"
+              type: "Time"
           - column: "core_field_groups.created_at"
             go_type:
               import: "github.com/gopherium/framework/dbkit"

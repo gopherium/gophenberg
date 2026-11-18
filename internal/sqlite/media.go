@@ -183,7 +183,7 @@ func mediaNarrowing(f media.Filter) db.CountMediaParams {
 }
 
 // jsonArray returns values as the JSON array text the queries read with json_each, an empty array for none.
-func jsonArray[T string | int64 | uuid.UUID](values []T) string {
+func jsonArray[T string | int | int64 | uuid.UUID](values []T) string {
 	text, _ := json.Marshal(append([]T{}, values...))
 	return string(text)
 }

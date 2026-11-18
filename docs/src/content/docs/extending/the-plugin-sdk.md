@@ -216,9 +216,8 @@ _, err := p.db.Exec(ctx, "INSERT INTO greetings (name) VALUES ($1)", name)
   A `Migrate` that runs through `deps.DB` gets the same error, so
   `gophenberg migrate` stops there. `Engine` tells a plugin which
   database it runs on before it sends a statement.
-- On a SQLite database the content reads of `Deps` are not ready yet
-  either, so check `deps.DB.Engine()` first and skip them when it
-  answers `sdk.SQLite`. The account reads work there.
+- On a SQLite database the content reads and the account reads of
+  `Deps` work as on PostgreSQL.
 
 ## Reading content
 

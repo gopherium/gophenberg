@@ -97,7 +97,7 @@ func TestUpdateApplyRefusesASQLiteSite(t *testing.T) {
 
 	got := testkit.Run(t, Program(testkit.Getenv(env), noPlugins), "", "update:apply")
 
-	wantAnswer(t, got, gonsole.ExitFailed, "gophenberg: update:apply: content and types do not run on SQLite yet")
+	wantAnswer(t, got, gonsole.ExitFailed, "gophenberg: update:apply: this command runs only on a PostgreSQL database")
 }
 
 func TestUpdateApplyReportsADatabaseItCannotReadTheThemeFrom(t *testing.T) {

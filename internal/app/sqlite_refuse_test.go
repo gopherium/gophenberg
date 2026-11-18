@@ -48,8 +48,7 @@ func TestEveryCommandNeedingTheWholeSiteNamesTheSQLiteError(t *testing.T) {
 		args  []string
 		named string
 	}{
-		"serve":     {[]string{"serve"}, "serve"},
-		"seed -yes": {[]string{"seed", "-yes"}, "seed"},
+		"serve": {[]string{"serve"}, "serve"},
 	}
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
@@ -59,8 +58,8 @@ func TestEveryCommandNeedingTheWholeSiteNamesTheSQLiteError(t *testing.T) {
 
 			got := runUnread(t, program, tc.args...)
 
-			want := "gophenberg: " + tc.named + ": content and types do not run on SQLite yet, " +
-				"so this command needs GOPHENBERG_DATABASE_URL to name a PostgreSQL database\n"
+			want := "gophenberg: " + tc.named + ": this command runs only on a PostgreSQL database, " +
+				"so GOPHENBERG_DATABASE_URL must name one\n"
 			if got.Code != gonsole.ExitFailed || got.Stdout != "" || !strings.HasSuffix(got.Stderr, want) {
 				t.Errorf("%q = %d, stdout %q, stderr %q, want 1 and %q last",
 					tc.args, got.Code, got.Stdout, got.Stderr, want)
@@ -198,7 +197,7 @@ func TestServeOnSQLiteAnswersBeforeTheSiteOrTheFileIsTouched(t *testing.T) {
 	}
 }
 
-func TestSeedOnSQLiteMigratesTheFileThenNamesTheSQLiteError(t *testing.T) {
+func TestSeedOnSQLiteMigratesTheFileThenStoresTheDemoData(t *testing.T) {
 	t.Parallel()
 
 	path := emptySQLiteFile(t)
@@ -206,12 +205,11 @@ func TestSeedOnSQLiteMigratesTheFileThenNamesTheSQLiteError(t *testing.T) {
 
 	got := testkit.Run(t, Program(migratingSQLite(path), keeping(k)), "", "seed", "-yes")
 
-	if want := "seed: " + errPostgresOnly.Error(); got.Code != gonsole.ExitFailed ||
-		!strings.Contains(got.Stderr, want) {
-		t.Errorf("seed -yes = %d with stderr %q, want 1 and %q", got.Code, got.Stderr, want)
+	if want := seedLines("created"); got.Code != gonsole.ExitDone || got.Stdout != want {
+		t.Errorf("seed -yes = %d, stdout %q, stderr %q, want 0 and %q", got.Code, got.Stdout, got.Stderr, want)
 	}
-	if want := []string{"migrate", "stop"}; !slices.Equal(k.steps(), want) {
-		t.Errorf("the plugin was asked %v, want %v with no demo data stored", k.steps(), want)
+	if want := []string{"migrate", "seed", "stop"}; !slices.Equal(k.steps(), want) {
+		t.Errorf("the plugin was asked %v, want %v with the demo data stored before its own", k.steps(), want)
 	}
 	for table, versions := range appliedVersions(t, openSQLiteFile(t, path)) {
 		if !appliedOne(versions) {

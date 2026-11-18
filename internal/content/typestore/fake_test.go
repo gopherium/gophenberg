@@ -112,12 +112,13 @@ type relating struct {
 // checked holds what the caller's check was handed: the path of every group and field, and the type keys.
 type checked struct{ Paths, Types []string }
 
-// shelf holds what the fake serves: the stored types, groups and fields, and how many items of a type nest.
+// shelf holds what the fake serves: the stored types, groups and fields, the nesting counts and the retyped addresses.
 type shelf struct {
-	types  []TypeRow
-	groups []GroupRow
-	fields []FieldRow
-	nested map[string]int64
+	types   []TypeRow
+	groups  []GroupRow
+	fields  []FieldRow
+	nested  map[string]int64
+	carried map[string][]string
 }
 
 // fakeBackend serves a shelf through the statements and the transactions a store sends, logging each entry.
@@ -419,11 +420,10 @@ func (q fakeQueries) DeferAddressCheck(context.Context) error {
 	return q.send("DeferAddressCheck", nil)
 }
 
-// RetypeContentPaths answers with the addresses of the type moved.
-func (q fakeQueries) RetypeContentPaths(_ context.Context, t TypeRow, was string) error {
-	return q.send("RetypeContentPaths", retyped{
-		Key: t.Key, RouteWord: t.RouteWord, Was: was, UpdatedAt: q.fake.stamp(t.UpdatedAt),
-	})
+// RetypeContentPaths answers with the addresses the shelf says a retype of the type moves.
+func (q fakeQueries) RetypeContentPaths(_ context.Context, t TypeRow, was string) ([]string, error) {
+	bound := retyped{Key: t.Key, RouteWord: t.RouteWord, Was: was, UpdatedAt: q.fake.stamp(t.UpdatedAt)}
+	return answer(q, "RetypeContentPaths", bound, copied(q.fake.shelf.carried[t.Key]), nil)
 }
 
 // CountNestedContent answers with how many items of the type the shelf says nest.

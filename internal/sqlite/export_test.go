@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content/contentstore"
+	"github.com/gopherium/gophenberg/internal/content/typestore"
 	"github.com/gopherium/gophenberg/internal/sqlite/db"
 )
 
@@ -26,6 +27,17 @@ const BuildsLookup = buildsLookup
 func FieldDefinitions(handle *sql.DB) contentstore.DefinitionQueries {
 	return typeQueries{queries: db.New(handle)}
 }
+
+// TypeStatements returns the type store's calls as the adapter sends them on the handle.
+func TypeStatements(handle *sql.DB) typestore.Queries {
+	return typeQueries{queries: db.New(handle)}
+}
+
+// TypeRules is typeRulesBroken, for the tests of the rule each SQLite failure of a type write names.
+var TypeRules = typeRulesBroken
+
+// ReadError is readError, for the tests of what the rules read from a SQLite failure.
+var ReadError = readError
 
 // RunAsRoot makes the backups see the process as root until t ends.
 func RunAsRoot(t *testing.T) {

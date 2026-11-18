@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/seed"
 	"github.com/gopherium/gophenberg/internal/sqlite"
 	"github.com/gopherium/gophenberg/internal/themehost"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -39,6 +40,7 @@ type operatorEngine struct {
 	noContent          func(ctx context.Context, address string) error
 	roleHeld           string
 	enabled            string
+	demoPostsHeld      string
 	minimumVersionLeft string
 	minimumVersionHeld string
 }
@@ -53,6 +55,7 @@ func postgresOperators() operatorEngine {
 		noContent:          postgresHoldsNoContent,
 		roleHeld:           "SELECT EXISTS (SELECT FROM auth.users WHERE email = $1 AND role = $2)",
 		enabled:            "SELECT EXISTS (SELECT FROM auth.users WHERE email = $1 AND NOT disabled)",
+		demoPostsHeld:      "SELECT (SELECT count(*) FROM core.content WHERE type = 'post' AND status = $1) = $2",
 		minimumVersionLeft: "UPDATE core.settings SET value = $1 WHERE key = 'minimum_version' RETURNING true",
 		minimumVersionHeld: "SELECT EXISTS (SELECT FROM core.settings WHERE key = 'minimum_version' AND value = $1)",
 	}
@@ -68,6 +71,7 @@ func sqliteOperators() operatorEngine {
 		noContent:          untouchedSQLiteFile,
 		roleHeld:           "SELECT EXISTS (SELECT 1 FROM auth_users WHERE email = ? AND role = ?)",
 		enabled:            "SELECT EXISTS (SELECT 1 FROM auth_users WHERE email = ? AND NOT disabled)",
+		demoPostsHeld:      "SELECT (SELECT count(*) FROM core_content WHERE type = 'post' AND status = ?) = ?",
 		minimumVersionLeft: "UPDATE core_settings SET value = ? WHERE key = 'minimum_version' RETURNING true",
 		minimumVersionHeld: "SELECT EXISTS (SELECT 1 FROM core_settings WHERE key = 'minimum_version' AND value = ?)",
 	}
@@ -116,6 +120,7 @@ func initializeOperatorCommands(t *testing.T, engine operatorEngine) func(*godog
 		sc.Then(`^the database holds no schema$`, s.holdsNoSchema)
 		sc.Then(`^the database holds no demo content$`, s.holdsNoDemoContent)
 		sc.Then(`^the account "([^"]*)" holds the role "([^"]*)"$`, s.holdsRole)
+		sc.Then(`^the database holds the demo posts$`, s.holdsDemoPosts)
 		sc.Given(`^the (administrator|author|editor) "([^"]*)"$`, s.holdAccount)
 		sc.When(`^the operator gives "([^"]*)" the role "([^"]*)" acting as "([^"]*)"$`, s.giveRole)
 		sc.When(`^the operator previews giving "([^"]*)" the role "([^"]*)" acting as "([^"]*)"$`, s.previewRole)
@@ -518,6 +523,17 @@ func (s *operatorScenario) holdsRole(ctx context.Context, email, role string) er
 	held, err := s.answers(ctx, s.engine.roleHeld, email, role)
 	if err != nil || !held {
 		return fmt.Errorf("the account %s holds the role %s %v (%v), want it to", email, role, held, err)
+	}
+	return nil
+}
+
+// holdsDemoPosts fails unless the database holds as many posts of each status as the demo data stores.
+func (s *operatorScenario) holdsDemoPosts(ctx context.Context) error {
+	for status, total := range seed.DemoStatuses() {
+		held, err := s.answers(ctx, s.engine.demoPostsHeld, string(status), total)
+		if err != nil || !held {
+			return fmt.Errorf("the database holds %d %s posts %v (%v), want it to", total, status, held, err)
+		}
 	}
 	return nil
 }

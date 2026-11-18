@@ -93,6 +93,13 @@ func isbn() content.Field {
 	}
 }
 
+// carriedToRootPage returns the shelf with no root type, a retype of the book type moving an item to page/2.
+func carriedToRootPage() shelf {
+	stocked := rootless()
+	stocked.carried = map[string][]string{"book": {"page", "page/2"}}
+	return stocked
+}
+
 // arm is one branch of a step the golden lists leave out, with the statements and the answer today's step gives.
 type arm struct {
 	stocked func() shelf
@@ -192,6 +199,19 @@ var typeArms = map[string]arm{
 			Hierarchical: true, Revisions: true, RevisionCap: 25, PageKind: content.PageKindSingle,
 			Default: true, Active: true, Origin: "library", CreatedAt: shelvedAt, UpdatedAt: editedAt,
 		},
+	},
+	"Update taking the root over an item the carry moves to a root page address answers it reserved and rolls back": {
+		stocked: carriedToRootPage,
+		run: func(ctx context.Context, s *Store) (any, error) {
+			return valued(s.Update(ctx, rootBook(true)))
+		},
+		log: []step{
+			begun, sent("LockContentType", keyed{"book"}), lockedRoot, lockedRoot,
+			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
+			rolledBack,
+		},
+		ends: content.ReservedAddress("page/2"),
 	},
 	"Update taking the root from a type whose plural label words a reserved route answers it reserved": {
 		stocked: libraryWith(func(stocked *shelf) { stocked.types[0].PluralLabel = "Media" }),

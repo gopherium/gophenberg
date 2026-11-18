@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/postgres/db"
 	"github.com/gopherium/gophenberg/internal/testdb"
 )
 
@@ -497,6 +499,42 @@ func TestDeletingAGroupCarriesTheFieldsItStoresInsideAnotherGroupsContainer(t *t
 	}
 	if held := storedFields(t, pool, "one-car"); held != `{"author": {"rows": [{"title": "Maria Perez"}]}}` {
 		t.Errorf("car fields = %s, want the rows the carried fields read left alone", held)
+	}
+}
+
+func TestCarryingStrayFieldsEndsBesideAPlantedLoop(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, landing, section := sectionAcrossGroups(t, store)
+	stray := declaredInside(t, store, section, "rows", content.FieldKindRepeater)
+	looped, err := store.CreateFieldInGroup(
+		t.Context(), source.ID, fieldOn(t, "", "looped", content.FieldKindSection, ""), nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(looped) error = %v, want nil", err)
+	}
+	inner := declaredInside(t, store, looped, "inner", content.FieldKindSection)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET group_id = $1 WHERE id = $2`, source.ID, stray.ID); err != nil {
+		t.Fatalf("leaving the repeater behind, as a move before the repair did: %v, want nil", err)
+	}
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET parent_field_id = $1 WHERE id = $2`, inner.ID, looped.ID); err != nil {
+		t.Fatalf("planting the loop: %v, want nil", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	err = db.New(pool).CarryStrayFieldsOfGroup(ctx, int32(source.ID))
+
+	if err != nil {
+		t.Fatalf("CarryStrayFieldsOfGroup() error = %v, want nil", err)
+	}
+	for id, want := range map[int]int{stray.ID: landing.ID, looped.ID: source.ID, inner.ID: source.ID} {
+		if held := groupOfField(t, pool, id); held != want {
+			t.Errorf("field %d sits in group %d, want %d", id, held, want)
+		}
 	}
 }
 
