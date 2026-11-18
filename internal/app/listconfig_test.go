@@ -37,6 +37,7 @@ func TestListSettingsTakeTheDefaultsWhenTheEnvironmentNamesNone(t *testing.T) {
 	want := server.ListSettings{
 		PageSizes: []int{10, 20, 50, 100}, PageSize: 20, PickerPageSize: 50, PageCap: 100,
 		ToastDuration: 6 * time.Second, ToastActionDuration: 10 * time.Second, FormatLocale: "es-ES",
+		DialogWriteTimeout: 60 * time.Second,
 	}
 	if !reflect.DeepEqual(held, want) {
 		t.Errorf("lists = %+v, want %+v", held, want)
@@ -54,6 +55,7 @@ func TestListSettingsReadWhatTheEnvironmentNames(t *testing.T) {
 		"GOPHENBERG_TOAST_ACTION_DURATION": "2500ms",
 		"GOPHENBERG_FORMAT_LOCALE":         "en-gb",
 		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB":   "64",
+		"GOPHENBERG_DIALOG_WRITE_TIMEOUT":  "45000ms",
 	})
 
 	if err != nil {
@@ -62,6 +64,7 @@ func TestListSettingsReadWhatTheEnvironmentNames(t *testing.T) {
 	want := server.ListSettings{
 		PageSizes: []int{5, 15, 45}, PageSize: 15, PickerPageSize: 15, PageCap: 60,
 		ToastDuration: 1500 * time.Millisecond, ToastActionDuration: 2500 * time.Millisecond, FormatLocale: "en-GB",
+		DialogWriteTimeout: 45 * time.Second,
 	}
 	if !reflect.DeepEqual(held, want) {
 		t.Errorf("lists = %+v, want %+v", held, want)
@@ -154,14 +157,16 @@ func TestListSettingsTakeTheWidestBoundsTheyAllow(t *testing.T) {
 		"GOPHENBERG_LIST_PAGE_CAP":         "2147483647",
 		"GOPHENBERG_TOAST_DURATION":        "2147483647ms",
 		"GOPHENBERG_TOAST_ACTION_DURATION": "2147483647ms",
+		"GOPHENBERG_DIALOG_WRITE_TIMEOUT":  "2147483647ms",
 	})
 
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v, want the widest bounds taken", err)
 	}
 	longest := 2147483647 * time.Millisecond
-	if held.PageCap != 2147483647 || held.ToastDuration != longest || held.ToastActionDuration != longest {
-		t.Errorf("lists = %+v, want the largest cap and the longest toasts", held)
+	toasts := held.ToastDuration == longest && held.ToastActionDuration == longest
+	if held.PageCap != 2147483647 || !toasts || held.DialogWriteTimeout != longest {
+		t.Errorf("lists = %+v, want the largest cap, the longest toasts and the longest dialog write", held)
 	}
 }
 
@@ -178,6 +183,19 @@ func TestListSettingsTakeTheShortestToast(t *testing.T) {
 	}
 	if held.ToastDuration != time.Millisecond || held.ToastActionDuration != time.Millisecond {
 		t.Errorf("toast = %v and %v with an action, want 1ms", held.ToastDuration, held.ToastActionDuration)
+	}
+}
+
+func TestListSettingsTakeTheShortestDialogWrite(t *testing.T) {
+	t.Parallel()
+
+	held, err := listsRead(t, map[string]string{"GOPHENBERG_DIALOG_WRITE_TIMEOUT": "1ms"})
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the shortest dialog write taken", err)
+	}
+	if held.DialogWriteTimeout != time.Millisecond {
+		t.Errorf("dialog write = %v, want 1ms", held.DialogWriteTimeout)
 	}
 }
 
@@ -217,8 +235,14 @@ func TestListSettingsRefuseWhatTheListsCannotUse(t *testing.T) {
 		},
 		"an action toast no timer holds":      {"GOPHENBERG_TOAST_ACTION_DURATION", "2147483648ms", "at or below"},
 		"an action toast that is no duration": {"GOPHENBERG_TOAST_ACTION_DURATION", "soon", "duration"},
-		"a locale that names nothing":         {"GOPHENBERG_FORMAT_LOCALE", "und", "BCP 47"},
-		"a locale that is no tag":             {"GOPHENBERG_FORMAT_LOCALE", "not a tag", "BCP 47"},
+		"a dialog write of nothing":           {"GOPHENBERG_DIALOG_WRITE_TIMEOUT", "0s", "above zero"},
+		"a dialog write under a millisecond": {
+			"GOPHENBERG_DIALOG_WRITE_TIMEOUT", "1500us", "whole number of milliseconds",
+		},
+		"a dialog write no timer holds":      {"GOPHENBERG_DIALOG_WRITE_TIMEOUT", "2147483648ms", "at or below"},
+		"a dialog write that is no duration": {"GOPHENBERG_DIALOG_WRITE_TIMEOUT", "soon", "duration"},
+		"a locale that names nothing":        {"GOPHENBERG_FORMAT_LOCALE", "und", "BCP 47"},
+		"a locale that is no tag":            {"GOPHENBERG_FORMAT_LOCALE", "not a tag", "BCP 47"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
