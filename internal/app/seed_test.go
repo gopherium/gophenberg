@@ -105,7 +105,7 @@ func TestSeedReportsEachDemoAccountItCreatedOrKept(t *testing.T) {
 		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 
-	if err := seedDemoData(t.Context(), poolOf(t, env), env, &again); err != nil {
+	if err := seedDemoData(t.Context(), postgresDemoStores(poolOf(t, env)), env, &again); err != nil {
 		t.Fatalf("second seedDemoData() error = %v, want nil", err)
 	}
 
@@ -377,7 +377,15 @@ func seedMigrated(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return err
 	}
 	defer func() { _ = handle.Close() }()
-	return seedDemoData(ctx, handle.Pool, getenv, stdout)
+	return seedDemoData(ctx, postgresDemoStores(handle.Pool), getenv, stdout)
+}
+
+// postgresDemoStores returns the PostgreSQL stores over pool the demo data set is stored through.
+func postgresDemoStores(pool *pgxpool.Pool) demoStores {
+	return demoStores{
+		users: authkitpg.NewUserStore(pool), types: postgres.NewTypeStore(pool), content: postgres.NewContentStore(pool),
+		settings: postgres.NewSettingStore(pool), media: postgres.NewMediaStore(pool),
+	}
 }
 
 // poolOf returns a capped pool on the database getenv names, closed when t ends.
@@ -529,7 +537,7 @@ func TestSeedLeavesTheSchemaToTheCommandLine(t *testing.T) {
 	databaseURL := emptyDatabaseURL(t)
 	getenv := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL})
 
-	err := seedDemoData(t.Context(), poolOf(t, getenv), getenv, io.Discard)
+	err := seedDemoData(t.Context(), postgresDemoStores(poolOf(t, getenv)), getenv, io.Discard)
 
 	if held := schemaHeld(t, databaseURL, "core"); err == nil || held {
 		t.Errorf("seedDemoData() over an empty database = %v with the core schema held %v, want a failure and no schema",
@@ -559,7 +567,7 @@ func TestSeedReportsAFieldDepthItCannotStand(t *testing.T) {
 		"GOPHENBERG_FIELD_DEPTH":  "0",
 	})
 
-	err := seedDemoData(t.Context(), poolOf(t, getenv), getenv, io.Discard)
+	err := seedDemoData(t.Context(), postgresDemoStores(poolOf(t, getenv)), getenv, io.Discard)
 
 	if err == nil || !strings.Contains(err.Error(), "GOPHENBERG_FIELD_DEPTH") {
 		t.Errorf("seedDemoData() error = %v, want GOPHENBERG_FIELD_DEPTH refused", err)
@@ -679,17 +687,26 @@ func TestSeedDescribesTheTypesItRegisters(t *testing.T) {
 		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
-	described := map[string]string{}
-	for _, listed := range seededTypes(t, databaseURL) {
+	if described, want := descriptionsOf(seededTypes(t, databaseURL)), demoDescriptions(); !maps.Equal(described, want) {
+		t.Errorf("descriptions = %v, want %v", described, want)
+	}
+}
+
+// descriptionsOf returns the description of each type, by key.
+func descriptionsOf(types []content.Type) map[string]string {
+	described := make(map[string]string, len(types))
+	for _, listed := range types {
 		described[listed.Key] = listed.Description
 	}
-	want := map[string]string{
+	return described
+}
+
+// demoDescriptions returns the description of each type the seed registers, by key.
+func demoDescriptions() map[string]string {
+	return map[string]string{
 		content.TypePost:     "Manage the posts on this site.",
 		seed.PageTypeKey:     "Manage the pages on this site.",
 		seed.CategoryTypeKey: "Manage the categories on this site.",
-	}
-	if !maps.Equal(described, want) {
-		t.Errorf("descriptions = %v, want %v", described, want)
 	}
 }
 
@@ -846,7 +863,7 @@ func TestSeedReportsContentItCannotRegister(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the missing registry reported")
 	}
 }
@@ -888,7 +905,7 @@ func TestSeedReportsCategoriesItCannotStore(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused category reported")
 	}
 }
@@ -910,7 +927,7 @@ func TestSeedReportsPagesItCannotStore(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused page reported")
 	}
 }
@@ -933,7 +950,7 @@ func TestSeedReportsContainersItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused container reported")
 	}
 }
@@ -956,7 +973,7 @@ func TestSeedReportsAFlexibleItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused flexible reported")
 	}
 }
@@ -979,7 +996,7 @@ func TestSeedReportsAConditionItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused condition reported")
 	}
 }
@@ -1002,7 +1019,7 @@ func TestSeedReportsAFeaturedSwitchItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+	if err := seedDemoContent(t.Context(), postgresDemoStores(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused switch reported")
 	}
 }
@@ -1083,8 +1100,14 @@ func TestSeedDeclaresTheDemoFieldsInOneGroupPerType(t *testing.T) {
 		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
-	got := seededGroupShapes(t, databaseURL)
-	want := []seededGroupShape{{
+	if got, want := seededGroupShapes(t, databaseURL), demoGroupShapes(); !reflect.DeepEqual(got, want) {
+		t.Errorf("stored groups = %+v, want %+v", got, want)
+	}
+}
+
+// demoGroupShapes returns what the seed stores of every field group, in position order.
+func demoGroupShapes() []seededGroupShape {
+	return []seededGroupShape{{
 		Key: "post-fields", Title: "Post fields", Location: locatedOn(content.TypePost), Position: 1, Active: true,
 		Fields: []string{
 			seed.FeaturedFieldKey, seed.CategoriesFieldKey, seed.TeamFieldKey, seed.FeaturesFieldKey,
@@ -1094,9 +1117,6 @@ func TestSeedDeclaresTheDemoFieldsInOneGroupPerType(t *testing.T) {
 		Key: "category-fields", Title: "Category fields", Location: locatedOn(seed.CategoryTypeKey), Position: 2,
 		Active: true, Fields: []string{seed.PostsFiledFieldKey},
 	}}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("stored groups = %+v, want %+v", got, want)
-	}
 }
 
 // seededGroupShape is what the seeding stored of one field group, apart from its identity and dates.
@@ -1122,6 +1142,11 @@ func seededGroupShapes(t *testing.T, databaseURL string) []seededGroupShape {
 	if err != nil {
 		t.Fatalf("ListGroups() error = %v, want nil", err)
 	}
+	return groupShapesOf(groups)
+}
+
+// groupShapesOf returns what each group holds apart from its identity and dates, in the order given.
+func groupShapesOf(groups []content.Group) []seededGroupShape {
 	shapes := make([]seededGroupShape, len(groups))
 	for i, g := range groups {
 		keys := make([]string, len(g.Fields))

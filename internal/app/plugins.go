@@ -11,7 +11,7 @@ import (
 	"github.com/gopherium/framework/gonsole"
 )
 
-// loadPlugins returns the registration of the binary's plugins, declaring roles and keeping the handle in composed.
+// loadPlugins returns the registration of the binary's plugins, declaring roles and keeping the stores in composed.
 func loadPlugins(
 	compiled binary, roles *goncierge.Registry, composed *sitePool,
 ) func(context.Context, gonsole.Call) (gonsole.Loaded, error) {
@@ -41,7 +41,7 @@ func loadPlugins(
 		if err != nil {
 			return gonsole.Loaded{}, err
 		}
-		composed.handle = built.pgHandle
+		composed.stores = demoStoresOf(built)
 		host := hostOf(built.registered)
 		return gonsole.Hosted(offerings(built.registered), host, built.failed, grace, built.close), nil
 	}

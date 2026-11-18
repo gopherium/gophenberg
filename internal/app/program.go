@@ -6,7 +6,6 @@ package app
 import (
 	"context"
 
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
 	accounts "github.com/gopherium/framework/gonsole/auth"
@@ -54,7 +53,7 @@ func commandLine(getenv func(string) string, compiled binary, exits *exitCodes) 
 		Serve:      postgresOnly(getenv, "serve", exits.keep(serve(compiled))),
 		Validate:   validate(accountCommands),
 		Migrations: migrations(getenv),
-		Seed:       postgresOnly(getenv, "seed", composed.seed),
+		Seed:       composed.seed,
 		Commands:   coreCommands(accountCommands, installs...),
 		Plugins:    loadPlugins(compiled, roles, composed),
 		Authorize:  accounts.Authorize(accountCommands),
@@ -90,12 +89,12 @@ func validate(cfg accounts.Config) func(context.Context, gonsole.Call) error {
 	}
 }
 
-// sitePool holds the PostgreSQL handle of the site the run's plugin registration composed, nil on SQLite or describing.
+// sitePool holds the stores of the site the run's plugin registration composed, none while describing.
 type sitePool struct {
-	handle *dbkitpg.Handle
+	stores demoStores
 }
 
-// seed stores the demo data on the pool of the site the run composed.
+// seed stores the demo data through the stores of the site the run composed.
 func (p *sitePool) seed(ctx context.Context, call gonsole.Call) error {
-	return seedDemoData(ctx, p.handle.Pool, call.Env.Getenv, call.Stdout)
+	return seedDemoData(ctx, p.stores, call.Env.Getenv, call.Stdout)
 }

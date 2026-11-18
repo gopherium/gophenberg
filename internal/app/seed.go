@@ -7,32 +7,45 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	accounts "github.com/gopherium/framework/gonsole/auth"
 	"github.com/gopherium/gouncer"
-	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
+	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/mediahost"
-	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
-// seedDemoData stores the demo data set in the migrated database pool draws from, opening no pool of its own.
-func seedDemoData(ctx context.Context, pool *pgxpool.Pool, getenv func(string) string, stdout io.Writer) error {
+// demoStores holds the stores the demo data set is stored through.
+type demoStores struct {
+	users    gouncer.Store
+	types    content.TypeStore
+	content  content.Store
+	settings mediahost.Settings
+	media    media.Store
+}
+
+// demoStoresOf returns the stores of built the demo data set is stored through.
+func demoStoresOf(built site) demoStores {
+	return demoStores{
+		users: built.users, types: built.types, content: built.content, settings: built.settings, media: built.library,
+	}
+}
+
+// seedDemoData stores the demo data set through the stores of a migrated database, opening no store of its own.
+func seedDemoData(ctx context.Context, stores demoStores, getenv func(string) string, stdout io.Writer) error {
 	depth, err := fieldDepthFrom(getenv)
 	if err != nil {
 		return err
 	}
-	users := authkitpg.NewUserStore(pool)
-	if err := accounts.EnsureAccounts(ctx, users, demoAccounts(), stdout); err != nil {
+	if err := accounts.EnsureAccounts(ctx, stores.users, demoAccounts(), stdout); err != nil {
 		return err
 	}
-	if err := seedDemoContent(ctx, pool, users, depth); err != nil {
+	if err := seedDemoContent(ctx, stores, depth); err != nil {
 		return err
 	}
-	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
+	if err := seedDemoMedia(ctx, getenv, stores); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintln(stdout, "seeded demo data, an account created above signs in with "+seed.AdminPassword+
@@ -51,22 +64,21 @@ func demoAccounts() []accounts.Account {
 }
 
 // seedDemoContent registers the demo types and stores the content they hold, nesting no deeper than depth.
-func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore, depth int) error {
-	types := registryFrom(depth, postgres.NewTypeStore(pool))
+func seedDemoContent(ctx context.Context, stores demoStores, depth int) error {
+	types := registryFrom(depth, stores.types)
 	if err := seed.Types(ctx, types); err != nil {
 		return err
 	}
 	if err := seed.Featured(ctx, types); err != nil {
 		return err
 	}
-	store := postgres.NewContentStore(pool)
-	if err := seed.Posts(ctx, store, types, users); err != nil {
+	if err := seed.Posts(ctx, stores.content, types, stores.users); err != nil {
 		return err
 	}
-	if err := seed.Pages(ctx, store, types, users); err != nil {
+	if err := seed.Pages(ctx, stores.content, types, stores.users); err != nil {
 		return err
 	}
-	if err := seed.Categories(ctx, store, types, users); err != nil {
+	if err := seed.Categories(ctx, stores.content, types, stores.users); err != nil {
 		return err
 	}
 	if err := seed.Containers(ctx, types); err != nil {
@@ -82,13 +94,11 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 }
 
 // seedDemoMedia stores the demo pictures when a media directory is configured.
-func seedDemoMedia(
-	ctx context.Context, getenv func(string) string, pool *pgxpool.Pool, users gouncer.Store,
-) error {
+func seedDemoMedia(ctx context.Context, getenv func(string) string, stores demoStores) error {
 	dir := mediaDirFrom(settingsEnv(getenv))
 	if dir == "" {
 		return nil
 	}
-	library := mediahost.New(mediahost.Config{Dir: dir, Settings: postgres.NewSettingStore(pool)})
-	return seed.Media(ctx, library, postgres.NewMediaStore(pool), users)
+	library := mediahost.New(mediahost.Config{Dir: dir, Settings: stores.settings})
+	return seed.Media(ctx, library, stores.media, stores.users)
 }
