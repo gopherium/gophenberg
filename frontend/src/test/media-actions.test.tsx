@@ -292,12 +292,12 @@ function readOnlyRows(dialog: HTMLElement): (string | null)[] {
 	return [...dialog.querySelectorAll('.dataforms-layouts-panel__field-label')].map((label) => label.textContent)
 }
 
-test('offers View, Edit…, Rename… and Permanently delete…, in that order, on a file one may change', async () => {
+test('offers View, Edit, Rename and Permanently delete, in that order, on a file one may change', async () => {
 	renderAt('/media')
 
 	await openCardMenu('Harbor at dawn')
 
-	expect(menuItems()).toEqual(['View', 'Edit…', 'Rename…', 'Permanently delete…'])
+	expect(menuItems()).toEqual(['View', 'Edit', 'Rename', 'Permanently delete'])
 })
 
 test('offers an author only View on a file another account uploaded', async () => {
@@ -320,7 +320,7 @@ test('offers every action on a file another account uploaded once the session ma
 	act(() => seedSession(client, adminUser))
 	await openCardMenu('Harbor at dawn')
 
-	expect(menuItems()).toEqual(['View', 'Edit…', 'Rename…', 'Permanently delete…'])
+	expect(menuItems()).toEqual(['View', 'Edit', 'Rename', 'Permanently delete'])
 })
 
 test('opens the file in a new tab from View', async () => {
@@ -359,7 +359,7 @@ test('edits in a dialog headed Edit media, the Title box focused', async () => {
 	stubLayout()
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 
 	expect(within(dialog).getByRole('heading', { name: 'Edit media' })).toBeInTheDocument()
 	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
@@ -368,7 +368,7 @@ test('edits in a dialog headed Edit media, the Title box focused', async () => {
 test('lays out the four boxes a reader writes in, then the six rows a reader only reads', async () => {
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 
 	expect(boxes(dialog)).toEqual({
 		Title: 'Harbor at dawn',
@@ -386,7 +386,7 @@ test('lays out the four boxes a reader writes in, then the six rows a reader onl
 test('writes the alt text and the caption in boxes two lines tall, the description five lines tall', async () => {
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 
 	const tall = ['Alt text', 'Caption', 'Description'].map((label) => {
 		const box = within(dialog).getByRole('textbox', { name: label })
@@ -402,7 +402,7 @@ test('writes the alt text and the caption in boxes two lines tall, the descripti
 test('shows a long file name whole in Edit', async () => {
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 
 	expect(within(dialog).getByText('harbor-at-dawn-from-the-pier.jpg')).toBeInTheDocument()
 })
@@ -410,7 +410,7 @@ test('shows a long file name whole in Edit', async () => {
 test('leaves out the alt text and the dimensions of a file that is no picture', async () => {
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Manual', 'Edit…')
+	const dialog = await openCardDialog('Manual', 'Edit')
 
 	expect(Object.keys(boxes(dialog))).toEqual(['Title', 'Caption', 'Description'])
 	expect(readOnlyRows(dialog)).toEqual(['Date added', 'Author', 'File name', 'File type', 'File size'])
@@ -469,7 +469,7 @@ test('keeps Edit busy with Cancel greyed until the write answers, then says Medi
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	await retype(dialog, 'Title', 'Harbor at noon')
 
 	await pressSave(dialog)
@@ -493,7 +493,7 @@ test('keeps the boxes of Edit in place and read only while the write runs, the f
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	await retype(dialog, 'Caption', 'After the market closes')
 	const held = ['Title', 'Alt text', 'Caption', 'Description'].map((label) =>
 		within(dialog).getByRole('textbox', { name: label }),
@@ -515,7 +515,7 @@ test('keeps the boxes of Edit in place and read only while the write runs, the f
 
 test('writes over the version read just before the write, sending only the fields the reader changed', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	await retype(dialog, 'Title', 'Harbor at noon')
 	await retype(dialog, 'Caption', 'After the market closes')
 
@@ -531,7 +531,7 @@ test('writes over the version read just before the write, sending only the field
 
 test('sends Edit from Enter in the Title box', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	await retype(dialog, 'Title', 'Harbor at noon')
 
 	await userEvent.keyboard('{Enter}')
@@ -548,7 +548,7 @@ test.each([
 }) => {
 	refuseEdits()
 	renderAt('/media')
-	const dialog = await openCardDialog(title, 'Edit…')
+	const dialog = await openCardDialog(title, 'Edit')
 	await retype(dialog, 'Caption', 'After the market closes')
 
 	await pressSave(dialog)
@@ -563,7 +563,7 @@ test('says inside Edit the server could not be reached when the network drops an
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.patch('/api/media/:id', () => HttpResponse.error()))
 	renderAt('/media')
-	const dialog = await openCardDialog('Manual', 'Edit…')
+	const dialog = await openCardDialog('Manual', 'Edit')
 
 	await pressSave(dialog)
 
@@ -573,7 +573,7 @@ test('says inside Edit the server could not be reached when the network drops an
 
 test('says Media file updated as the write ends and marks the list until the rows come back', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	await retype(dialog, 'Title', 'Harbor at noon')
 	holdReads('/api/media')
 
@@ -586,7 +586,7 @@ test('says Media file updated as the write ends and marks the list until the row
 test('reads the list again after a failed edit, so the card holds the newest version', async () => {
 	refuseEdits()
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	const before = listings
 
 	await pressSave(dialog)
@@ -598,7 +598,7 @@ test('reads the list again after a failed edit, so the card holds the newest ver
 test('marks nothing while the list reads again after a failed edit', async () => {
 	refuseEdits()
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	holdReads('/api/media')
 
 	await pressSave(dialog)
@@ -611,7 +611,7 @@ test('renames in a dialog headed Rename, its Name box holding the stored title a
 	stubLayout()
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 
 	expect(within(dialog).getByRole('heading', { name: 'Rename' })).toBeInTheDocument()
 	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor at dawn')
@@ -620,7 +620,7 @@ test('renames in a dialog headed Rename, its Name box holding the stored title a
 
 test('keeps Save of Rename on and sends nothing from it while the Name is blank or spaces', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	const submit = within(dialog).getByRole('button', { name: 'Save' })
 	const field = within(dialog).getByRole('textbox', { name: 'Name' })
 	expect([...within(dialog).getByRole('button', { name: 'Cancel' }).classList]).toEqual(
@@ -643,7 +643,7 @@ test('holds an empty Name for a file with no title', async () => {
 	stored.set(HARBOR.id, { ...HARBOR, title: '' })
 	renderAt('/media')
 
-	const dialog = await openCardDialog('(no title)', 'Rename…')
+	const dialog = await openCardDialog('(no title)', 'Rename')
 
 	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('')
 })
@@ -658,7 +658,7 @@ test('keeps Rename busy with the Name read only until the write answers, then sa
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	await retype(dialog, 'Name', 'Harbor renamed')
 
 	await pressSave(dialog)
@@ -677,7 +677,7 @@ test('keeps Rename busy with the Name read only until the write answers, then sa
 
 test('says Name updated as the write ends and marks the list until the rows come back', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	await retype(dialog, 'Name', 'Harbor renamed')
 	holdReads('/api/media')
 
@@ -690,7 +690,7 @@ test('says Name updated as the write ends and marks the list until the rows come
 test('shows the reason a refused rename gave inside Rename, the name typed kept and no toast raised', async () => {
 	refuseEdits()
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	await retype(dialog, 'Name', 'Harbor renamed')
 
 	await pressSave(dialog)
@@ -705,7 +705,7 @@ test('says inside Rename the name could not be updated when the network drops a 
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.patch('/api/media/:id', () => HttpResponse.error()))
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	await retype(dialog, 'Name', 'Harbor renamed')
 
 	await pressSave(dialog)
@@ -718,7 +718,7 @@ test('asks before deleting a file for good in a red confirm titled by the questi
 	stubLayout()
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete', 'alertdialog')
 
 	expect(within(dialog).getByRole('heading', { name: 'Delete "Harbor at dawn"?' })).toBeInTheDocument()
 	expect(dialog).toHaveAccessibleDescription(
@@ -736,7 +736,7 @@ test('names a file with no title as (no title) in the delete question', async ()
 	stored.set(HARBOR.id, { ...HARBOR, title: '' })
 	renderAt('/media')
 
-	const dialog = await openCardDialog('(no title)', 'Permanently delete…', 'alertdialog')
+	const dialog = await openCardDialog('(no title)', 'Permanently delete', 'alertdialog')
 
 	expect(within(dialog).getByRole('heading', { name: 'Delete "(no title)"?' })).toBeInTheDocument()
 })
@@ -752,7 +752,7 @@ test('keeps the confirm busy with Cancel greyed while the delete runs, then clos
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
@@ -771,7 +771,7 @@ test('keeps the confirm busy with Cancel greyed while the delete runs, then clos
 async function deleteBothTicked(): Promise<HTMLElement> {
 	await userEvent.click(await screen.findByRole('checkbox', { name: 'Harbor at dawn' }))
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Manual' }))
-	await userEvent.click(bulkBar().getByRole('button', { name: 'Permanently delete…' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Permanently delete' }))
 	return screen.findByRole('alertdialog')
 }
 
@@ -817,7 +817,7 @@ test.each([
 test('shows the reason a refused delete gave in a toast, the confirm closed and the card kept', async () => {
 	server.use(http.delete('/api/media/:id', gone))
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
@@ -857,7 +857,7 @@ async function waitFocusOnManual() {
 
 test('lands the focus on the card in its place once a deleted file has left the list', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
@@ -890,16 +890,16 @@ async function openFromHarbor(trigger: CardTrigger): Promise<HTMLElement> {
 
 test.each([
 	{
-		from: 'Edit…',
+		from: 'Edit',
 		trigger: menuTrigger,
-		open: () => openCardDialog('Harbor at dawn', 'Edit…'),
+		open: () => openCardDialog('Harbor at dawn', 'Edit'),
 		box: 'Title',
 		toast: 'Media file updated.',
 	},
 	{
-		from: 'Rename…',
+		from: 'Rename',
 		trigger: menuTrigger,
-		open: () => openCardDialog('Harbor at dawn', 'Rename…'),
+		open: () => openCardDialog('Harbor at dawn', 'Rename'),
 		box: 'Name',
 		toast: 'Name updated.',
 	},
@@ -937,7 +937,7 @@ test.each([
 })
 
 test.each([
-	{ part: 'actions menu', trigger: menuTrigger, open: () => openCardDialog('Harbor at dawn', 'Edit…') },
+	{ part: 'actions menu', trigger: menuTrigger, open: () => openCardDialog('Harbor at dawn', 'Edit') },
 	{ part: 'title', trigger: titleTrigger, open: () => openFromHarbor(titleTrigger) },
 ])('gives the focus back to the $part once a failed edit is cancelled, on its card where it moved', async ({
 	trigger,
@@ -1033,7 +1033,7 @@ test('lands the focus on the list once the file a save went to left it, as a del
 		}),
 	)
 	renderAt('/media?search=harbor')
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 	await retype(dialog, 'Name', 'Zebra crossing')
 
 	await save(dialog)
@@ -1052,7 +1052,7 @@ test('holds a save of Edit as a write to the file until it answers', async () =>
 		}),
 	)
 	const client = renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit')
 	let settled = false
 
 	await pressSave(dialog)
@@ -1078,7 +1078,7 @@ test('sends a delete of a file only once a write to it still in flight has answe
 	)
 	const client = renderAt('/media')
 	const write = holdFileWrite(client, HARBOR.id)
-	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
+	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete', 'alertdialog')
 
 	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
 	await aMoment()
@@ -1092,7 +1092,7 @@ test('sends an edit of one file while a write to another file is still in flight
 	const client = renderAt('/media')
 	const write = holdFileWrite(client, HARBOR.id)
 
-	await save(await openCardDialog('Manual', 'Edit…'))
+	await save(await openCardDialog('Manual', 'Edit'))
 
 	expect(await findToast('Media file updated.')).toBeInTheDocument()
 	expect(versionReads).toEqual([MANUAL.id])
@@ -1102,7 +1102,7 @@ test('sends an edit of one file while a write to another file is still in flight
 test('reads the version for a rename only once a write to the file still in flight has answered', async () => {
 	const client = renderAt('/media')
 	const write = holdFileWrite(client, HARBOR.id)
-	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename')
 
 	await pressSave(dialog)
 	await aMoment()

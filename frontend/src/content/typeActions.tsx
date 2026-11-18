@@ -63,19 +63,19 @@ function formActions(open: (opened: OpenedTypes) => void): Action<ContentType>[]
 	return [
 		{
 			id: 'describe',
-			label: __('Describe…', 'gophenberg'),
+			label: __('Describe', 'gophenberg'),
 			isEligible: madeHere,
 			callback: (items) => open({ action: 'describe', items, trigger: focusedTrigger() }),
 		},
 		{
 			id: 'change-address',
-			label: __('Change address…', 'gophenberg'),
+			label: __('Change address', 'gophenberg'),
 			isEligible: madeHere,
 			callback: (items) => open({ action: 'change-address', items, trigger: focusedTrigger() }),
 		},
 		{
 			id: 'make-default',
-			label: __('Make default…', 'gophenberg'),
+			label: __('Make default', 'gophenberg'),
 			isEligible: demotable,
 			callback: (items) => open({ action: 'make-default', items, trigger: focusedTrigger() }),
 		},
@@ -166,7 +166,9 @@ export function OpenTypeDialog({ opened, tools, onClose, onBack }: {
 			description={removalDescription(opened.items.length)}
 			confirmLabel={__('Delete', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onConfirm={() => tools.run(opened.items, (type) => deleteInTurn(tools.client, type.key), removalWords())}
+			onConfirm={(signal) =>
+				tools.run(opened.items, (type) => deleteInTurn(tools.client, type.key, signal), removalWords())
+			}
 			onClose={close}
 		/>
 	)
@@ -180,7 +182,7 @@ export function OpenTypeDialog({ opened, tools, onClose, onBack }: {
 function deleteAction(open: (opened: OpenedTypes) => void): Action<ContentType> {
 	return {
 		id: 'delete',
-		label: __('Delete…', 'gophenberg'),
+		label: __('Delete', 'gophenberg'),
 		icon: trashIcon,
 		supportsBulk: true,
 		isEligible: demotable,

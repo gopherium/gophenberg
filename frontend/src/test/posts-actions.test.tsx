@@ -77,14 +77,14 @@ async function openRowActions() {
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 }
 
-test('offers View first, then Duplicate…, Rename… and Trash last, and leaves editing to the title', async () => {
+test('offers View first, then Duplicate, Rename and Trash last, and leaves editing to the title', async () => {
 	renderAt('/content/post')
 
 	await openRowActions()
 
 	await screen.findByRole('menuitem', { name: 'Trash' })
 	const offered = screen.getAllByRole('menuitem').map((item) => item.textContent)
-	expect(offered).toEqual(['View', 'Duplicate…', 'Rename…', 'Trash'])
+	expect(offered).toEqual(['View', 'Duplicate', 'Rename', 'Trash'])
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
 
@@ -311,7 +311,7 @@ test('leaves a dialog opened on the row while a trash runs open once the trash e
 	renderAt('/content/post')
 	await trashTheListedPost()
 	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename' }))
 	const rename = await screen.findByRole('dialog', { name: 'Rename' })
 
 	answer.release()
@@ -333,7 +333,7 @@ test('keeps the focus in a Rename opened while a trash runs once that trash land
 	renderAt('/content/post')
 	await trashTheListedPost()
 	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename' }))
 	const rename = await screen.findByRole('dialog', { name: 'Rename' })
 	const name = within(rename).getByRole('textbox', { name: 'Name' })
 	await waitFor(() => expect(name).toHaveFocus())
@@ -363,7 +363,7 @@ test('puts the focus back on the row menu of a Rename cancelled while the list r
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
 	const renamed = (await screen.findByRole('link', { name: next.title })).closest('tr') as HTMLElement
 	await userEvent.click(within(renamed).getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename' }))
 	const rename = await screen.findByRole('dialog', { name: 'Rename' })
 	const release = holdReads('/api/content', { items: [next], total: 1 })
 	answer.release()

@@ -73,7 +73,7 @@ beforeEach(() => {
  * @param heading - The words the dialog is named by, the English ones unless a test names others.
  * @returns The dialog.
  */
-async function openRename(title = PUBLISHED.title, menuItem = 'Rename…', heading = 'Rename'): Promise<HTMLElement> {
+async function openRename(title = PUBLISHED.title, menuItem = 'Rename', heading = 'Rename'): Promise<HTMLElement> {
 	const row = within((await screen.findByRole('link', { name: title })).closest('tr') as HTMLElement)
 	await userEvent.click(row.getByRole('button', { name: 'Actions' }))
 	await userEvent.click(await screen.findByRole('menuitem', { name: menuItem }))
@@ -138,7 +138,7 @@ test('sends the Spanish rename with Guardar under the Renombrar heading', async 
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/content/post')
 
-	const dialog = await openRename(PUBLISHED.title, 'Renombrar…', 'Renombrar')
+	const dialog = await openRename(PUBLISHED.title, 'Renombrar', 'Renombrar')
 
 	expect(within(dialog).getByRole('textbox', { name: 'Nombre' })).toHaveValue('Welcome to Gophenberg')
 	expect(within(dialog).getByRole('button', { name: 'Guardar' })).toHaveAttribute('type', 'submit')

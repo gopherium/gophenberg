@@ -17,6 +17,7 @@ const LIST_SETTINGS = {
 	updates_restart_wait_milliseconds: 300000,
 	show_avatars: false,
 	default_role: 'editor',
+	dialog_write_timeout_milliseconds: 45000,
 }
 
 test('reads the settings every list follows, as the server names them', async () => {

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { checkIcon, Icon } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
@@ -84,6 +85,17 @@ function spinner(): Element | null {
  */
 function rowOf(file: File): HTMLElement {
 	return screen.getByText(file.name).closest('li') as HTMLElement
+}
+
+/**
+ * Returns the outline of the check icon, drawn apart from the picker.
+ * @returns The markup inside the icon's svg.
+ */
+function checkOutline(): string {
+	const { container, unmount } = render(<Icon icon={checkIcon} />)
+	const outline = (container.querySelector('svg') as SVGSVGElement).innerHTML
+	unmount()
+	return outline
 }
 
 /**
@@ -241,15 +253,16 @@ test('reopens no closed panel on a later error', async () => {
 })
 
 test('lists a spinner while uploading and a check once stored, with the name, its title and a heading', async () => {
+	const check = checkOutline()
 	const { held, panel } = await panelOverHeldPick()
 	expect(within(panel).getByRole('heading', { level: 3, name: 'Uploading' })).toBeInTheDocument()
-	expect(rowOf(PHOTO).querySelector('svg')).toHaveAttribute('viewBox', '0 0 100 100')
+	expect(rowOf(PHOTO).querySelector('svg')).toHaveAttribute('role', 'presentation')
 	expect(screen.getByText(PHOTO.name)).toHaveAttribute('title', PHOTO.name)
 
 	held.release()
 
 	expect(await within(panel).findByRole('heading', { level: 3, name: COMPLETE.name })).toBeInTheDocument()
-	expect(rowOf(PHOTO).querySelector('svg')).toHaveAttribute('viewBox', '0 0 24 24')
+	expect(rowOf(PHOTO).querySelector('svg')?.innerHTML).toBe(check)
 	expect(screen.getByText(PHOTO.name)).toHaveAttribute('title', PHOTO.name)
 })
 

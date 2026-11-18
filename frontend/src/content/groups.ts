@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { __, sprintf } from '@wordpress/i18n'
 import type { DialogAnswer } from '@gopherium/godmin'
 
+import { unlessTimedOut } from '../dialogAnswer'
 import { errorText } from '../i18n/errors'
 import { fieldSchema, toField } from './types'
 import type { ContentField, NewField } from './types'
@@ -194,25 +195,28 @@ export function staleGroupMessage(title: string): string {
  * @param write - The write the form sent.
  * @param said - The sentence naming what the write did.
  * @param reporter - What reports a landed write, and a stale one, where the form was opened from.
+ * @param signal - The signal the form handed its write, which hands a failure back once the time limit ran out.
  * @returns Nothing once the write landed or went stale, so the form closes, or the words any other failure shows.
  */
 export function formAnswer(
 	write: Promise<unknown>,
 	said: string,
 	reporter: { onDone: (said: string) => Promise<void>; onRefused: (cause: unknown) => Promise<void> },
+	signal: AbortSignal,
 ): Promise<DialogAnswer | undefined> {
 	return write.then(
 		() => {
 			void reporter.onDone(said)
 			return undefined
 		},
-		async (cause: unknown) => {
-			if (!(cause instanceof StaleWriteError)) {
-				return { error: groupErrorMessage(cause) }
-			}
-			await reporter.onRefused(cause)
-			return undefined
-		},
+		(cause: unknown) =>
+			unlessTimedOut(signal, cause, async () => {
+				if (!(cause instanceof StaleWriteError)) {
+					return { error: groupErrorMessage(cause) }
+				}
+				await reporter.onRefused(cause)
+				return undefined
+			}),
 	)
 }
 
@@ -263,13 +267,15 @@ export async function listGroups(): Promise<FieldGroup[]> {
  * Stores a new field group.
  * @param title - The name the group is listed under.
  * @param location - The rules deciding where its fields appear.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored group.
  */
-export async function createGroup(title: string, location: Location): Promise<FieldGroup> {
+export async function createGroup(title: string, location: Location, signal?: AbortSignal): Promise<FieldGroup> {
 	const response = await fetch('/api/groups', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ title, location }),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
@@ -311,9 +317,10 @@ export async function updateGroup(read: GroupRead, edit: GroupEdit): Promise<Fie
 /**
  * Removes a group with its fields and the values they held.
  * @param id - The group to remove.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
-export async function deleteGroup(id: number): Promise<void> {
-	const response = await fetch(`/api/groups/${id}`, { method: 'DELETE' })
+export async function deleteGroup(id: number, signal?: AbortSignal): Promise<void> {
+	const response = await fetch(`/api/groups/${id}`, { method: 'DELETE', signal })
 	if (!response.ok) {
 		await refuse(response)
 	}
@@ -352,9 +359,10 @@ export async function listRuleSources(): Promise<RuleSource[]> {
  * Declares a field inside a group.
  * @param id - The group declaring the field.
  * @param asked - The field to declare.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
-export async function createFieldInGroup(id: number, asked: NewField): Promise<ContentField> {
+export async function createFieldInGroup(id: number, asked: NewField, signal?: AbortSignal): Promise<ContentField> {
 	const response = await fetch(`/api/groups/${id}/fields`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
@@ -367,6 +375,7 @@ export async function createFieldInGroup(id: number, asked: NewField): Promise<C
 			required: asked.required,
 			settings: asked.settings,
 		}),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
@@ -374,22 +383,43 @@ export async function createFieldInGroup(id: number, asked: NewField): Promise<C
 	return toField(fieldSchema.parse(await response.json()))
 }
 
+/** The field an edit is for, in the group declaring it, with the timestamp the editor read it at. */
+interface FieldRead {
+	/** The group declaring the field. */
+	group: number
+	/** The field, or the dotted path of a field inside a container. */
+	key: string
+	/** The timestamp the editor read. */
+	updatedAt: string
+}
+
 /**
- * Carries an edit to a field inside its group.
- * @param id - The group declaring the field.
- * @param key - The field to edit.
+ * Returns the field an edit is for, by its path inside a container or else its own key, as the editor read it.
+ * @param place - The group declaring the field, and the dotted path of a field inside a container.
+ * @param field - The field as the editor read it.
+ * @returns The field to edit.
+ */
+export function fieldRead(place: { group: number; path?: string }, field: ContentField): FieldRead {
+	return { group: place.group, key: place.path ?? field.key, updatedAt: field.updatedAt }
+}
+
+/**
+ * Carries an edit to a field inside its group, while the field still holds the stamp it was read at.
+ * @param read - The field to edit, with the timestamp the editor read.
  * @param body - The parts to move.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
 async function patchFieldInGroup(
-	id: number,
-	key: string,
+	read: FieldRead,
 	body: Record<string, unknown>,
+	signal?: AbortSignal,
 ): Promise<ContentField> {
-	const response = await fetch(`/api/groups/${id}/fields/${key}`, {
+	const response = await fetch(`/api/groups/${read.group}/fields/${read.key}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify(body),
+		body: JSON.stringify({ ...body, updated_at: read.updatedAt }),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
@@ -399,53 +429,38 @@ async function patchFieldInGroup(
 
 /**
  * Carries a new label for a field inside its group.
- * @param id - The group declaring the field.
- * @param key - The field to relabel.
+ * @param read - The field to relabel, with the timestamp the editor read.
  * @param label - The label to carry.
- * @param updatedAt - The timestamp the editor read.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
-export async function renameFieldInGroup(
-	id: number,
-	key: string,
-	label: string,
-	updatedAt: string,
-): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { label, updated_at: updatedAt })
+export async function renameFieldInGroup(read: FieldRead, label: string, signal?: AbortSignal): Promise<ContentField> {
+	return patchFieldInGroup(read, { label }, signal)
 }
 
 /**
  * Stores the settings a field carries, replacing the ones it held.
- * @param id - The group declaring the field.
- * @param key - The field to change.
+ * @param read - The field to change, with the timestamp the editor read.
  * @param settings - The settings to store.
- * @param updatedAt - The timestamp the editor read.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
 export async function setFieldSettingsInGroup(
-	id: number,
-	key: string,
+	read: FieldRead,
 	settings: Record<string, unknown>,
-	updatedAt: string,
+	signal?: AbortSignal,
 ): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { settings, updated_at: updatedAt })
+	return patchFieldInGroup(read, { settings }, signal)
 }
 
 /**
  * Stores whether a field must be filled before its item publishes.
- * @param id - The group declaring the field.
- * @param key - The field to change.
+ * @param read - The field to change, with the timestamp the editor read.
  * @param required - Whether the field gates publishing.
- * @param updatedAt - The timestamp the editor read.
  * @returns The stored field.
  */
-export async function setFieldRequiredInGroup(
-	id: number,
-	key: string,
-	required: boolean,
-	updatedAt: string,
-): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { required, updated_at: updatedAt })
+export async function setFieldRequiredInGroup(read: FieldRead, required: boolean): Promise<ContentField> {
+	return patchFieldInGroup(read, { required })
 }
 
 /**
@@ -495,9 +510,10 @@ export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<
  * Removes a field from its group with every value it held.
  * @param id - The group declaring the field.
  * @param key - The field to remove.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
-export async function deleteFieldInGroup(id: number, key: string): Promise<void> {
-	const response = await fetch(`/api/groups/${id}/fields/${key}`, { method: 'DELETE' })
+export async function deleteFieldInGroup(id: number, key: string, signal?: AbortSignal): Promise<void> {
+	const response = await fetch(`/api/groups/${id}/fields/${key}`, { method: 'DELETE', signal })
 	if (!response.ok) {
 		await refuse(response)
 	}
@@ -508,12 +524,14 @@ export async function deleteFieldInGroup(id: number, key: string): Promise<void>
  * @param id - The group declaring the container.
  * @param path - The dotted keys addressing the container.
  * @param asked - The field to declare.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
 export async function createSubField(
 	id: number,
 	path: string,
 	asked: NewField,
+	signal?: AbortSignal,
 ): Promise<ContentField> {
 	const response = await fetch(`/api/groups/${id}/fields/${path}`, {
 		method: 'POST',
@@ -527,6 +545,7 @@ export async function createSubField(
 			required: asked.required,
 			settings: asked.settings,
 		}),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
@@ -538,31 +557,47 @@ export async function createSubField(
  * Removes the field the path addresses inside its container, and the values every item held under it.
  * @param id - The group declaring the container.
  * @param path - The dotted keys addressing the field.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
-export async function deleteSubField(id: number, path: string): Promise<void> {
-	const response = await fetch(`/api/groups/${id}/inside/${path}`, { method: 'DELETE' })
+export async function deleteSubField(id: number, path: string, signal?: AbortSignal): Promise<void> {
+	const response = await fetch(`/api/groups/${id}/inside/${path}`, { method: 'DELETE', signal })
 	if (!response.ok) {
 		await refuse(response)
 	}
+}
+
+/** Where a field carried to another place lands. */
+interface FieldLanding {
+	/** The group the field lands in. */
+	group: number
+	/** The dotted path of the container it lands in, empty or none for the group's top. */
+	parent?: string
 }
 
 /**
  * Carries a field to the top of a group, or inside one of its containers.
  * @param id - The group the field leaves.
  * @param path - The dotted path of the field to carry.
- * @param toGroup - The group the field lands in.
- * @param toParent - The dotted path of the container it lands in, empty for the group's top.
+ * @param to - The group and the container the field lands in.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
-export async function moveField(id: number, path: string, toGroup: number, toParent = ''): Promise<ContentField> {
-	const body: Record<string, unknown> = { to_group: toGroup }
-	if (toParent !== '') {
-		body.to_parent = toParent
+export async function moveField(
+	id: number,
+	path: string,
+	to: FieldLanding,
+	signal?: AbortSignal,
+): Promise<ContentField> {
+	const { group, parent = '' } = to
+	const body: Record<string, unknown> = { to_group: group }
+	if (parent !== '') {
+		body.to_parent = parent
 	}
 	const response = await fetch(`/api/groups/${id}/fields/${path}/move`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(body),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)

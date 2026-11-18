@@ -15,6 +15,7 @@ import { fieldTerms, levelOf, POST_VIEW_GUARD, postFields } from '../content/fie
 import { placeholderType } from '../content/useContentType'
 import { catalogFor } from '../i18n/catalog'
 import { renderAt, renderRoutedAt } from './render'
+import { sortFields } from './sortBy'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -340,8 +341,7 @@ test('offers to sort by the title, the author, the date and the slug only', asyn
 
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	const sorts = within(await screen.findByRole('combobox', { name: 'Sort by' })).getAllByRole('option')
-	expect(sorts.map((option) => option.textContent)).toEqual(['Title', 'Author', 'Date', 'Slug'])
+	expect(await sortFields()).toEqual(['Title', 'Author', 'Date', 'Slug'])
 })
 
 test('asks the server to sort a hierarchical type by its parents', async () => {

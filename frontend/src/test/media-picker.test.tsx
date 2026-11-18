@@ -23,6 +23,7 @@ import {
 	renderTwoPickers,
 } from './mediaPicker'
 import { siteSettings } from './siteSettings'
+import { sortBy, sortFields } from './sortBy'
 
 beforeEach(() => {
 	listing()
@@ -260,7 +261,7 @@ async function closeAndReopen() {
  */
 async function sortByModified() {
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
-	await userEvent.selectOptions(await sortControl(), 'modified')
+	await sortBy('Date modified')
 }
 
 /**
@@ -374,8 +375,7 @@ test('sorts by Title, Date added, Date modified and Author alone', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	const sorts = within(await sortControl()).getAllByRole('option')
-	expect(sorts.map((option) => option.textContent)).toEqual(['Title', 'Date added', 'Date modified', 'Author'])
+	expect(await sortFields()).toEqual(['Title', 'Date added', 'Date modified', 'Author'])
 })
 
 test('offers the served page sizes, opens on the size the site sets, and asks a new size at page one', async () => {
@@ -428,7 +428,7 @@ test('forgets the page and the search on a close, and keeps the sort and a filte
 	await card(HARBOR)
 	await filterByAuthor()
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
-	await userEvent.selectOptions(await sortControl(), 'modified')
+	await sortBy('Date modified')
 	await searchHarbor()
 	await waitFor(() => expect(asked.at(-1)?.get('search')).toBe('harbor'))
 	await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
@@ -481,7 +481,7 @@ test('asks again with the sort a reader picks once the first page arrived, besid
 	await card(HARBOR)
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	await userEvent.selectOptions(await sortControl(), 'modified')
+	await sortBy('Date modified')
 
 	await waitFor(() => expect(asked.at(-1)?.get('orderby')).toBe('modified'))
 	expect(asked.at(-1)?.get('mime')).toBe('image/')
@@ -516,7 +516,7 @@ test('keeps the cards and the page count while the sort a reader picks loads', a
 	)
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	await userEvent.selectOptions(await sortControl(), 'title')
+	await sortBy('Title')
 	await waitFor(() => expect(asking).toBe(true))
 
 	expect(screen.getByRole('option', { name: HARBOR.title })).toBeInTheDocument()

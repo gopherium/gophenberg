@@ -12,6 +12,7 @@ import { gate } from './gate'
 import { leaveStale } from './reopen'
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
+import { sortBy, sortFields } from './sortBy'
 
 beforeAll(async () => {
 	await import('../media/MediaScreen')
@@ -137,7 +138,7 @@ test('keeps the sort a reader picks in the address, so the list opens on it agai
 	await screen.findByText('Harbor at dawn')
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), 'title')
+	await sortBy('Title')
 	await waitFor(() => expect(router.state.location.search).toMatchObject({ sort: 'title' }))
 	const kept = router.state.location.searchStr
 	cleanup()
@@ -196,21 +197,20 @@ test('sorts by Title, Date added, Date modified and Author alone', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	const sorts = within(await screen.findByRole('combobox', { name: 'Sort by' })).getAllByRole('option')
-	expect(sorts.map((option) => option.textContent)).toEqual(['Title', 'Date added', 'Date modified', 'Author'])
+	expect(await sortFields()).toEqual(['Title', 'Date added', 'Date modified', 'Author'])
 })
 
 test.each([
-	{ field: 'title', from: 'date' },
-	{ field: 'date', from: 'title' },
-	{ field: 'modified', from: 'title' },
-	{ field: 'author', from: 'title' },
-])('asks the server to sort by $field, then in the order the reader picks', async ({ field, from }) => {
+	{ field: 'title', label: 'Title', from: 'date' },
+	{ field: 'date', label: 'Date added', from: 'title' },
+	{ field: 'modified', label: 'Date modified', from: 'title' },
+	{ field: 'author', label: 'Author', from: 'title' },
+])('asks the server to sort by $field, then in the order the reader picks', async ({ field, label, from }) => {
 	renderAt(`/media?sort=${from}&order=asc`)
 	await screen.findByText('Harbor at dawn')
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
 
-	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), field)
+	await sortBy(label)
 	await waitFor(() => expect(lastAsked()).toMatchObject({ orderby: field, order: 'asc' }))
 	await userEvent.click(screen.getByRole('radio', { name: 'Sort descending' }))
 

@@ -42,18 +42,25 @@ function inTurn<T>(client: QueryClient, key: string, write: () => Promise<T>): P
  * @param client - The query client the writes belong to.
  * @param key - The key of the type.
  * @param edit - The fields to move.
+ * @param signal - The signal that stops the request, none for an edit that waits for its answer.
  * @returns The stored type.
  */
-export function editInTurn(client: QueryClient, key: string, edit: TypeEdit): Promise<ContentType> {
-	return inTurn(client, key, () => updateType(key, edit))
+export function editInTurn(
+	client: QueryClient,
+	key: string,
+	edit: TypeEdit,
+	signal?: AbortSignal,
+): Promise<ContentType> {
+	return inTurn(client, key, () => updateType(key, edit, signal))
 }
 
 /**
  * Removes a type once every earlier write to it has answered.
  * @param client - The query client the writes belong to.
  * @param key - The key of the type.
+ * @param signal - The signal that stops the request, none for a removal that waits for its answer.
  * @returns The removal.
  */
-export function deleteInTurn(client: QueryClient, key: string): Promise<void> {
-	return inTurn(client, key, () => deleteType(key))
+export function deleteInTurn(client: QueryClient, key: string, signal?: AbortSignal): Promise<void> {
+	return inTurn(client, key, () => deleteType(key, signal))
 }

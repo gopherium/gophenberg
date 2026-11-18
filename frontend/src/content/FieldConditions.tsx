@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { conditionsOf, multipleOf, needsValue, operatorsFor } from './conditions'
-import { formAnswer, setFieldSettingsInGroup } from './groups'
+import { fieldRead, formAnswer, setFieldSettingsInGroup } from './groups'
 import { chosenOf } from './select'
 import { pairsOf } from './types'
 import type { ConditionRule } from './conditions'
@@ -280,13 +280,8 @@ function ConditionsForm(props: ConditionsProps & { title: string; sources: Conte
 	const [opened] = useState(props.field)
 	const [draft, setDraft] = useState<ConditionRule[][]>(() => conditionsOf(opened))
 	const save = useMutation({
-		mutationFn: () =>
-			setFieldSettingsInGroup(
-				props.group,
-				props.path ?? opened.key,
-				storedConditions(opened.settings, draft),
-				opened.updatedAt,
-			),
+		mutationFn: (signal: AbortSignal) =>
+			setFieldSettingsInGroup(fieldRead(props, opened), storedConditions(opened.settings, draft), signal),
 	})
 	const said = sprintf(__('%(field)s shows by its rules now.', 'gophenberg'), { field: props.field.label })
 	return (
@@ -294,7 +289,7 @@ function ConditionsForm(props: ConditionsProps & { title: string; sources: Conte
 			title={props.title}
 			submitLabel={__('Save rules', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={() => formAnswer(save.mutateAsync(), said, props)}
+			onSubmit={(signal) => formAnswer(save.mutateAsync(signal), said, props, signal)}
 			onClose={props.onClose}
 		>
 			{(busy) => <ConditionsBody draft={draft} sources={props.sources} readOnly={busy} onDraft={setDraft} />}

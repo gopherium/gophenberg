@@ -17,6 +17,7 @@ test('sizes a table title by the room the other columns leave, never by its own 
 test('cuts a table title that is no link at the edge of its column', () => {
 	expect(declarations(`${PRIMARY} > .dataviews-title-field`)).toMatchObject({
 		display: 'block',
+		'min-inline-size': '0',
 		overflow: 'hidden',
 	})
 })

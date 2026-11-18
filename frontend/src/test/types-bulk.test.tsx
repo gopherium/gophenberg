@@ -12,6 +12,7 @@ import type { ContentType } from '../content/types'
 import { removalDescription, removalTitle } from '../content/typeWords'
 import { catalogFor } from '../i18n/catalog'
 import { bulkBar } from './bulkBar'
+import { gate } from './gate'
 import { renderAt } from './render'
 import {
 	GUIDE_TYPE,
@@ -93,15 +94,15 @@ function refuseGuides(kind: 'delete' | 'patch') {
 	)
 }
 
-test('offers Activate, Deactivate and Delete… on the picked types, each only where some type takes it', async () => {
+test('offers Activate, Deactivate and Delete on the picked types, each only where some type takes it', async () => {
 	serveTypes(POST_TYPE, PAGE_TYPE, { ...GUIDE_TYPE, active: false })
 	renderAt('/content-types')
 
 	await pick(['Pages'])
-	expect(bulkActions()).toEqual(['Deactivate', 'Delete…'])
+	expect(bulkActions()).toEqual(['Deactivate', 'Delete'])
 	await pick(['Guides'])
 
-	expect(bulkActions()).toEqual(['Activate', 'Deactivate', 'Delete…'])
+	expect(bulkActions()).toEqual(['Activate', 'Deactivate', 'Delete'])
 })
 
 test('leaves the default type out of the picks, since no bulk action reaches it', async () => {
@@ -114,7 +115,7 @@ test('deletes every picked type behind one confirm, counting them as content typ
 	renderAt('/content-types')
 	await pick(['Pages', 'Guides'])
 
-	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete…' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete' }))
 	const dialog = await screen.findByRole('alertdialog')
 	expect(within(dialog).getByRole('heading', { name: 'Delete 2 content types?' })).toBeInTheDocument()
 	expect(dialog).toHaveAccessibleDescription(
@@ -133,7 +134,7 @@ test('says only what a partly refused bulk delete could not remove, in one toast
 	renderAt('/content-types')
 	await pick(['Pages', 'Guides'])
 
-	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete…' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete' }))
 	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
 
 	expect(await findToast('1 content type could not be permanently deleted.')).toBeInTheDocument()
@@ -146,7 +147,7 @@ test('counts the content types a bulk delete removed in Spanish, with no word ag
 	renderAt('/content-types')
 	await pick(['Páginas', 'Guides'], SPANISH)
 
-	await userEvent.click(bulkBar().getByRole('button', { name: 'Borrar…' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Borrar' }))
 	const dialog = await screen.findByRole('alertdialog')
 	expect(within(dialog).getByRole('heading', { name: '¿Borrar 2 tipos de contenido?' })).toBeInTheDocument()
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Borrar' }))
@@ -240,34 +241,44 @@ test.each([
 	expect(await screen.findByText(toast, { selector: '.godmin-toast' })).toBeInTheDocument()
 })
 
-test('keeps Deactivate and Delete… in the bulk bar below 782px, where only actions with an icon show', async () => {
+test('offers Deactivate and Delete in the Actions menu of the bulk bar below 782px', async () => {
 	setViewport({ width: 700 })
 	renderAt('/content-types')
-
 	await pick(['Pages', 'Guides'])
 
-	expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
-	expect(bulkBar().getByRole('button', { name: 'Delete…' })).toBeInTheDocument()
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Actions' }))
+
+	expect(await screen.findByRole('menuitem', { name: 'Deactivate' })).toBeInTheDocument()
+	expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
 })
 
-test('keeps Activate in the bulk bar below 782px, where only actions with an icon show', async () => {
+test('offers Activate in the Actions menu of the bulk bar below 782px', async () => {
 	setViewport({ width: 700 })
 	serveTypes(POST_TYPE, { ...PAGE_TYPE, active: false }, { ...GUIDE_TYPE, active: false })
 	renderAt('/content-types')
-
 	await pick(['Pages', 'Guides'])
 
-	expect(bulkBar().getByRole('button', { name: 'Activate' })).toBeInTheDocument()
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Actions' }))
+
+	expect(await screen.findByRole('menuitem', { name: 'Activate' })).toBeInTheDocument()
 })
 
 test('puts the focus back on the bulk bar after a switch, since every row stays in the list', async () => {
 	renderAt('/content-types')
 	await pick(['Pages', 'Guides'])
 	const deactivate = bulkBar().getByRole('button', { name: 'Deactivate' })
+	const reload = gate()
+	server.use(
+		http.get('/api/types', async () => {
+			await reload.held
+			return HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE, GUIDE_TYPE] })
+		}),
+	)
 
 	await userEvent.click(deactivate)
 
 	await screen.findByText('2 content types deactivated.', { selector: '.godmin-toast' })
+	reload.release()
 	await waitFor(() => expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toHaveFocus())
 })
 
