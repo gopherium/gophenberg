@@ -112,11 +112,11 @@ function MakeDefault({ type }: { type: ContentType }) {
 
 /**
  * Renders the delete confirm of the picked types with the types list's own tools.
- * @param props - The picked types.
+ * @param props - The picked types and the list the run marks.
  * @returns The confirm.
  */
-function DeleteTypes({ items }: { items: ContentType[] }) {
-	const tools = useTypeTools(QUIET_LIST)
+function DeleteTypes({ items, list }: { items: ContentType[], list: ListRun }) {
+	const tools = useTypeTools(list)
 	const opened = { action: 'delete', items, trigger: 'bulk' } as const
 	return <OpenTypeDialog opened={opened} tools={tools} onClose={() => {}} onBack={() => {}} />
 }
@@ -196,7 +196,7 @@ test('stops handing the root over once Make default runs past the limit, closing
 	expect(stopped(sent)).toEqual([true])
 })
 
-test('stops a bulk delete of types at the time limit, sending nothing for a type still waiting its turn', async () => {
+test('closes a bulk delete of types on the failure toast at the limit, never sending a queued type', async () => {
 	serveTypes(PAGE_TYPE, GUIDE_TYPE)
 	const picked = await listTypes()
 	const client = new QueryClient()
@@ -207,16 +207,25 @@ test('stops a bulk delete of types at the time limit, sending nothing for a type
 			return HttpResponse.json(GUIDE_TYPE)
 		}),
 	)
-	void editInTurn(client, 'guide', { active: false })
-	const sent = unanswered('delete', '/api/types/:key')
-	renderLimited(<DeleteTypes items={picked} />, client)
+	const switched = editInTurn(client, 'guide', { active: false })
+	const sent: string[] = []
+	server.use(
+		http.delete('/api/types/:key', ({ request }) => {
+			sent.push(new URL(request.url).pathname)
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+	const endReload = vi.fn()
+	renderLimited(<DeleteTypes items={picked} list={{ onStart: markNothing, onRefresh: () => endReload }} />, client)
 
 	await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
-	expect(await stoppedOnceTimedOut(sent)).toEqual([true])
-	earlier.release()
 
-	expect(await screen.findByText('2 content types could not be permanently deleted.')).toBeVisible()
-	expect(sent.map((request) => new URL(request.url).pathname)).toEqual(['/api/types/page'])
+	expect(await screen.findByText('1 content type could not be permanently deleted.')).toBeVisible()
+	expect(endReload).toHaveBeenCalledOnce()
+	expect(screen.queryByText(NO_ANSWER)).not.toBeInTheDocument()
+	earlier.release()
+	await switched
+	expect(sent).toEqual(['/api/types/page'])
 })
 
 test.each(PERMANENT_DELETES)('stops every permanent delete of picked %s at the time limit', async (_, path, ask) => {

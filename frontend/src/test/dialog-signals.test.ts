@@ -21,6 +21,8 @@ import { createType, deleteType, updateType } from '../content/types'
 import type { NewField, NewType } from '../content/types'
 import { deleteInTurn, editInTurn } from '../content/typeWrites'
 import { deleteMedia, editMedia } from '../media/api'
+import { gate } from './gate'
+import { GUIDE_TYPE } from './typeFixtures'
 
 /** A field a test declares. */
 const NEW_FIELD: NewField = { key: 'subtitle', label: 'Subtitle', kind: 'text' }
@@ -41,11 +43,27 @@ const ON_POSTS: Location = [[{ source: 'content_type', operator: '==', value: 'p
 const READ_FIELD = { group: 3, key: 'subtitle', updatedAt: '2026-11-16T10:00:00Z' }
 
 /**
+ * Returns the reason a dialog gives its signal once its write ran past the time limit.
+ * @returns The reason.
+ */
+function pastTheLimit(): DOMException {
+	return new DOMException('Could not get a valid response from the server.', 'TimeoutError')
+}
+
+/**
  * Returns the signal a dialog fired once its write ran past the time limit.
  * @returns The fired signal.
  */
 function firedSignal(): AbortSignal {
-	return AbortSignal.abort(new DOMException('Could not get a valid response from the server.', 'TimeoutError'))
+	return AbortSignal.abort(pastTheLimit())
+}
+
+/**
+ * Waits long enough for a write that does not wait its turn to go out.
+ * @returns A promise settling once the time has passed.
+ */
+function aMoment(): Promise<unknown> {
+	return new Promise((resolve) => setTimeout(resolve, 50))
 }
 
 /** Each write a dialog waits on, sent with a signal that already fired. */
@@ -84,4 +102,36 @@ test.each(writes)('%s sends nothing once the dialog signal fired', async (_name,
 	await expect(write(firedSignal())).rejects.toBeDefined()
 
 	expect(sent).toEqual([])
+})
+
+/** Each type write a dialog queues behind an earlier write to the same type. */
+const queuedWrites: [string, (client: QueryClient, signal: AbortSignal) => Promise<unknown>][] = [
+	['deleteInTurn', (client, signal) => deleteInTurn(client, 'guide', signal)],
+	['editInTurn', (client, signal) => editInTurn(client, 'guide', { isDefault: true }, signal)],
+]
+
+test.each(queuedWrites)('%s stops at the signal while queued, later writes still waiting', async (_name, write) => {
+	const client = new QueryClient()
+	const earlier = gate()
+	const edits: unknown[] = []
+	server.use(
+		http.patch('/api/types/guide', async ({ request }) => {
+			edits.push(await request.json())
+			await earlier.held
+			return HttpResponse.json(GUIDE_TYPE)
+		}),
+	)
+	const switched = editInTurn(client, 'guide', { active: false })
+	const controller = new AbortController()
+	const queued = write(client, controller.signal)
+
+	controller.abort(pastTheLimit())
+
+	await expect(queued).rejects.toBe(controller.signal.reason)
+	const later = editInTurn(client, 'guide', { description: 'Dishes' })
+	await aMoment()
+	expect(edits).toEqual([{ active: false }])
+	earlier.release()
+	await Promise.all([switched, later])
+	expect(edits).toEqual([{ active: false }, { description: 'Dishes' }])
 })
