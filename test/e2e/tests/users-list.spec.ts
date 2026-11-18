@@ -163,7 +163,7 @@ test('changes the role of one account from its row menu and gives the focus back
 	const menu = rowOf(page, promoted.email).getByRole('button', { name: 'Actions' })
 
 	await menu.click()
-	await page.getByRole('menuitem', { name: 'Change role…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Change role', exact: true }).click()
 	const dialog = page.getByRole('dialog', { name: 'Change role' })
 	await expect(dialog.getByText(`Choose the role of ${promoted.name}.`)).toBeVisible()
 	const role = dialog.getByRole('combobox', { name: 'Role' })
@@ -207,7 +207,7 @@ test('changes the role of two ticked accounts from the bulk bar and gives the fo
 
 	await page.getByRole('checkbox', { name: first.name, exact: true }).check()
 	await page.getByRole('checkbox', { name: second.name, exact: true }).check()
-	await page.getByRole('button', { name: 'Change role…', exact: true }).click()
+	await page.getByRole('button', { name: 'Change role', exact: true }).click()
 	const dialog = page.getByRole('dialog', { name: 'Change role' })
 	await expect(dialog.getByText('Choose the role of 2 users.')).toBeVisible()
 	await expect(dialog.getByRole('combobox', { name: 'Role' })).toHaveText('Change role to…')
@@ -260,7 +260,7 @@ test('says inside the open Change role that the reader may no longer edit users 
 	await openSearched(page, kept.email)
 
 	await rowOf(page, kept.email).getByRole('button', { name: 'Actions' }).click()
-	await page.getByRole('menuitem', { name: 'Change role…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Change role', exact: true }).click()
 	await pickRole(page, 'Editor')
 	const demoted = await request.put(`/api/users/${lowered.id}/role`, { data: { role: 'editor' } })
 	expect(demoted.ok()).toBe(true)

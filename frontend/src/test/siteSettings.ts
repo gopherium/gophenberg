@@ -15,4 +15,5 @@ export const siteSettings = {
 	updates_restart_wait_milliseconds: 300000,
 	show_avatars: true,
 	default_role: 'member',
+	dialog_write_timeout_milliseconds: 60000,
 }

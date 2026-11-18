@@ -134,7 +134,8 @@ test('leaves no post ticked once a bulk trash lands, so a bulk Undo brings the r
 	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
 	const first = await screen.findByRole('checkbox', { name: 'Welcome to Gophenberg' })
 	const second = await screen.findByRole('checkbox', { name: 'Second Thoughts' })
-	expect([first, second].map((box) => (box as HTMLInputElement).checked)).toEqual([false, false])
+	expect(first).not.toBeChecked()
+	expect(second).not.toBeChecked()
 	expect(screen.queryByRole('button', { name: 'Trash' })).not.toBeInTheDocument()
 })
 

@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { unlessTimedOut } from '../dialogAnswer'
 import { irreversible } from '../lists/itemWords'
 import {
 	anyType,
@@ -246,14 +247,15 @@ export function GroupsScreen() {
 	}
 
 	/**
-	 * Opens the page of a group just created once the groups are read again with it, then says it was created.
+	 * Opens the page of a group the server just stored, reads the lists again behind it and says it was created.
 	 * @param created - The group the server stored.
 	 * @param said - The sentence naming what was done.
 	 */
-	async function opened(created: FieldGroup, said: string) {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-		await client.invalidateQueries({ queryKey: typesQueryKey })
-		await navigate({ to: '/field-groups/$groupId', params: { groupId: String(created.id) } })
+	function opened(created: FieldGroup, said: string) {
+		client.setQueryData<FieldGroup[]>(groupsQueryKey, (listed) => listed?.concat(created))
+		void client.invalidateQueries({ queryKey: groupsQueryKey })
+		void client.invalidateQueries({ queryKey: typesQueryKey })
+		void navigate({ to: '/field-groups/$groupId', params: { groupId: String(created.id) } })
 		toaster.show(said)
 	}
 
@@ -489,7 +491,7 @@ function MoveGroup(props: {
  */
 function RemoveGroup(props: Reporter & { held: FieldGroup }) {
 	const [asking, setAsking] = useState(false)
-	const remove = useMutation({ mutationFn: () => deleteGroup(props.held.id) })
+	const remove = useMutation({ mutationFn: (signal: AbortSignal) => deleteGroup(props.held.id, signal) })
 	const said = sprintf(__('%(group)s removed.', 'gophenberg'), { group: props.held.title })
 	const warning = __(
 		'The fields this group holds go with it, and so do the values every item stored in them.',
@@ -507,7 +509,12 @@ function RemoveGroup(props: Reporter & { held: FieldGroup }) {
 					description={`${warning} ${irreversible()}`}
 					confirmLabel={__('Delete the group', 'gophenberg')}
 					cancelLabel={__('Cancel', 'gophenberg')}
-					onConfirm={() => remove.mutateAsync().then(() => { props.onDone(said) }, props.onRefused)}
+					onConfirm={(signal) =>
+						remove.mutateAsync(signal).then(
+							() => { props.onDone(said) },
+							(cause: unknown) => unlessTimedOut(signal, cause, () => props.onRefused(cause)),
+						)
+					}
 					onClose={() => setAsking(false)}
 				/>
 			) : null}
@@ -530,7 +537,7 @@ function ExportDefinitions() {
 /** What the control storing a new field group takes. */
 interface AddGroupProps {
 	types: ContentType[]
-	onCreated: (created: FieldGroup, said: string) => Promise<void>
+	onCreated: (created: FieldGroup, said: string) => void
 }
 
 /**
@@ -560,14 +567,16 @@ function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
 	const firstType = props.types.at(0)
 	const seeded = firstType?.key ?? ''
 	const add = useMutation({
-		mutationFn: () => createGroup(title, [[{ source: typeSource, operator: '==', value: seeded }]]),
+		mutationFn: (signal: AbortSignal) =>
+			createGroup(title, [[{ source: typeSource, operator: '==', value: seeded }]], signal),
 	})
-	const create = () =>
-		add.mutateAsync().then(
+	const create = (signal: AbortSignal) =>
+		add.mutateAsync(signal).then(
 			(created) => props.onCreated(created, sprintf(__('%(group)s created.', 'gophenberg'), { group: title })),
-			(cause: unknown) => ({
-				error: sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)),
-			}),
+			(cause: unknown) =>
+				unlessTimedOut(signal, cause, () => ({
+					error: sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)),
+				})),
 		)
 	return (
 		<FormDialog

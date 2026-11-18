@@ -1876,8 +1876,9 @@ msgstr "Un fotograma de esta animación tiene más de %(max)s píxeles, más de 
 msgid "Pending Review"
 msgstr "Pendiente de revisión"
 
-msgid "Permanently delete…"
-msgstr "Eliminar permanentemente…"
+#, fuzzy
+msgid "Permanently delete"
+msgstr "Eliminar permanentemente"
 
 #, fuzzy
 msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
@@ -1886,10 +1887,6 @@ msgstr "La calidad de imagen va de 1 a %(max)s, así que %(value)s no es una cal
 #, fuzzy
 msgid "Published: %s"
 msgstr "Publicado: %s"
-
-#, fuzzy
-msgid "Rename…"
-msgstr "Renombrar…"
 
 #, fuzzy
 msgid "Rule %(number)s of set %(set)s"
@@ -2189,10 +2186,6 @@ msgid "Another update is currently in progress."
 msgstr "En este momento hay otra actualización en marcha."
 
 #, fuzzy
-msgid "Change address…"
-msgstr "Cambiar la dirección…"
-
-#, fuzzy
 msgid "Choose the version to update to."
 msgstr "Elige la versión a la que actualizar."
 
@@ -2216,14 +2209,6 @@ msgstr[1] "¿Borrar %s de tipos de contenido?"
 msgstr[2] "¿Borrar %s tipos de contenido?"
 
 #, fuzzy
-msgid "Delete…"
-msgstr "Borrar…"
-
-#, fuzzy
-msgid "Describe…"
-msgstr "Describir…"
-
-#, fuzzy
 msgid "Description updated."
 msgstr "Descripción actualizada."
 
@@ -2234,10 +2219,6 @@ msgstr "Gophenberg no puede empezar esta actualización: %(reason)s"
 #, fuzzy
 msgid "Key"
 msgstr "Clave"
-
-#, fuzzy
-msgid "Make default…"
-msgstr "Establecer como predeterminado…"
 
 #, fuzzy
 msgid "No description"
@@ -2419,12 +2400,12 @@ msgid "Downloading Gophenberg %(version)s…"
 msgstr "Descargando Gophenberg %(version)s…"
 
 #, fuzzy
-msgid "Edit media"
-msgstr "Editar los medios"
+msgid "Edit"
+msgstr "Editar"
 
 #, fuzzy
-msgid "Edit…"
-msgstr "Editar…"
+msgid "Edit media"
+msgstr "Editar los medios"
 
 #, fuzzy
 msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
@@ -2828,11 +2809,6 @@ msgstr "Estado"
 msgctxt "action label"
 msgid "Duplicate"
 msgstr "Duplicar"
-
-#, fuzzy
-msgctxt "action label"
-msgid "Duplicate…"
-msgstr "Duplicar…"
 
 #, fuzzy
 msgctxt "relation target"

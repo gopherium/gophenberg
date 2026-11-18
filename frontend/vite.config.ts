@@ -2,7 +2,7 @@
 
 import { godminDedupe, godminSingleCopy, godminStylesheetFirst } from '@gopherium/godmin/vite'
 import react from '@vitejs/plugin-react'
-import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks'
+import dsTokenFallbacks from '@wordpress/theme-build-tools/vite-plugins/vite-ds-token-fallbacks'
 import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import { defaultExclude } from 'vitest/config'
 import { realpathSync } from 'node:fs'

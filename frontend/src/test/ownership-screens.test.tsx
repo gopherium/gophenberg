@@ -112,8 +112,8 @@ test('offers an author only a duplicate and a view of a published post another a
 
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	await screen.findByRole('menuitem', { name: 'Duplicate…' })
-	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['View', 'Duplicate…'])
+	await screen.findByRole('menuitem', { name: 'Duplicate' })
+	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['View', 'Duplicate'])
 })
 
 test('offers an author every action on its own post', async () => {
@@ -277,7 +277,7 @@ test('opens a foreign post as the editor for an editor', async () => {
 })
 
 /** Every action the media library offers on a file the session may change, in order. */
-const EVERY_MEDIA_ACTION = ['View', 'Edit…', 'Rename…', 'Permanently delete…']
+const EVERY_MEDIA_ACTION = ['View', 'Edit', 'Rename', 'Permanently delete']
 
 /**
  * Opens the actions menu of the one listed file and returns the words of its items.

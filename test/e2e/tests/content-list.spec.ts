@@ -175,7 +175,7 @@ test('renames an item from its row in a dialog that hands the Name field the foc
 	await draftTitled(page, title)
 	await openRowMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Rename…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
 	const dialog = page.getByRole('dialog', { name: 'Rename' })
 	const field = dialog.getByRole('textbox', { name: 'Name' })
 	await expect(field).toBeFocused()
@@ -192,7 +192,7 @@ test('duplicates an item from its row into a new draft under the title typed', a
 	await draftTitled(page, title)
 	await openRowMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Duplicate…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Duplicate', exact: true }).click()
 	const dialog = page.getByRole('dialog', { name: 'Duplicate' })
 	await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue(`${title} (Copy)`)
 	await dialog.getByRole('button', { name: 'Duplicate', exact: true }).click()
@@ -292,7 +292,7 @@ test('restores one item from the Trash tab and deletes another for good', async 
 	await page.getByRole('menuitem', { name: 'Restore', exact: true }).click()
 	await expect(page.locator('#root').getByText(`"${kept}" has been restored.`)).toBeVisible()
 	await row(gone).getByRole('button', { name: 'Actions' }).click()
-	await page.getByRole('menuitem', { name: 'Permanently delete…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Permanently delete', exact: true }).click()
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete permanently', exact: true }).click()
 
 	await expect(page.locator('#root').getByText(`"${gone}" permanently deleted.`)).toBeVisible()
@@ -308,7 +308,7 @@ test('opens the permanent delete confirm of a row on Cancel, as WordPress does',
 	const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
 	await row.getByRole('button', { name: 'Actions' }).click()
 
-	await page.getByRole('menuitem', { name: 'Permanently delete…', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Permanently delete', exact: true }).click()
 
 	await expect(page.getByRole('alertdialog').getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
 })

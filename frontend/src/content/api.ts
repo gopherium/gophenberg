@@ -134,9 +134,15 @@ export interface PostDraft {
  * @param type - The post type to create.
  * @param draft - What the draft starts with.
  * @param fallback - The words a refused create throws when the server names no reason the admin knows.
+ * @param signal - The signal that stops the request, none for a create that waits for its answer.
  * @returns The stored draft.
  */
-export async function createPost(type: string, draft: PostDraft, fallback: string): Promise<Post> {
+export async function createPost(
+	type: string,
+	draft: PostDraft,
+	fallback: string,
+	signal?: AbortSignal,
+): Promise<Post> {
 	const body = {
 		type,
 		title: draft.title,
@@ -147,7 +153,7 @@ export async function createPost(type: string, draft: PostDraft, fallback: strin
 	}
 	const response = await accepted(
 		'/api/content',
-		{ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
+		{ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal },
 		fallback,
 	)
 	return toPost(postSchema.parse(await response.json()))
@@ -235,10 +241,11 @@ async function accepted(url: string, init: RequestInit, fallback: string): Promi
  * Returns one post with its content.
  * @param id - The post to read.
  * @param fallback - The words a failed read throws when the server names no reason the admin knows.
+ * @param signal - The signal that stops the request, none for a read that waits for its answer.
  * @returns The stored post.
  */
-export async function fetchPost(id: string, fallback = ''): Promise<PostDetail> {
-	const response = await accepted(`/api/content/${id}`, {}, fallback)
+export async function fetchPost(id: string, fallback = '', signal?: AbortSignal): Promise<PostDetail> {
+	const response = await accepted(`/api/content/${id}`, { signal }, fallback)
 	return toDetail(detailSchema.parse(await response.json()))
 }
 
@@ -246,17 +253,19 @@ export async function fetchPost(id: string, fallback = ''): Promise<PostDetail> 
  * Writes a new title over the version of an item read just before the write, so the newest name wins.
  * @param id - The item to rename.
  * @param title - The new title.
+ * @param signal - The signal that stops both requests, none for a rename that waits for its answer.
  * @returns The renamed item.
  */
-export async function renamePost(id: string, title: string): Promise<Post> {
+export async function renamePost(id: string, title: string, signal?: AbortSignal): Promise<Post> {
 	const fallback = __('The name could not be updated.', 'gophenberg')
-	const current = await fetchPost(id, fallback)
+	const current = await fetchPost(id, fallback, signal)
 	const response = await accepted(
 		`/api/content/${id}`,
 		{
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ title, updated_at: current.updatedAt }),
+			signal,
 		},
 		fallback,
 	)
@@ -393,10 +402,11 @@ export async function restorePost(id: string): Promise<Post> {
 /**
  * Removes a post for good.
  * @param id - The post to delete.
+ * @param signal - The signal that stops the request, none for a delete that waits for its answer.
  */
-export async function deletePost(id: string): Promise<void> {
+export async function deletePost(id: string, signal?: AbortSignal): Promise<void> {
 	const fallback = __('The item could not be permanently deleted.', 'gophenberg')
-	await accepted(`/api/content/${id}?force=true`, { method: 'DELETE' }, fallback)
+	await accepted(`/api/content/${id}?force=true`, { method: 'DELETE', signal }, fallback)
 }
 
 /**

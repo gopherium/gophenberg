@@ -264,7 +264,7 @@ test('renames a field inside its group', async () => {
 		}),
 	)
 
-	const renamed = await renameFieldInGroup(3, 'subtitle', 'Renamed', '2026-08-01T10:00:00Z')
+	const renamed = await renameFieldInGroup({ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' }, 'Renamed')
 
 	expect(sent).toEqual({ label: 'Renamed', updated_at: '2026-08-01T10:00:00Z' })
 	expect(renamed.label).toBe('Renamed')
@@ -279,7 +279,7 @@ test('stores whether a field gates publishing', async () => {
 		}),
 	)
 
-	const eased = await setFieldRequiredInGroup(3, 'subtitle', false, '2026-08-01T10:00:00Z')
+	const eased = await setFieldRequiredInGroup({ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' }, false)
 
 	expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' })
 	expect(eased.required).toBe(false)
@@ -294,7 +294,10 @@ test('stores the settings a field carries', async () => {
 		}),
 	)
 
-	const bounded = await setFieldSettingsInGroup(3, 'subtitle', { maxlength: 80 }, '2026-08-01T10:00:00Z')
+	const bounded = await setFieldSettingsInGroup(
+		{ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' },
+		{ maxlength: 80 },
+	)
 
 	expect(sent).toEqual({ settings: { maxlength: 80 }, updated_at: '2026-08-01T10:00:00Z' })
 	expect(bounded.settings).toEqual({ maxlength: 80 })
@@ -341,13 +344,13 @@ test.each([
 	],
 	[
 		'renameFieldInGroup',
-		() => renameFieldInGroup(3, 'a', 'B', '2026-08-01T10:00:00Z'),
+		() => renameFieldInGroup({ group: 3, key: 'a', updatedAt: '2026-08-01T10:00:00Z' }, 'B'),
 		'patch',
 		'/api/groups/3/fields/a',
 	],
 	['reorderFieldsInGroup', () => reorderFieldsInGroup(3, ['a']), 'put', '/api/groups/3/fields/order'],
 	['deleteFieldInGroup', () => deleteFieldInGroup(3, 'a'), 'delete', '/api/groups/3/fields/a'],
-	['moveField', () => moveField(3, 'a', 7), 'post', '/api/groups/3/fields/a/move'],
+	['moveField', () => moveField(3, 'a', { group: 7 }), 'post', '/api/groups/3/fields/a/move'],
 	[
 		'createSubField',
 		() => createSubField(3, 'author', { key: 'a', label: 'A', kind: 'text' }),
@@ -386,7 +389,7 @@ test('carries a field into another group', async () => {
 		}),
 	)
 
-	const moved = await moveField(3, 'subtitle', 7)
+	const moved = await moveField(3, 'subtitle', { group: 7 })
 
 	expect(sent).toEqual({ to_group: 7 })
 	expect(moved.key).toBe('subtitle')
@@ -401,7 +404,7 @@ test('carries a field inside a container', async () => {
 		}),
 	)
 
-	await moveField(3, 'author.name', 3, 'specs')
+	await moveField(3, 'author.name', { group: 3, parent: 'specs' })
 
 	expect(sent).toEqual({ to_group: 3, to_parent: 'specs' })
 })

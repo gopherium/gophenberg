@@ -92,15 +92,15 @@ function inTurn<T>(client: QueryClient, id: number, write: () => Promise<T>): Pr
 }
 
 /**
- * Edits a file once every earlier write to it has answered, so its version is read after them.
+ * Returns the call editing a file once every earlier write to it has answered, so its version is read after them.
  * @param client - The query client the writes belong to.
- * @param item - The file to edit.
  * @param edits - The descriptions the reader changed.
  * @param unreached - The words to throw when no answer came.
- * @returns The stored file.
+ * @param signal - The signal that stops the write once the dialog's time limit ran out.
+ * @returns The call on one file, answering the stored file.
  */
-function editInTurn(client: QueryClient, item: MediaItem, edits: MediaDescriptions, unreached: string) {
-	return inTurn(client, item.id, () => editMedia(item.id, edits, unreached))
+function editingInTurn(client: QueryClient, edits: MediaDescriptions, unreached: string, signal: AbortSignal) {
+	return (item: MediaItem) => inTurn(client, item.id, () => editMedia(item.id, edits, unreached, signal))
 }
 
 /**
@@ -189,9 +189,9 @@ function heldWhileSaving(field: Field<MediaItem>): Field<MediaItem> {
 function useEditMedia(item: MediaItem, tools: MediaTools) {
 	const fields = useMemo(() => mediaFields().map(heldWhileSaving), [])
 	const [typed, setTyped] = useState<MediaDescriptions>({})
-	const save = () => {
+	const save = (signal: AbortSignal) => {
 		const unreached = __('The server could not be reached, so nothing was saved.', 'gophenberg')
-		return tools.write([item], (file) => editInTurn(tools.client, file, typed, unreached), editWords())
+		return tools.write([item], editingInTurn(tools.client, typed, unreached, signal), editWords(), signal)
 	}
 	const onChange = (changed: MediaDescriptions) => setTyped((now) => ({ ...now, ...changed }))
 	const form = { data: { ...item, ...typed }, fields, form: EDIT_FORM, onChange }
@@ -236,8 +236,8 @@ function RenameMediaDialog({ item, tools, onClose }: MediaDialogProps) {
 			fieldLabel={__('Name', 'gophenberg')}
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={(name) =>
-				tools.write([item], (file) => editInTurn(tools.client, file, { title: name }, unreached), nameWords())
+			onSubmit={(name, signal) =>
+				tools.write([item], editingInTurn(tools.client, { title: name }, unreached, signal), nameWords(), signal)
 			}
 			onClose={onClose}
 		/>
@@ -264,8 +264,12 @@ function DeleteMediaConfirm({ items, tools, onClose }: {
 			description={fileDeleteDescription(items.length)}
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onConfirm={() =>
-				tools.run(items, (item) => inTurn(tools.client, item.id, () => deleteMedia(item.id)), deleteWords(titleOf))
+			onConfirm={(signal) =>
+				tools.run(
+					items,
+					(item) => inTurn(tools.client, item.id, () => deleteMedia(item.id, signal)),
+					deleteWords(titleOf),
+				)
 			}
 			onClose={onClose}
 		/>

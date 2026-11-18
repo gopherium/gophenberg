@@ -69,15 +69,19 @@ own, place a field group on it, as [fields](/guides/fields/) explains.
 
 ## Describing a type
 
-**Describe…** in a type's menu opens its description so you can
+**Describe** in a type's menu opens its description so you can
 rewrite it. Empty the field and save to clear it. A type a plugin
-declared has no **Describe…**, because it keeps the description its
+declared has no **Describe**, because it keeps the description its
 plugin gives it.
 
 The dialog stays open with its button busy until the server answers.
 When the server refuses the change, the dialog says why inside it and
-keeps what you typed, so you can try again. **Change address…** works
-the same way.
+keeps what you typed, so you can try again. A change that gets no
+answer within the site's
+[time limit](/self-hosting/configuration/#the-variables) fails the
+same way, saying `Could not get a valid response from the server.`,
+and you can close the dialog again. **Change address** works the same
+way.
 
 The description travels with its type in **Export definitions**. A
 file exported by an older release holds no descriptions, and
@@ -98,9 +102,11 @@ number as its slug.
 
 One type owns the root of the site instead of a route word. It is
 marked **Default** in the list, and its items answer at `/{slug}`
-directly. Pick **Make default…** in another type's menu to hand the
+directly. Pick **Make default** in another type's menu to hand the
 root over. The dialog says where both types will answer before
-anything moves, and it stays open until the change is done.
+anything moves, and it stays open until the server answers or the
+site's time limit runs out. When the change fails, the dialog closes
+and the message at the bottom of the screen says why.
 
 The type that gives up the root takes a route word made from its
 plural label, so **Posts** moves to `/posts`. When the label makes no
@@ -125,7 +131,7 @@ type that gives a word up frees it only for the types listed after it.
 A type the file leaves out holds its word until the import ends. If you
 tick it away, a new type can take that word in a second import.
 
-**Change address…** moves a type to a new route word. Every address of
+**Change address** moves a type to a new route word. Every address of
 that type moves with it, at once, including nested items. Links kept
 outside your site to the old addresses stop working, which is why the
 dialog says so above the field. **Move every address** stays off
@@ -156,20 +162,20 @@ flat meets it too, and the type keeps nesting until those items move.
 its archive, and its items stop being served, and everything comes
 back with **Activate**.
 
-**Delete…** removes a type and its address for good, and is refused
+**Delete** removes a type and its address for good, and is rejected
 while the type still holds content, the trash included. The field
 groups shown on it stay, with their fields. It asks first, in a
 dialog whose title names the type, such as `Delete "Guides"?`, with
 `The type and its address are deleted, and its field groups stay.`
 `A type that still holds items, even in the trash, is not deleted.`
 `This action cannot be undone.` under it, and its **Delete** button is red. Cancel has the focus when
-the dialog opens. The dialog closes once
-the server answers, and when the server refuses, the message at the
-bottom of the screen says why. The default type can be neither
+the dialog opens. The dialog closes once the server answers or the
+site's time limit runs out, and when the delete fails, the message at
+the bottom of the screen says why. The default type can be neither
 deactivated nor deleted, so the root always answers.
 
 Tick the box at the start of several rows to act on them at once. The
-bar under the list then offers **Activate**, **Deactivate** and
-**Delete…**, each for the ticked types it applies to. One message
+column headers then turn into a bar offering **Activate**, **Deactivate**
+and **Delete**, each for the ticked types it applies to. One message
 counts the types it changed, or, when some were refused, the ones it
 could not change.

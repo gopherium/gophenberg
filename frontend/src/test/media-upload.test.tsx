@@ -281,7 +281,7 @@ test('leaves the focus in a dialog opened while the upload ran once a file lande
 	renderAt('/media')
 	await choose(file('harbor.jpg'))
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
 	const title = within(await screen.findByRole('dialog')).getByRole('textbox', { name: 'Title' })
 	await waitFor(() => expect(title).toHaveFocus())
 
@@ -330,8 +330,8 @@ async function openWhileUploading(item: string) {
 }
 
 test.each([
-	{ item: 'Edit…', box: 'Title' },
-	{ item: 'Rename…', box: 'Name' },
+	{ item: 'Edit', box: 'Title' },
+	{ item: 'Rename', box: 'Name' },
 ])('keeps the $item a card menu opened, its typed text and its focus, once an upload lands a file before it', async ({
 	item,
 	box,
@@ -351,7 +351,7 @@ test.each([
 })
 
 test('focuses the card menu an upload moved while its dialog was open, once Cancel closes the dialog', async () => {
-	const { dialog, held } = await openWhileUploading('Rename…')
+	const { dialog, held } = await openWhileUploading('Rename')
 	held.release()
 	await screen.findByText('Market at noon')
 

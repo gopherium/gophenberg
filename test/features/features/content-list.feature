@@ -203,3 +203,4 @@ Feature: The content list
     And the settings keep a toast 6000 milliseconds, or 10000 milliseconds when it offers an action
     And the settings leave the name in a toast whole
     And the settings write dates and numbers in "es-ES"
+    And the settings let a dialog wait 60000 milliseconds on its write

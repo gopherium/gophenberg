@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
+import { unlessTimedOut } from '../dialogAnswer'
 import { oneWriteWords } from '../lists/itemWords'
 import { typesQueryKey } from './nav'
 import { pluralOf } from './typeText'
@@ -36,7 +37,8 @@ function useRowEdit(props: TypeFormProps, stored: string, asEdit: (value: string
 	const { type, write } = props
 	const client = useQueryClient()
 	const [value, setValue] = useState(stored)
-	const save = () => write([type], () => editInTurn(client, type.key, asEdit(value)), oneWriteWords(done))
+	const save = (signal: AbortSignal) =>
+		write([type], () => editInTurn(client, type.key, asEdit(value), signal), oneWriteWords(done), signal)
 	return { value, setValue, save }
 }
 
@@ -142,14 +144,16 @@ export function MakeDefaultConfirm({ type, run, onClose }: {
 }) {
 	const client = useQueryClient()
 	const [holder] = useState(() => client.getQueryData<ContentType[]>(typesQueryKey)?.find((held) => held.isDefault))
-	const handOver = () => editInTurn(client, type.key, { isDefault: true })
+	const handOver = (signal: AbortSignal) => () => editInTurn(client, type.key, { isDefault: true }, signal)
 	return (
 		<ConfirmDialog
 			title={sprintf(__('Make "%(type)s" the default?', 'gophenberg'), { type: pluralOf(type) })}
 			description={rootQuestion(type, holder)}
 			confirmLabel={__('Make default', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onConfirm={() => run([type], handOver, oneWriteWords(__('Default content type updated.', 'gophenberg')))}
+			onConfirm={(signal) =>
+				run([type], handOver(signal), oneWriteWords(__('Default content type updated.', 'gophenberg')))
+			}
 			onClose={onClose}
 		/>
 	)
@@ -171,14 +175,15 @@ export function AddTypeDialog({ onClose, list }: { onClose: () => void, list: Li
 	const toaster = useToaster()
 	const [form, setForm] = useState(EMPTY_FORM)
 	const fill = (field: keyof TypeForm) => (value: string) => setForm((now) => ({ ...now, [field]: value }))
-	const add = () =>
-		createType({ ...form, key: slugifyKey(form.singularLabel), routeWord: slugifyKey(form.pluralLabel) }).then(
+	const asked = { ...form, key: slugifyKey(form.singularLabel), routeWord: slugifyKey(form.pluralLabel) }
+	const add = (signal: AbortSignal) =>
+		createType(asked, signal).then(
 			(created) => {
 				toaster.show(sprintf(_x('"%s" successfully created.', 'content type', 'gophenberg'), pluralOf(created)))
 				const ended = list.onRefresh()
 				void refreshTypes(client).then(ended, ended)
 			},
-			(failure: Error) => ({ error: failure.message }),
+			(failure: Error) => unlessTimedOut(signal, failure, () => ({ error: failure.message })),
 		)
 	return (
 		<FormDialog

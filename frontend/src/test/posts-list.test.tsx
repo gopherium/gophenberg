@@ -508,7 +508,7 @@ async function authorBoxFor(authorAvatar: string): Promise<HTMLElement> {
 	return author.previousElementSibling as HTMLElement
 }
 
-test('draws the avatar of the author at 16px in a 24px box before the name', async () => {
+test('draws the avatar of the author at 16px in a 24px wide box before the name', async () => {
 	const box = await authorBoxFor(INITIALS_AVATAR)
 
 	expect(getComputedStyle(box).width).toBe('24px')
@@ -516,12 +516,12 @@ test('draws the avatar of the author at 16px in a 24px box before the name', asy
 	expect(box.firstElementChild).toHaveStyle({ inlineSize: '16px' })
 })
 
-test('draws the author icon 4px into a 24px box before the name on a site showing no avatars', async () => {
+test('draws the author icon 4px into a 24px wide box before the name on a site showing no avatars', async () => {
 	const box = await authorBoxFor('')
 
 	const icon = box.querySelector('svg') as SVGElement
 	expect(box.querySelector('.godmin-avatar')).toBeNull()
-	expect([getComputedStyle(box).width, getComputedStyle(box).height]).toEqual(['24px', '24px'])
+	expect(getComputedStyle(box).width).toBe('24px')
 	expect(getComputedStyle(icon).getPropertyValue('margin-inline-start')).toBe('-4px')
 })
 

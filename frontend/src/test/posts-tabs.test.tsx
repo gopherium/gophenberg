@@ -9,6 +9,7 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
+import { sortBy } from './sortBy'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -158,7 +159,7 @@ test('reads a status no tab names as All and asks the server for every status bu
 test('clears the ticks once a pasted address shows another status', async () => {
 	const { router } = renderRoutedAt('/content/post')
 	await userEvent.click(await screen.findByRole('checkbox', { name: 'Notes on the Next Release' }))
-	expect(screen.getByText('1 Item selected')).toBeInTheDocument()
+	expect(screen.getByText('1 item selected')).toBeInTheDocument()
 
 	await act(async () => {
 		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' }, search: { status: 'trash' } })
@@ -240,7 +241,7 @@ test('shows the status column on All and not on Draft, even after a sort', async
 	await waitFor(() => expect(tab('Draft')).toHaveAttribute('aria-current', 'page'))
 	await screen.findByText('Notes on the Next Release')
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
-	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), 'title')
+	await sortBy('Title')
 
 	await waitFor(() => expect(askedStatuses().at(-1)).toBe('draft'))
 	await waitFor(() => expect(asked.at(-1)?.get('orderby')).toBe('title'))

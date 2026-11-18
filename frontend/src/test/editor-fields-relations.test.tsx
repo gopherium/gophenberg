@@ -10,6 +10,7 @@ import { catalogFor } from '../i18n/catalog'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { siteSettings } from './siteSettings'
+import { sortBy } from './sortBy'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
@@ -505,7 +506,7 @@ test('leaves the address alone while a reader searches, pages and sorts the pick
 	await userEvent.click(within(picker).getByRole('button', { name: 'Next page' }))
 	await waitFor(() => expect(asked.at(-1)?.get('page')).toBe('2'))
 	await userEvent.click(within(picker).getByRole('button', { name: 'View options' }))
-	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), 'title')
+	await sortBy('Title')
 	await waitFor(() => expect(asked.at(-1)?.get('orderby')).toBe('title'))
 
 	expect(router.state.location.href).toBe(address)
@@ -533,13 +534,13 @@ test('holds a sort chosen in the picker of one media field when the next field o
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring(fields)] })))
 	renderAt(EDITOR_PATH)
 	const first = await sortOfPickerFrom(await screen.findByRole('button', { name: 'Choose Cover' }))
-	await userEvent.selectOptions(first.sort, 'title')
+	await sortBy('Title')
 	await userEvent.click(within(first.picker).getByRole('button', { name: 'Close' }))
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
 	const second = await sortOfPickerFrom(screen.getByRole('button', { name: 'Choose Hero' }))
 
-	expect(second.sort).toHaveValue('title')
+	expect(second.sort).toHaveTextContent('Title')
 })
 
 test('moves a file up the gallery', async () => {

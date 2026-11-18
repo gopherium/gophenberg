@@ -303,6 +303,16 @@ async function sortControl(library: Locator): Promise<Locator> {
 	return library.getByRole('combobox', { name: 'Sort by' })
 }
 
+/**
+ * Sorts by the field named through the Sort by select, which opens its fields in a list of its own.
+ * @param control - The Sort by select.
+ * @param label - The label of the field.
+ */
+async function sortBy(control: Locator, label: string) {
+	await control.click()
+	await control.page().getByRole('option', { name: label, exact: true }).click()
+}
+
 test('uploads two pictures chosen at once, counts them in a toast and serves them publicly', async ({ page }) => {
 	await page.goto('/admin/media')
 	await expect(page.getByRole('heading', { name: 'Media' })).toBeVisible()
@@ -416,7 +426,7 @@ test('keeps a sort and a Type filter the reader picks across a reload', async ({
 	await stored(page, title)
 	await page.goto(`/admin/media?search=${LIBRARY}`)
 	await page.getByRole('button', { name: 'View options' }).click()
-	await page.getByRole('combobox', { name: 'Sort by' }).selectOption('title')
+	await sortBy(page.getByRole('combobox', { name: 'Sort by' }), 'Title')
 	await page.keyboard.press('Escape')
 	await page.getByRole('button', { name: 'Add filter' }).click()
 	await page.getByRole('menuitem', { name: 'Type', exact: true }).click()
@@ -430,7 +440,7 @@ test('keeps a sort and a Type filter the reader picks across a reload', async ({
 	await page.getByRole('button', { name: 'Filter', exact: true }).click()
 	await expect(page.locator('.dataviews-filters__summary-chip')).toContainText('Images')
 	await page.getByRole('button', { name: 'View options' }).click()
-	await expect(page.getByRole('combobox', { name: 'Sort by' })).toHaveValue('title')
+	await expect(page.getByRole('combobox', { name: 'Sort by' })).toHaveText('Title')
 })
 
 test('opens Edit media from the title of a card in a 560 pixel dialog that saves and says so', async ({ page }) => {
@@ -457,7 +467,7 @@ test('renames a file from its card menu in a 560 pixel dialog, the Name box focu
 	await stored(page, title)
 	await openCardMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Rename…' }).click()
+	await page.getByRole('menuitem', { name: 'Rename' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Rename' })
 	await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused()
 	await frameBox(page, 'width').toBe(560)
@@ -474,7 +484,7 @@ test('gives the focus back to the card menu once a dialog it opened is closed', 
 	await stored(page, title)
 	await openCardMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Edit…' }).click()
+	await page.getByRole('menuitem', { name: 'Edit' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Edit media' })
 	await expect(dialog.getByRole('textbox', { name: 'Title' })).toBeFocused()
 	await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -490,7 +500,7 @@ test('gives the focus back to the card menu once Edit saves and a slow server li
 	await stored(page, title)
 	await openCardMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Edit…' }).click()
+	await page.getByRole('menuitem', { name: 'Edit' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Edit media' })
 	await dialog.getByRole('textbox', { name: 'Alt text' }).fill('Boats leaving the harbor')
 	await slowListings(page)
@@ -530,7 +540,7 @@ for (const size of [LAPTOP, DESKTOP]) {
 		await page.setViewportSize(size)
 		await openCardMenu(page, title)
 
-		await page.getByRole('menuitem', { name: 'Edit…' }).click()
+		await page.getByRole('menuitem', { name: 'Edit' }).click()
 		const dialog = page.getByRole('dialog', { name: 'Edit media' })
 		await expect(dialog.getByRole('textbox', { name: 'Title' })).toBeFocused()
 
@@ -544,7 +554,7 @@ test('deletes a file behind a 560 pixel confirm titled by the question, Cancel f
 	await stored(page, title)
 	await openCardMenu(page, title)
 
-	await page.getByRole('menuitem', { name: 'Permanently delete…' }).click()
+	await page.getByRole('menuitem', { name: 'Permanently delete' }).click()
 	const dialog = page.getByRole('alertdialog')
 	await expect(dialog.getByRole('heading', { name: `Delete "${title}"?` })).toBeVisible()
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
@@ -580,7 +590,7 @@ test('keeps a Rename opened on the last card of a row, with what was typed, once
 	await page.getByRole('main').getByRole('button', { name: 'Add Media File' }).click()
 	await (await chooser).setFiles(photo(`${LIBRARY}-row-landed.jpg`))
 	await last.getByRole('button', { name: 'Actions' }).click()
-	await page.getByRole('menuitem', { name: 'Rename…' }).click()
+	await page.getByRole('menuitem', { name: 'Rename' }).click()
 	const name = page.getByRole('dialog', { name: 'Rename' }).getByRole('textbox', { name: 'Name' })
 	await expect(name).toBeFocused()
 	await name.press('End')
@@ -609,7 +619,7 @@ test('narrows and sorts the media library picker with the pointer, then places t
 	await page.keyboard.press('Escape')
 	await library.getByRole('button', { name: 'View options' }).click()
 	const sorted = listingAsking(page, { orderby: 'modified' })
-	await library.getByRole('combobox', { name: 'Sort by' }).selectOption('modified')
+	await sortBy(library.getByRole('combobox', { name: 'Sort by' }), 'Date modified')
 	await sorted
 	await page.keyboard.press('Escape')
 	await library.getByRole('option', { name: title }).click()
@@ -653,7 +663,11 @@ test('searches, narrows, sorts and places from the media library picker by keybo
 	await expect(library.getByRole('combobox', { name: 'Sort by' })).toBeFocused()
 	const sorted = page.waitForResponse((answer) => new URL(answer.url()).searchParams.get('orderby') === 'modified')
 	await page.keyboard.press('ArrowDown')
+	await expect(page.getByRole('option', { name: 'Date added', exact: true })).toBeVisible()
+	await page.keyboard.press('ArrowDown')
+	await page.keyboard.press('Enter')
 	await sorted
+	await expect(library.getByRole('combobox', { name: 'Sort by' })).toBeFocused()
 	await page.keyboard.press('Escape')
 	await expect(library.getByRole('button', { name: 'View options' })).toBeFocused()
 	await expect(library.getByRole('option', { name: title })).toBeVisible()
@@ -862,20 +876,20 @@ test('holds a sort from one Image block to the next in a post, and opens newest 
 	const library = page.getByRole('dialog', { name: 'Select Media' })
 	await openPickerFrom(blocks.first())
 	const sorted = listingAsking(page, { orderby: 'title' })
-	await (await sortControl(library)).selectOption('title')
+	await sortBy(await sortControl(library), 'Title')
 	await sorted
 	await page.keyboard.press('Escape')
 	await library.getByRole('button', { name: 'Close', exact: true }).click()
 	await expect(library).toHaveCount(0)
 
 	await openPickerFrom(blocks.last())
-	await expect(await sortControl(library)).toHaveValue('title')
+	await expect(await sortControl(library)).toHaveText('Title')
 
 	await page.reload()
 	const newest = listingAsking(page, { orderby: 'date', order: 'desc' })
 	await openPickerFrom(blocks.last())
 	await newest
-	await expect(await sortControl(library)).toHaveValue('date')
+	await expect(await sortControl(library)).toHaveText('Date added')
 })
 
 test.describe('on a phone', () => {

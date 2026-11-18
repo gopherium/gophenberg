@@ -16,28 +16,36 @@ import { holdWrite, writesSettled } from './postWrites'
 import type { ContentField } from './types'
 import { useContentType } from './useContentType'
 
+/** What the copy of an item takes from the dialog. */
+interface CopyAsked {
+	/** The title of the copy. */
+	title: string
+	/** The fields the type declares, judging which values the rules show. */
+	declared: ContentField[]
+}
+
 /**
  * Makes a draft holding the title given and the content, excerpt, parent and the field values of an item the server
  * writes, the ones its conditions show less the Linked from fields it only reads, read once every write still in
  * flight to the item has answered.
  * @param client - The query client holding the writes in flight.
  * @param post - The item to copy.
- * @param title - The title of the copy.
- * @param declared - The fields the type declares, judging which values the rules show.
+ * @param asked - The title of the copy and the fields the type declares.
+ * @param signal - The signal that stops the read and the create once the dialog's time limit ran out.
  * @returns The copy.
  */
-async function duplicated(client: QueryClient, post: Post, title: string, declared: ContentField[]): Promise<Post> {
+async function duplicated(client: QueryClient, post: Post, asked: CopyAsked, signal: AbortSignal): Promise<Post> {
 	const fallback = __('The item could not be duplicated.', 'gophenberg')
 	await writesSettled(client, post.id)
-	const source = await fetchPost(post.id, fallback)
+	const source = await fetchPost(post.id, fallback, signal)
 	const draft = {
-		title,
+		title: asked.title,
 		content: source.content,
 		excerpt: source.excerpt,
 		parentId: source.parentId ?? undefined,
-		fields: shownValues(declared, source.fields),
+		fields: shownValues(asked.declared, source.fields),
 	}
-	return createPost(post.type, draft, fallback)
+	return createPost(post.type, draft, fallback, signal)
 }
 
 /** What a row dialog the posts screen holds open on one item takes. */
@@ -65,7 +73,9 @@ export function DuplicateDialog({ post, write, onClose }: PostDialogProps) {
 			title={_x('Duplicate', 'action label', 'gophenberg')}
 			submitLabel={_x('Duplicate', 'action label', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={() => write([post], () => duplicated(client, post, title, fields), made)}
+			onSubmit={(signal) =>
+				write([post], () => duplicated(client, post, { title, declared: fields }, signal), made, signal)
+			}
 			onClose={onClose}
 		>
 			{(busy) => (
@@ -85,11 +95,12 @@ export function DuplicateDialog({ post, write, onClose }: PostDialogProps) {
  * @param client - The query client holding the writes in flight.
  * @param post - The item to rename.
  * @param title - The new title.
+ * @param signal - The signal that stops the rename once the dialog's time limit ran out.
  * @returns The renamed item.
  */
-async function renamed(client: QueryClient, post: Post, title: string): Promise<Post> {
+async function renamed(client: QueryClient, post: Post, title: string, signal: AbortSignal): Promise<Post> {
 	await writesSettled(client, post.id)
-	return renamePost(post.id, title)
+	return renamePost(post.id, title, signal)
 }
 
 /**
@@ -106,7 +117,9 @@ export function RenamePostDialog({ post, write, onClose }: PostDialogProps) {
 			fieldLabel={__('Name', 'gophenberg')}
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={(title) => write([post], (item) => holdWrite(client, item.id, renamed(client, item, title)), nameWords())}
+			onSubmit={(title, signal) =>
+				write([post], (item) => holdWrite(client, item.id, renamed(client, item, title, signal)), nameWords(), signal)
+			}
 			onClose={onClose}
 		/>
 	)

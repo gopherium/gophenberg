@@ -347,16 +347,23 @@ function editBody(edits: MediaDescriptions, version: string): Record<string, str
  * @param id - The file to write to.
  * @param edits - The descriptions the reader changed, the others left as they are.
  * @param unreached - The words to throw when no answer came.
+ * @param signal - The signal that stops both requests, none for a write that waits for its answer.
  * @returns The stored file, or a throw of the reason it was not written in the reader's words.
  */
-export async function editMedia(id: number, edits: MediaDescriptions, unreached: string): Promise<MediaItem> {
-	const current = await storedItem(await answered(`/api/media/${id}`, {}, unreached))
+export async function editMedia(
+	id: number,
+	edits: MediaDescriptions,
+	unreached: string,
+	signal?: AbortSignal,
+): Promise<MediaItem> {
+	const current = await storedItem(await answered(`/api/media/${id}`, { signal }, unreached))
 	const response = await answered(
 		`/api/media/${id}`,
 		{
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(editBody(edits, current.updatedAt)),
+			signal,
 		},
 		unreached,
 	)
@@ -366,8 +373,9 @@ export async function editMedia(id: number, edits: MediaDescriptions, unreached:
 /**
  * Removes a media item and its files for good, or throws the reason it stayed in the reader's words.
  * @param id - The item to delete.
+ * @param signal - The signal that stops the request, none for a delete that waits for its answer.
  */
-export async function deleteMedia(id: number): Promise<void> {
+export async function deleteMedia(id: number, signal?: AbortSignal): Promise<void> {
 	const unreached = __('The item could not be permanently deleted.', 'gophenberg')
-	await answered(`/api/media/${id}`, { method: 'DELETE' }, unreached)
+	await answered(`/api/media/${id}`, { method: 'DELETE', signal }, unreached)
 }

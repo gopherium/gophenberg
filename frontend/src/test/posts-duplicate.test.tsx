@@ -126,7 +126,7 @@ beforeEach(() => {
 async function openDuplicate(): Promise<HTMLElement> {
 	const row = within((await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement)
 	await userEvent.click(row.getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicate…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicate' }))
 	return screen.findByRole('dialog', { name: 'Duplicate' })
 }
 
@@ -388,5 +388,5 @@ test('offers no duplicate on an item in the trash', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
 	await screen.findByRole('menuitem', { name: 'Restore' })
-	expect(screen.queryByRole('menuitem', { name: 'Duplicate…' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).not.toBeInTheDocument()
 })

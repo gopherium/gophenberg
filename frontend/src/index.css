@@ -2,7 +2,7 @@
 
 .gophenberg-author {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	width: 100%;
 }
 
@@ -16,14 +16,15 @@
 	flex-shrink: 0;
 	align-items: center;
 	width: 24px;
-	height: 24px;
+	height: 1lh;
 }
 
 .gophenberg-author__icon {
 	display: flex;
 	flex-shrink: 0;
+	align-items: center;
 	width: 24px;
-	height: 24px;
+	height: 1lh;
 }
 
 .gophenberg-author__icon svg {
@@ -42,6 +43,7 @@
 
 .godmin-page__list .dataviews-view-table tbody .dataviews-view-table__primary-column-content > .dataviews-title-field {
 	display: block;
+	min-inline-size: 0;
 	overflow: hidden;
 }
 
