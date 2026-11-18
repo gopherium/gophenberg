@@ -2131,8 +2131,8 @@ msgid "Pending Review"
 msgstr "En attente de relecture"
 
 #, fuzzy
-msgid "Permanently delete…"
-msgstr "Supprimer définitivement…"
+msgid "Permanently delete"
+msgstr "Supprimer définitivement"
 
 #, fuzzy
 msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
@@ -2141,10 +2141,6 @@ msgstr "La qualité d'image va de 1 à %(max)s, donc %(value)s n'est pas une qua
 #, fuzzy
 msgid "Published: %s"
 msgstr "Publié : %s"
-
-#, fuzzy
-msgid "Rename…"
-msgstr "Renommer…"
 
 #, fuzzy
 msgid "Rule %(number)s of set %(set)s"
@@ -2445,10 +2441,6 @@ msgid "Another update is currently in progress."
 msgstr "Une autre mise à jour est actuellement en cours."
 
 #, fuzzy
-msgid "Change address…"
-msgstr "Changer l'adresse…"
-
-#, fuzzy
 msgid "Choose the version to update to."
 msgstr "Choisissez la version vers laquelle mettre à jour."
 
@@ -2472,14 +2464,6 @@ msgstr[1] "Supprimer %s de types de contenu ?"
 msgstr[2] "Supprimer %s types de contenu ?"
 
 #, fuzzy
-msgid "Delete…"
-msgstr "Supprimer…"
-
-#, fuzzy
-msgid "Describe…"
-msgstr "Décrire…"
-
-#, fuzzy
 msgid "Description updated."
 msgstr "Description mise à jour."
 
@@ -2490,10 +2474,6 @@ msgstr "Gophenberg ne peut pas lancer cette mise à jour : %(reason)s"
 #, fuzzy
 msgid "Key"
 msgstr "Clé"
-
-#, fuzzy
-msgid "Make default…"
-msgstr "Rendre par défaut…"
 
 #, fuzzy
 msgid "No description"
@@ -2675,12 +2655,12 @@ msgid "Downloading Gophenberg %(version)s…"
 msgstr "Téléchargement de Gophenberg %(version)s…"
 
 #, fuzzy
-msgid "Edit media"
-msgstr "Modifier le média"
+msgid "Edit"
+msgstr "Modifier"
 
 #, fuzzy
-msgid "Edit…"
-msgstr "Modifier…"
+msgid "Edit media"
+msgstr "Modifier le média"
 
 #, fuzzy
 msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
@@ -3102,11 +3082,6 @@ msgstr "Statut"
 msgctxt "action label"
 msgid "Duplicate"
 msgstr "Dupliquer"
-
-#, fuzzy
-msgctxt "action label"
-msgid "Duplicate…"
-msgstr "Dupliquer…"
 
 #, fuzzy
 msgctxt "relation target"
