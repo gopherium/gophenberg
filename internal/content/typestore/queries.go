@@ -23,7 +23,7 @@ type TypeQueries interface {
 	LockDefaultContentType(ctx context.Context) (TypeRow, error)
 	UpdateContentType(ctx context.Context, t TypeRow) (TypeRow, error)
 	DeferAddressCheck(ctx context.Context) error
-	RetypeContentPaths(ctx context.Context, t TypeRow, was string) error
+	RetypeContentPaths(ctx context.Context, t TypeRow, was string) ([]string, error)
 	CountNestedContent(ctx context.Context, key string) (int64, error)
 	DeleteContentType(ctx context.Context, key string) (int64, error)
 	AdoptContentType(ctx context.Context, key string, at time.Time) (int64, error)
