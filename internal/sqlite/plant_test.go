@@ -49,6 +49,20 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, (SELECT count(*) + 1 FROM core_content_f
     (SELECT group_id FROM core_content_fields WHERE id = ?8), '{}', ?8, 1)
 RETURNING id`
 
+// plantItemRow stores a draft item of a type at an address, under a parent or at the top, holding raw field values.
+const plantItemRow = `INSERT INTO core_content
+(id, type, status, slug, path, title, author_id, created_at, updated_at, parent_id, fields)
+VALUES (?1, ?2, 'draft', ?3, ?4, 'Planted', ?5, ?6, ?6, ?7, ?8)`
+
+// plantValuesRow stores a revision of an item holding raw field values, credited to an author.
+const plantValuesRow = `INSERT INTO core_content_revisions
+(id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
+VALUES (?1, ?2, 'revision', ?3, 'Planted', '', '', ?4, ?5)`
+
+// plantIndexRow stores one visible relation index row from an item through a field to another item.
+const plantIndexRow = `INSERT INTO core_content_relations (from_id, field_id, to_id, position, sort_at, visible)
+VALUES (?1, ?2, ?3, 1, ?4, 1)`
+
 // plantedAt is the stamp every planted definition carries.
 var plantedAt = time.Date(2026, time.March, 2, 9, 0, 0, 0, time.UTC)
 
@@ -213,6 +227,101 @@ func plantFieldAs(t *testing.T, handle *sql.DB, statement string, f content.Fiel
 		t.Fatalf("planting the field %s: %v", f.Key, err)
 	}
 	return id
+}
+
+// typedSite is a planted site with the SQLite type store on the same file.
+type typedSite struct {
+	plantedSite
+	types *sqlite.TypeStore
+}
+
+// newTypedSite returns a planted site over a fresh migrated copy with its type store, holding the post type alone.
+func newTypedSite(t *testing.T) typedSite {
+	t.Helper()
+	site := newPlantedSite(t)
+	return typedSite{plantedSite: site, types: sqlite.NewTypeStore(site.handle)}
+}
+
+// fieldInGroup stores the field at the top of the group through the type store and returns it as stored.
+func fieldInGroup(t *testing.T, types content.TypeStore, groupID int, f content.Field) content.Field {
+	t.Helper()
+	stored, err := types.CreateFieldInGroup(t.Context(), groupID, f, nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(%s) error = %v, want nil", f.Key, err)
+	}
+	return stored
+}
+
+// pointedThrough stores an item of the first type pointing at an item of the second through each field, in the index.
+func (s plantedSite) pointedThrough(t *testing.T, from, to string, fields ...int) {
+	t.Helper()
+	pointing, _ := s.plantTyped(t, from, "pointing", "{}")
+	pointed, _ := s.plantTyped(t, to, "pointed", "{}")
+	for _, field := range fields {
+		s.plantIndex(t, pointing, pointed, field)
+	}
+}
+
+// plantItem stores a draft item of the type at the address, under parent or at the top for nil, holding the values.
+func (s plantedSite) plantItem(t *testing.T, typeKey, address string, parent *uuid.UUID, values string) uuid.UUID {
+	t.Helper()
+	id := uuid.Must(uuid.NewV7())
+	slug := address[strings.LastIndex(address, "/")+1:]
+	mustExec(t, s.handle, plantItemRow, id, typeKey, slug, address, s.author, dbkit.Time{Time: writtenAt}, parent,
+		values)
+	return id
+}
+
+// plantTyped stores a draft item of the type at the top under the slug and one revision of it, both holding the values.
+func (s plantedSite) plantTyped(t *testing.T, typeKey, slug, values string) (uuid.UUID, uuid.UUID) {
+	t.Helper()
+	item := s.plantItem(t, typeKey, slug, nil, values)
+	revision := uuid.Must(uuid.NewV7())
+	mustExec(t, s.handle, plantValuesRow, revision, item, s.author, values, dbkit.Time{Time: writtenAt})
+	return item, revision
+}
+
+// plantIndex stores a visible relation index row from the item through the field to the target.
+func (s plantedSite) plantIndex(t *testing.T, from, to uuid.UUID, field int) {
+	t.Helper()
+	mustExec(t, s.handle, plantIndexRow, from, field, to, dbkit.Time{Time: writtenAt})
+}
+
+// textOf returns the single text lookup with args answers on handle.
+func textOf(t *testing.T, handle *sql.DB, lookup string, args ...any) string {
+	t.Helper()
+	var held string
+	if err := handle.QueryRowContext(t.Context(), lookup, args...).Scan(&held); err != nil {
+		t.Fatalf("%s: %v", lookup, err)
+	}
+	return held
+}
+
+// groupOfField returns the group the field row sits in, straight from the table.
+func groupOfField(t *testing.T, handle *sql.DB, id int) int {
+	t.Helper()
+	return int(count(t, handle, "SELECT group_id FROM core_content_fields WHERE id = ?", id))
+}
+
+// positionOf returns the stored position of the field row the identity names.
+func positionOf(t *testing.T, handle *sql.DB, id int) int {
+	t.Helper()
+	return int(count(t, handle, "SELECT position FROM core_content_fields WHERE id = ?", id))
+}
+
+// standsUnder fails t unless the field row stands in the group under the parent at the depth, 0 naming the top.
+func standsUnder(t *testing.T, handle *sql.DB, id, group, parent, depth int) {
+	t.Helper()
+	var held struct{ group, parent, depth int }
+	if err := handle.QueryRowContext(t.Context(),
+		"SELECT group_id, coalesce(parent_field_id, 0), depth FROM core_content_fields WHERE id = ?", id,
+	).Scan(&held.group, &held.parent, &held.depth); err != nil {
+		t.Fatalf("reading the row of field %d: %v", id, err)
+	}
+	if held.group != group || held.parent != parent || held.depth != depth {
+		t.Errorf("field %d stands in group %d under %d at depth %d, want group %d under %d at depth %d",
+			id, held.group, held.parent, held.depth, group, parent, depth)
+	}
 }
 
 func TestPlantedPostGroupDeclaresTheValuesAPostCarries(t *testing.T) {
