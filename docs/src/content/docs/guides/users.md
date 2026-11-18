@@ -103,14 +103,14 @@ at the page size the site sets, 20 by default.
 The page, the page size, the sort, the search and the filters all
 live in the address of the screen. Reload it or share the link and
 the list opens the same way. When nothing matches, the list says
-`No users found.`
+`No results found`.
 
 The screen reads every account at once, then searches, sorts and
 pages them in your browser. On a site with very many accounts, it
 takes longer to open.
 
 **The actions on an account.** The actions menu of a row offers
-**Change role…**, and **Enable** on a disabled account or
+**Change role**, and **Enable** on a disabled account or
 **Disable** on an active one. Enable is the main action. While the
 pointer rests on the row of a disabled account, Enable also shows as
 a button at the end of the row. On a phone it shows beside the menu.
@@ -120,8 +120,9 @@ That is your own row, and the row of any account whose role carries
 a capability your role lacks. Enable shows only on an account whose
 role you may give.
 
-Tick several rows and the bar under the list offers the same three
-actions for all of them at once. A phone list has no tick boxes.
+Tick several rows and the column titles turn into a bar offering the
+same actions, each for the ticked accounts it applies to. A phone list
+has no tick boxes.
 
 Each finished action shows a short message at the bottom of the
 screen that names the account, such as `"Maria Perez" disabled.`,
@@ -129,7 +130,7 @@ or counts the accounts when you acted on several. When the server
 refuses, the message says why instead. When some of several fail,
 it counts the ones that failed.
 
-**Changing a role** starts from **Change role…** in the row's menu.
+**Changing a role** starts from **Change role** in the row's menu.
 You can also click the name of an account you may change, or tap
 its row on a phone. A small dialog opens with the line *Choose the
 role of Maria Perez.* Its menu offers only the roles your own role
@@ -148,8 +149,12 @@ roles.* for several accounts. When the server turns down the change
 of one account, the dialog stays open on the role you picked and
 says why inside it, such as *Sorry, you are not allowed to give
 users that role.* or *Somebody must be able to manage users.* Pick
-another role or press Cancel. When some of several accounts fail,
-the dialog closes and the message at the bottom counts them, such as
+another role or press Cancel. When the change of one account gets no
+answer within the site's
+[time limit](/self-hosting/configuration/#the-variables), the dialog
+says *Could not get a valid response from the server.* the same way,
+and Cancel works again. When some of several accounts fail, the
+dialog closes and the message at the bottom counts them, such as
 *The roles of 2 users could not be changed.* Once the dialog closes,
 the focus goes back to what opened it.
 
@@ -158,7 +163,7 @@ existing sessions immediately, so they are signed out everywhere.
 You cannot disable your own account, which keeps the last account
 that manages users from locking everyone out. **Enable** lets a
 disabled account sign in again. An account whose role nothing
-declares any more needs a new role from **Change role…** before
+declares any more needs a new role from **Change role** before
 Enable shows.
 
 **Adding a user** starts from **Add User** at the top of the list.

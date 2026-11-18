@@ -817,8 +817,22 @@ for the account at `/api/auth/session`, so serve that address with
 5. In a test, find a confirm by the role `alertdialog`, not `dialog`.
    `onClose` runs once the card has left the screen, so wait for it,
    such as with `waitFor`.
-6. If your plugin imports `@gopherium/godmin` itself, take 0.32.0, the
-   version the SDK pins.
+6. If your plugin imports `@gopherium/godmin`, `@gopherium/react-auth`
+   or a `@wordpress` package itself, take the version the SDK pins, such
+   as godmin 0.33.0, react-auth 0.22.0 and `@wordpress/dataviews` 22.
+7. A dialog now hands `onConfirm` and `onSubmit` a signal as their
+   last argument, which fires at the site's time limit. Pass it to every
+   request the dialog waits on, such as `fetch(url, { signal })`, and
+   to `write` as its fourth argument. `bulk` takes no signal, so pass
+   it to each call yourself.
+8. Write action labels with no ellipsis, such as `Rename` in place of
+   `Rename…`, as DataViews 22 asks.
+9. In a test of a list, find the bulk actions in
+   `.dataviews-bulk-actions__actions`, at the top of the list. A row
+   checkbox is now a `span`, so check it with `toBeChecked()`, and Sort
+   by is no longer a `select`.
+10. Drop `activeProps` and `activeOptions` from a `DrilldownItem`,
+    which no longer takes them.
 
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
@@ -900,19 +914,25 @@ function that returns nothing, as `remove` is, closes it at once
 while your write runs, and the button that opened it shows the work.
 An `async` function always returns a promise, so keep it plain. Return
 the write's promise instead, and the dialog stays open with its button
-busy until the promise ends. Cancel and Escape close nothing until
-then. Answer `{ error }` with words, at once or through the promise,
-and the dialog stays open and shows them. `{ close: false }` keeps it
-open with nothing said. `DialogAnswer` types both answers. `onClose`
-runs once the card has left the screen, so take the dialog away there.
+busy until the promise ends, or until the write runs longer than
+`GOPHENBERG_DIALOG_WRITE_TIMEOUT`, 60 seconds unless set. Cancel and
+Escape close nothing until then. `onConfirm` gets a signal that fires
+at that limit, and the dialog then says "Could not get a valid
+response from the server." Pass the signal to your request, such as
+`fetch(url, { signal })`, so the request stops too. Your route may
+still finish a write it already received. Answer `{ error }` with
+words, at once or through the promise, and the dialog stays open and
+shows them. `{ close: false }` keeps it open with nothing said.
+`DialogAnswer` types both answers. `onClose` runs once the card has
+left the screen, so take the dialog away there.
 
 `FormDialog` asks for a short form, as WordPress opens Add Page: a
 title, an optional `description` before the fields, and the first
-field focused. `onSubmit` answers as `onConfirm` does, and the dialog
-closes itself when its promise ends, so call nothing to close it.
-Answer `{ error }` to stay open with the words and what the reader
-typed. Pass a function as its children to read `busy`, such as to
-make a field `readOnly` while the write runs.
+field focused. `onSubmit` gets the same signal and answers as
+`onConfirm` does, and the dialog closes itself when its promise ends,
+so call nothing to close it. Answer `{ error }` to stay open with the
+words and what the reader typed. Pass a function as its children to
+read `busy`, such as to make a field `readOnly` while the write runs.
 
 The SDK still passes on `AlertDialog` and `Dialog` from
 `@wordpress/ui`. The two dialogs above hold the rules for a write, so
@@ -978,7 +998,8 @@ the first call that works ends. One toast shows as the last call
 ends, in the words you pass as `BulkWords`: the failure words when a
 row failed, else the done words. Your list then reloads. A confirm
 over the rows returns that run from `onConfirm`, so it stays open
-until the run ends.
+until the run ends. `bulk` takes no signal, so pass the dialog's
+signal to each call, such as `deleteNote(note.id, signal)`.
 
 An action that can be undone asks nothing, so a trash runs at once.
 Give its words an `undo`, and the done toast offers it once every row
@@ -993,12 +1014,12 @@ callback: (notes) =>
 ```
 
 As the list starts to reload, its region takes the focus from the
-table or the footer, and after a run started from the keyboard it
-draws the focus ring. Once the new rows land, the focus goes back to
-the control the reader pressed, or to the first control of the row in
-its place. It stays on the region when that control is a primary
-action, so a one click action of your plugin never takes a second
-Enter meant for another row.
+table, the bulk bar or the footer, and after a run started from the
+keyboard it draws the focus ring. Once the new rows land, the focus
+goes back to the control the reader pressed, or to the first control
+of the row in its place. It stays on the region when that control is
+a primary action, so a one click action of your plugin never takes a
+second Enter meant for another row.
 
 For a write that is no run, show its toast as the call ends, then
 mark the list around your reload:
@@ -1009,9 +1030,12 @@ await refresh().then(ended, ended)
 ```
 
 A form over rows writes through `write`, which takes what `bulk`
-takes and answers the dialog. When its one row failed, the dialog
-stays open with your failure words and what the reader typed. Over
-several rows the dialog closes, and one toast says how the run went.
+takes, then the dialog's signal, and answers the dialog. A call still
+running when the signal fires counts as failed. Hand the signal to the
+call too, as `renameNote` takes it below, so the request stops. When
+its one row failed, the dialog stays open with your failure words and
+what the reader typed. Over several rows the dialog closes, and one
+toast says how the run went.
 `RenameDialog` asks for a new name. Its button stays on, and the
 browser refuses a blank name. Label it **Save**, as WordPress does:
 
@@ -1026,7 +1050,7 @@ const nameWords: BulkWords<Note> = {
 }
 
 const [renaming, setRenaming] = useState<Note>()
-const rename: Action<Note> = { id: 'rename', label: 'Rename…', callback: ([note]) => setRenaming(note) }
+const rename: Action<Note> = { id: 'rename', label: 'Rename', callback: ([note]) => setRenaming(note) }
 
 {renaming ? (
 	<RenameDialog
@@ -1035,7 +1059,9 @@ const rename: Action<Note> = { id: 'rename', label: 'Rename…', callback: ([not
 		fieldLabel="Name"
 		submitLabel="Save"
 		cancelLabel="Cancel"
-		onSubmit={(title) => write([renaming], (note) => renameNote(note.id, title), nameWords)}
+		onSubmit={(title, signal) =>
+			write([renaming], (note) => renameNote(note.id, title, signal), nameWords, signal)
+		}
 		onClose={() => setRenaming(undefined)}
 	/>
 ) : null}
