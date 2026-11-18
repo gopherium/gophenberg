@@ -18,6 +18,7 @@ import (
 	"github.com/gopherium/gouncer"
 	authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/seed"
 	"github.com/gopherium/gophenberg/internal/sqlite"
 )
@@ -207,6 +208,67 @@ func TestTheSQLiteSiteKeepsTheAccountsItCreatesInTheFile(t *testing.T) {
 		t.Errorf("a second handle on the file reads %s named %q (%v), want the account %s the site created",
 			read.ID, read.Name, err, created.ID)
 	}
+}
+
+func TestTheSQLiteSiteKeepsTheTypesAndContentItStoresInTheFile(t *testing.T) {
+	t.Parallel()
+
+	path := migratedSQLiteFile(t)
+	built := sqliteStores(composeConfig{handle: openSQLiteFile(t, path), fieldDepth: 4})
+	if built.content == nil || built.types == nil {
+		t.Fatalf("the SQLite site holds a content store %t and a type store %t, want both over the file",
+			built.content != nil, built.types != nil)
+	}
+
+	book := registeredBook(t, built.registry)
+	stored := storedBook(t, built, book, "Dune")
+
+	second := openSQLiteFile(t, path)
+	held, err := sqlite.NewTypeStore(second).ByKey(t.Context(), book.Key)
+	if err != nil || held.RouteWord != "books" {
+		t.Errorf("a second handle on the file reads the book type under %q (%v), want the route word books "+
+			"the site's registry stored", held.RouteWord, err)
+	}
+	read, err := sqlite.NewContentStore(second).ByID(t.Context(), stored.ID)
+	if err != nil || read.Path != "books/dune" {
+		t.Errorf("a second handle on the file reads the book at %q (%v), want books/dune the site's content store "+
+			"stored", read.Path, err)
+	}
+}
+
+// registeredBook returns the book type after storing it through the registry.
+func registeredBook(t *testing.T, registry *content.Registry) content.Type {
+	t.Helper()
+	book, err := content.NewType("book", "Book", "Books", "books")
+	if err != nil {
+		t.Fatalf("NewType() error = %v, want a valid type", err)
+	}
+	created, err := registry.Create(t.Context(), book)
+	if err != nil {
+		t.Fatalf("creating the book type through the site's registry: %v", err)
+	}
+	return created
+}
+
+// storedBook returns the book titled title after storing it and its author through the stores of built.
+func storedBook(t *testing.T, built site, book content.Type, title string) content.Content {
+	t.Helper()
+	author := gouncer.User{
+		ID: uuid.Must(uuid.NewV7()), Email: seed.AuthorEmail, Name: seed.AuthorName, PasswordHash: "hash",
+		CreatedAt: accountsAdded,
+	}
+	if err := built.users.CreateUser(t.Context(), author); err != nil {
+		t.Fatalf("creating the author through the site's user store: %v", err)
+	}
+	item, err := content.New(book, nil, title, author.ID)
+	if err != nil {
+		t.Fatalf("New() error = %v, want a draft book", err)
+	}
+	stored, err := built.content.Create(t.Context(), item)
+	if err != nil {
+		t.Fatalf("storing %q through the site's content store: %v", title, err)
+	}
+	return stored
 }
 
 func TestAPostgreSQLProgramOpensNoHandle(t *testing.T) {

@@ -56,8 +56,8 @@ type userStore interface {
 type site struct {
 	pgHandle    *dbkitpg.Handle
 	users       userStore
-	content     *postgres.ContentStore
-	types       *postgres.TypeStore
+	content     content.Store
+	types       content.TypeStore
 	registry    *content.Registry
 	saved       mediahost.Saved
 	library     media.Store
@@ -126,12 +126,15 @@ func postgresStores(cfg composeConfig) (site, error) {
 	return built, nil
 }
 
-// sqliteStores builds the user, media, setting and cron stores over the SQLite handle, leaving content and types nil.
+// sqliteStores builds every store over the SQLite handle and the registry over its type store.
 func sqliteStores(cfg composeConfig) site {
 	store := sqlite.NewMediaStore(cfg.handle)
+	types := sqlite.NewTypeStore(cfg.handle)
 	return site{
 		users:     authkitsqlite.NewUserStore(cfg.handle),
-		registry:  registryFrom(cfg.fieldDepth, nil),
+		content:   sqlite.NewContentStore(cfg.handle),
+		types:     types,
+		registry:  registryFrom(cfg.fieldDepth, types),
 		saved:     store.Saved,
 		library:   libraryOf(store, cfg.mediaDir),
 		settings:  sqlite.NewSettingStore(cfg.handle),
