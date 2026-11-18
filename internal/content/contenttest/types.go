@@ -28,6 +28,7 @@ var typeCases = []Case{
 	{"UpdateCarriesContentDownFromTheRoot", updateCarriesContentDownFromTheRoot},
 	{"UpdateLeavesContentAloneWhenTheRouteWordStays", updateLeavesContentAloneWhenTheRouteWordStays},
 	{"UpdateHandsTheRootToAnotherType", updateHandsTheRootToAnotherType},
+	{"UpdateHandsTheRootOverPastAnItemNamedLikeTheDerivedWord", updateHandsTheRootOverPastAnItemNamedLikeTheDerivedWord},
 	{"UpdateRefusesToHandTheRootToAReservedAddress", updateRefusesToHandTheRootToAReservedAddress},
 	{"UpdateRefusesToHandTheRootOntoATakenRouteWord", updateRefusesToHandTheRootOntoATakenRouteWord},
 	{"UpdateRefusesACarryOntoATakenAddress", updateRefusesACarryOntoATakenAddress},
@@ -338,6 +339,36 @@ func updateHandsTheRootToAnotherType(t *testing.T, s Stores) {
 	}
 	if got := AddressOf(t, s.Content, post.ID); got != "posts/hello-world" {
 		t.Errorf("post address = %q, want it under its own word", got)
+	}
+}
+
+// updateHandsTheRootOverPastAnItemNamedLikeTheDerivedWord moves the old root's pages past a page named like its word.
+func updateHandsTheRootOverPastAnItemNamedLikeTheDerivedWord(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	promoted := PageType()
+	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
+	root, err := s.Types.Update(t.Context(), promoted)
+	if err != nil {
+		t.Fatalf("handing the root to the page type: %v", err)
+	}
+	team := StoreItem(t, s.Content, root, nil, "Team", author)
+	pages := StoreItem(t, s.Content, root, nil, "Pages", author)
+	nested := StoreItem(t, s.Content, root, &pages, "Team", author)
+	back := PostType()
+	back.UpdatedAt = time.Now().UTC()
+
+	if _, err := s.Types.Update(t.Context(), back); err != nil {
+		t.Fatalf("Update() handing the root back error = %v, want nil", err)
+	}
+
+	for _, moved := range []struct {
+		item content.Content
+		want string
+	}{{team, "pages/team"}, {pages, "pages/pages"}, {nested, "pages/pages/team"}} {
+		if got := AddressOf(t, s.Content, moved.item.ID); got != moved.want {
+			t.Errorf("the page at %s answers at %q, want %q", moved.item.Path, got, moved.want)
+		}
 	}
 }
 
