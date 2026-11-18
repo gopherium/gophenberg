@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/typestore"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -107,18 +106,14 @@ func (q typeQueries) DeferAddressCheck(ctx context.Context) error {
 	return err
 }
 
-// RetypeContentPaths moves every address of the type off the route word it answered under.
-func (q typeQueries) RetypeContentPaths(ctx context.Context, t typestore.TypeRow, was string) error {
-	paths, err := q.queries.RetypeContentPaths(ctx, db.RetypeContentPathsParams{
+// RetypeContentPaths moves every address of the type off its old route word, returning the moved ones under page/.
+func (q typeQueries) RetypeContentPaths(ctx context.Context, t typestore.TypeRow, was string) ([]string, error) {
+	return q.queries.RetypeContentPaths(ctx, db.RetypeContentPathsParams{
 		RouteWord: t.RouteWord,
 		Was:       was,
 		UpdatedAt: t.UpdatedAt,
 		Key:       t.Key,
 	})
-	if err != nil {
-		return err
-	}
-	return content.CheckPaginationPaths(paths)
 }
 
 // CountNestedContent returns how many items of the type sit inside another.
