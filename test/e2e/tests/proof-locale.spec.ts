@@ -103,7 +103,7 @@ test.describe('the admin read in the proof locale', () => {
 		const row = page.getByRole('row').filter({ hasText: 'member@example.com' })
 
 		await row.getByRole('button', { name: 'Acciones' }).click()
-		await page.getByRole('menuitem', { name: 'Cambiar el rol…', exact: true }).click()
+		await page.getByRole('menuitem', { name: 'Cambiar el rol', exact: true }).click()
 
 		const dialog = page.getByRole('dialog', { name: 'Cambiar el rol' })
 		await expect(dialog.getByText('Elige el rol de Member.')).toBeVisible()
