@@ -51,8 +51,9 @@ func TestServesTheSPAUnderAdmin(t *testing.T) {
 	if !strings.Contains(body, "Gophenberg") {
 		t.Errorf("body = %q, want the SPA index.html", body)
 	}
-	if !strings.HasPrefix(body, `<meta name="gophenberg-dialog-write-timeout" content="60000">`) {
-		t.Errorf("body = %q, want the default dialog write limit written into the page", body)
+	meta := dialogLimitMeta("60000")
+	if body != "<!doctype html>"+meta+"<title>Gophenberg</title>" {
+		t.Errorf("body = %q, want the default dialog write limit written after the doctype", body)
 	}
 }
 
@@ -85,8 +86,9 @@ func TestFallsBackToIndexForAdminClientRoutes(t *testing.T) {
 	if !strings.Contains(body, "Gophenberg") {
 		t.Errorf("client route body = %q, want the SPA index.html fallback", body)
 	}
-	if !strings.HasPrefix(body, `<meta name="gophenberg-dialog-write-timeout" content="60000">`) {
-		t.Errorf("client route body = %q, want the dialog write limit written into the page", body)
+	meta := dialogLimitMeta("60000")
+	if body != "<!doctype html>"+meta+"<title>Gophenberg</title>" {
+		t.Errorf("client route body = %q, want the dialog write limit written after the doctype", body)
 	}
 }
 
@@ -222,6 +224,129 @@ func TestAdminPageHeadIsFoundWhateverItsCase(t *testing.T) {
 	unchanged := strings.Replace(body, meta, "", 1) == page
 	if recorder.Code != http.StatusOK || !unchanged || !strings.Contains(body, "<HEAD>"+meta) {
 		t.Errorf("body = %q, want %s written after the head", body, meta)
+	}
+}
+
+func TestAdminPageHeadWithAttributesCarriesTheLimitAfterTheTag(t *testing.T) {
+	t.Parallel()
+
+	page := "<!doctype html><head lang=\"en\"><title>Gophenberg</title></head>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: 45 * time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("45000")
+	body := recorder.Body.String()
+	unchanged := strings.Replace(body, meta, "", 1) == page
+	if recorder.Code != http.StatusOK || !unchanged || !strings.HasPrefix(body, "<!doctype html>") {
+		t.Errorf("body = %q, want the doctype left first and the page otherwise unchanged", body)
+	}
+	if !strings.Contains(body, "<head lang=\"en\">"+meta) {
+		t.Errorf("body = %q, want %s written just after the head tag", body, meta)
+	}
+}
+
+func TestAdminPageWithADoctypeAndNoHeadCarriesTheLimitAfterTheDoctype(t *testing.T) {
+	t.Parallel()
+
+	page := "<!doctype html><title>Gophenberg</title>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1000")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != "<!doctype html>"+meta+"<title>Gophenberg</title>" {
+		t.Errorf("body = %q, want the limit after the doctype, not before it", body)
+	}
+}
+
+func TestAdminPageCommentBeforeTheHeadKeepsTheTagWhole(t *testing.T) {
+	t.Parallel()
+
+	page := "<!doctype html><!-- İ --><head><title>Gophenberg</title></head>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: 45 * time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("45000")
+	body := recorder.Body.String()
+	unchanged := strings.Replace(body, meta, "", 1) == page
+	if recorder.Code != http.StatusOK || !unchanged || !strings.Contains(body, "<!-- İ -->") {
+		t.Errorf("body = %q, want the comment left whole and the page otherwise unchanged", body)
+	}
+	if !strings.Contains(body, "<head>"+meta) {
+		t.Errorf("body = %q, want %s written just after the head tag", body, meta)
+	}
+}
+
+func TestAdminPageQuotedHeadAttributeKeepsItsGreaterThan(t *testing.T) {
+	t.Parallel()
+
+	page := `<!doctype html><head title="a>b"><title>Gophenberg</title></head>`
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1000")
+	body := recorder.Body.String()
+	unchanged := strings.Replace(body, meta, "", 1) == page
+	if recorder.Code != http.StatusOK || !unchanged || !strings.Contains(body, `<head title="a>b">`+meta) {
+		t.Errorf("body = %q, want %s written after the head tag, not inside its attribute", body, meta)
+	}
+}
+
+func TestAdminPageUnclosedHeadUsesTheLeadingDoctype(t *testing.T) {
+	t.Parallel()
+
+	page := `<!doctype html><head lang="en"`
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Millisecond},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != "<!doctype html>"+meta+`<head lang="en"` {
+		t.Errorf("body = %q, want the limit after the doctype when the head tag never closes", body)
+	}
+}
+
+func TestAdminPageThatIsOnlyAnUnclosedHeadCarriesTheLimitFirst(t *testing.T) {
+	t.Parallel()
+
+	page := "<head"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Millisecond},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != meta+page {
+		t.Errorf("body = %q, want %s written at the start", body, meta)
 	}
 }
 

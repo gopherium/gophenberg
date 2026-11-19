@@ -146,19 +146,101 @@ func serveAdminPage(w http.ResponseWriter, r *http.Request, webFS fs.FS, dialogW
 	return true
 }
 
-// pageWithDialogLimit returns page with the dialog write limit written just after its head, or at its start
-// when it has no head.
+// pageWithDialogLimit returns page with the dialog write limit written just after its opening head tag.
+// A page with no head gets the limit just after a leading doctype, or at its start when it has neither.
 func pageWithDialogLimit(page []byte, limit time.Duration) []byte {
-	meta := fmt.Sprintf(`<meta name="gophenberg-dialog-write-timeout" content="%d">`, limit.Milliseconds())
-	const head = "<head>"
-	at := bytes.Index(bytes.ToLower(page), []byte(head))
-	written := []byte(meta)
-	if at < 0 {
-		return append(written, page...)
+	meta := []byte(fmt.Sprintf(`<meta name="gophenberg-dialog-write-timeout" content="%d">`, limit.Milliseconds()))
+	if at := headTagEnd(page); at >= 0 {
+		return insertInto(page, meta, at)
 	}
-	at += len(head)
-	out := make([]byte, 0, len(page)+len(written))
+	if at := leadingDoctypeEnd(page); at >= 0 {
+		return insertInto(page, meta, at)
+	}
+	return insertInto(page, meta, 0)
+}
+
+// headTagEnd returns the index just after the first opening head tag, or -1 when the page has none.
+// The tag may carry attributes. The search folds ASCII letters only, so the index stays in the original page.
+func headTagEnd(page []byte) int {
+	const open = "<head"
+	for i := 0; i+len(open) <= len(page); i++ {
+		if !asciiHasPrefix(page[i:], open) {
+			continue
+		}
+		next := i + len(open)
+		if next < len(page) && (page[next] == '>' || isHTMLSpace(page[next])) {
+			if end := htmlTagEnd(page, next); end >= 0 {
+				return end
+			}
+		}
+	}
+	return -1
+}
+
+// leadingDoctypeEnd returns the index just after a doctype that opens the page, or -1 when it has none.
+func leadingDoctypeEnd(page []byte) int {
+	const marker = "<!doctype"
+	if !asciiHasPrefix(page, marker) {
+		return -1
+	}
+	return htmlTagEnd(page, len(marker))
+}
+
+// htmlTagEnd returns the index just after the tag's closing >, starting at from, or -1 when it never closes.
+// A > inside a quoted attribute is not the end of the tag.
+func htmlTagEnd(page []byte, from int) int {
+	var quote byte
+	for i := from; i < len(page); i++ {
+		c := page[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '>':
+			return i + 1
+		}
+	}
+	return -1
+}
+
+// asciiHasPrefix reports whether page begins with prefix, matching ASCII letters without regard to case.
+func asciiHasPrefix(page []byte, prefix string) bool {
+	if len(page) < len(prefix) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		if asciiFold(page[i]) != prefix[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// asciiFold returns the ASCII lowercase of b, leaving every other byte as it is.
+func asciiFold(b byte) byte {
+	if b >= 'A' && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
+}
+
+// isHTMLSpace reports whether b is an ASCII space an HTML tag may hold after its name.
+func isHTMLSpace(b byte) bool {
+	switch b {
+	case ' ', '\t', '\n', '\r', '\f':
+		return true
+	default:
+		return false
+	}
+}
+
+// insertInto returns page with extra written at at.
+func insertInto(page, extra []byte, at int) []byte {
+	out := make([]byte, 0, len(page)+len(extra))
 	out = append(out, page[:at]...)
-	out = append(out, written...)
+	out = append(out, extra...)
 	return append(out, page[at:]...)
 }
