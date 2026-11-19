@@ -65,7 +65,7 @@ so it takes the default.
 | `GOPHENBERG_PICKER_PAGE_SIZE` | No | `50` | The page size the media picker opens at, one of the sizes above. Unset and with no `50` among them, the size a list opens at |
 | `GOPHENBERG_TOAST_DURATION` | No | `6s` | How long a confirmation message with no button stays on screen, in whole milliseconds from `1ms` to `2147483647ms` |
 | `GOPHENBERG_TOAST_ACTION_DURATION` | No | `10s` | How long a confirmation message with a button stays on screen, in whole milliseconds from `1ms` to `2147483647ms` |
-| `GOPHENBERG_DIALOG_WRITE_TIMEOUT` | No | `60s` | How long an admin dialog waits on the change it sent before it stops waiting and says the change failed, in whole milliseconds from `1ms` to `2147483647ms`. The server may still finish a change it already received |
+| `GOPHENBERG_DIALOG_WRITE_TIMEOUT` | No | `60s` | How long an admin dialog waits on the change it sent before it stops waiting and says the change failed, in whole milliseconds from `1ms` to `2147483647ms`. The server writes this limit into the admin page, so a dialog still stops when the settings cannot be read, and it may still finish a change it already received |
 | `GOPHENBERG_FORMAT_LOCALE` | No | `es-ES` | The locale the admin writes dates, times and numbers in, whatever language its screens are in |
 | `GOPHENBERG_DEFAULT_ROLE` | No | `member` | The role the Add User screen starts on, as WordPress's New User Default Role does. It must be a role the core or a plugin declares, see [roles](/guides/users/#roles) |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
