@@ -136,15 +136,27 @@ func (s *adminScenario) get(path string) (http.Header, string, error) {
 	return response.Header, string(body), err
 }
 
-// answersTheBuiltInPage fails unless path answers the admin page built into this binary.
+// builtInDialogWriteLimit is the dialog write limit the admin page carries when the setting is left unset.
+const builtInDialogWriteLimit = `<meta name="gophenberg-dialog-write-timeout" content="60000">`
+
+// answersTheBuiltInPage fails unless path answers the admin page built into this binary, with the dialog
+// write limit written into it.
 func (s *adminScenario) answersTheBuiltInPage(path string) error {
 	builtIn, err := fs.ReadFile(webui.FS(), "index.html")
 	if err != nil {
 		return err
 	}
 	_, body, err := s.get(path)
-	if err != nil || body != string(builtIn) {
-		return fmt.Errorf("GET %s = %q (%v), want the built-in admin page %q", path, body, err, builtIn)
+	if err != nil {
+		return fmt.Errorf("GET %s: %v", path, err)
+	}
+	if !strings.Contains(body, builtInDialogWriteLimit) {
+		return fmt.Errorf("GET %s = %q, want the dialog write limit of 60000 milliseconds written into the page",
+			path, body)
+	}
+	if strings.Replace(body, builtInDialogWriteLimit, "", 1) != string(builtIn) {
+		return fmt.Errorf("GET %s = %q, want the built-in admin page %q with the dialog write limit written in",
+			path, body, builtIn)
 	}
 	return nil
 }

@@ -4,7 +4,9 @@ Feature: The admin app comes inside the binary
   admin folder, which then wins. A named folder that holds no admin page
   stops the command before it serves, so the admin never answers a quiet
   404. The hashed files of the admin may be kept for a long window, while
-  the admin page is checked on every load.
+  the admin page is checked on every load. The page carries the dialog
+  write limit, 60 seconds unless GOPHENBERG_DIALOG_WRITE_TIMEOUT is set,
+  so a dialog still stops when the settings cannot be read.
 
   Scenario: The admin answers with no folder named
     Given the settings name no admin folder
