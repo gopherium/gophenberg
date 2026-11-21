@@ -40,6 +40,21 @@ func memoryAuthors(accounts *memoryStore) func(t *testing.T, name string) uuid.U
 	}
 }
 
+// plantedPaths returns the hook that sets an item's address in the in-memory content store past its own checks.
+func plantedPaths(items *memoryContent) func(t *testing.T, id uuid.UUID, path string) {
+	return func(t *testing.T, id uuid.UUID, path string) {
+		t.Helper()
+		items.mu.Lock()
+		defer items.mu.Unlock()
+		stored, held := items.items[id]
+		if !held {
+			t.Fatalf("no stored item %s to set the address %q on", id, path)
+		}
+		stored.Path = path
+		items.items[id] = stored
+	}
+}
+
 // memoryStores returns fresh in-memory stores for one case.
 func memoryStores(t *testing.T) contenttest.Stores {
 	t.Helper()
@@ -50,6 +65,7 @@ func memoryStores(t *testing.T) contenttest.Stores {
 		SiteSettings: newMemorySettings(),
 		UserSettings: newMemoryReaders(),
 		AddAuthor:    memoryAuthors(accounts),
+		PlantPath:    plantedPaths(items),
 	}
 }
 
