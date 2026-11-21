@@ -22,10 +22,10 @@ func planAnswer(t *testing.T, job updater.Job) error {
 }
 
 func TestPlanHoldsTheUpdateLockAndChangesNothingUntilTheJobApplies(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	before := tree(t, f.layout.Root)
+
+	t.Parallel()
 
 	planned, err := f.job().Plan(t.Context())
 
@@ -46,11 +46,11 @@ func TestPlanHoldsTheUpdateLockAndChangesNothingUntilTheJobApplies(t *testing.T)
 }
 
 func TestPlanLetsGoOfTheUpdateLockWhenACheckRefuses(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	job := f.job()
 	job.Stamp = ""
+
+	t.Parallel()
 
 	err := planAnswer(t, job)
 
@@ -101,9 +101,11 @@ func TestPlanMarksWhatTheChecksRefuseAndLeavesWhatFailedUnmarked(t *testing.T) {
 	}
 	for name, marked := range cases {
 		t.Run(name, func(t *testing.T) {
+			f := newJobFixture(t)
+			f.spareDump = pgDumpOf(t, 9)
+
 			t.Parallel()
 
-			f := newJobFixture(t)
 			job := f.job()
 			marked.change(f, &job)
 
@@ -126,9 +128,10 @@ func TestReasonOfNamesWhyThePlanRefusedAnInstallThatCannotUpdateItself(t *testin
 		"too little free disk": "",
 	} {
 		t.Run(name, func(t *testing.T) {
+			f := newJobFixture(t)
+
 			t.Parallel()
 
-			f := newJobFixture(t)
 			job := f.job()
 			planCases[name].change(f, &job)
 
