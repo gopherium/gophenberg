@@ -26,15 +26,39 @@ function slotOf(key: string): string {
 }
 
 /**
+ * Returns a promise settling once every write held under the name has answered, or failing once the signal fires.
+ * @param client - The query client the writes belong to.
+ * @param slot - The name the writes are held under.
+ * @param signal - The signal that stops the wait, none for a wait lasting until the writes answer.
+ * @returns The promise.
+ */
+function turnOf(client: QueryClient, slot: string, signal?: AbortSignal): Promise<unknown> {
+	const earlier = writesSettled(client, slot)
+	if (signal === undefined) {
+		return earlier
+	}
+	return new Promise<void>((settle, fail) => {
+		const stop = () => fail(signal.reason)
+		signal.throwIfAborted()
+		signal.addEventListener('abort', stop, { once: true })
+		void earlier.then(() => {
+			signal.removeEventListener('abort', stop)
+			settle()
+		})
+	})
+}
+
+/**
  * Sends a write to a type once every earlier write to it has answered, holding it until it answers in turn.
  * @param client - The query client the writes belong to.
  * @param key - The key of the type.
  * @param write - Sends the write.
+ * @param signal - The signal that stops the wait for its turn, none for a write that waits for every earlier one.
  * @returns The write.
  */
-function inTurn<T>(client: QueryClient, key: string, write: () => Promise<T>): Promise<T> {
+function inTurn<T>(client: QueryClient, key: string, write: () => Promise<T>, signal?: AbortSignal): Promise<T> {
 	const slot = slotOf(key)
-	return holdWrite(client, slot, writesSettled(client, slot).then(write))
+	return holdWrite(client, slot, turnOf(client, slot, signal).then(write))
 }
 
 /**
@@ -42,18 +66,25 @@ function inTurn<T>(client: QueryClient, key: string, write: () => Promise<T>): P
  * @param client - The query client the writes belong to.
  * @param key - The key of the type.
  * @param edit - The fields to move.
+ * @param signal - The signal that stops its wait and its request, none for an edit that waits for its answer.
  * @returns The stored type.
  */
-export function editInTurn(client: QueryClient, key: string, edit: TypeEdit): Promise<ContentType> {
-	return inTurn(client, key, () => updateType(key, edit))
+export function editInTurn(
+	client: QueryClient,
+	key: string,
+	edit: TypeEdit,
+	signal?: AbortSignal,
+): Promise<ContentType> {
+	return inTurn(client, key, () => updateType(key, edit, signal), signal)
 }
 
 /**
  * Removes a type once every earlier write to it has answered.
  * @param client - The query client the writes belong to.
  * @param key - The key of the type.
+ * @param signal - The signal that stops its wait and its request, none for a removal that waits for its answer.
  * @returns The removal.
  */
-export function deleteInTurn(client: QueryClient, key: string): Promise<void> {
-	return inTurn(client, key, () => deleteType(key))
+export function deleteInTurn(client: QueryClient, key: string, signal?: AbortSignal): Promise<void> {
+	return inTurn(client, key, () => deleteType(key, signal), signal)
 }

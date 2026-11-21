@@ -26,6 +26,7 @@ const (
 	DefaultToastDuration       = 6 * time.Second
 	DefaultToastActionDuration = 10 * time.Second
 	DefaultFormatLocale        = "es-ES"
+	DefaultDialogWriteTimeout  = 60 * time.Second
 )
 
 // DefaultListPageSizes returns the page sizes a list offers when the environment names none.
@@ -57,6 +58,8 @@ type ListSettings struct {
 	ToastActionDuration time.Duration
 	// FormatLocale is the locale dates and numbers are written in, whatever the interface language.
 	FormatLocale string
+	// DialogWriteTimeout is how long a busy dialog waits on its write before it says the server gave no answer.
+	DialogWriteTimeout time.Duration
 }
 
 // listsOf returns the list settings the configuration names, each zero value replaced by its default.
@@ -71,6 +74,7 @@ func listsOf(cfg Config) ListSettings {
 	held.ToastDuration = cmp.Or(held.ToastDuration, DefaultToastDuration)
 	held.ToastActionDuration = cmp.Or(held.ToastActionDuration, DefaultToastActionDuration)
 	held.FormatLocale = cmp.Or(held.FormatLocale, DefaultFormatLocale)
+	held.DialogWriteTimeout = cmp.Or(held.DialogWriteTimeout, DefaultDialogWriteTimeout)
 	return held
 }
 
@@ -89,6 +93,7 @@ type settingsResponse struct {
 	UpdatesRestart          int64  `json:"updates_restart_wait_milliseconds"`
 	ShowAvatars             bool   `json:"show_avatars"`
 	DefaultRole             string `json:"default_role"`
+	DialogWriteMilliseconds int64  `json:"dialog_write_timeout_milliseconds"`
 }
 
 // settingsRequest names the values a caller asks the site to choose.
@@ -168,6 +173,7 @@ func (s *server) chosenSettings(ctx context.Context) (settingsResponse, error) {
 		UpdatesRestart:          s.updatesScreen.RestartWait.Milliseconds(),
 		ShowAvatars:             s.avatars.Mode != avatar.ModeOff,
 		DefaultRole:             s.defaultRole,
+		DialogWriteMilliseconds: s.lists.DialogWriteTimeout.Milliseconds(),
 	}, nil
 }
 

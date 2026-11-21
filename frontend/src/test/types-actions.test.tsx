@@ -42,7 +42,7 @@ const READERS = [
 		locale: 'es-ES',
 		region: 'Tipos de contenido',
 		pages: 'Páginas',
-		makeDefault: 'Establecer como predeterminado…',
+		makeDefault: 'Establecer como predeterminado',
 		heading: '¿Establecer «Páginas» como predeterminado?',
 		question: [
 			'El tipo Páginas responderá en la raíz.',
@@ -55,7 +55,7 @@ const READERS = [
 		locale: 'fr-FR',
 		region: 'Types de contenu',
 		pages: 'Pages',
-		makeDefault: 'Rendre par défaut…',
+		makeDefault: 'Rendre par défaut',
 		heading: 'Rendre « Pages » par défaut ?',
 		question:
 			'Le type Pages répondra à la racine. Le type Articles passe à /posts. Toutes les adresses des deux types changent.',
@@ -91,7 +91,7 @@ async function retype(dialog: HTMLElement, label: string, text: string) {
  * @returns The Describe dialog, open while the save runs and after a save that failed.
  */
 async function describeAs(name: string, text: string): Promise<HTMLElement> {
-	const dialog = await openRowDialog(name, 'Describe…')
+	const dialog = await openRowDialog(name, 'Describe')
 	await retype(dialog, 'Description', text)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 	return dialog
@@ -104,12 +104,12 @@ async function waitClosed() {
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 }
 
-test('offers Describe…, Change address…, Make default…, the nesting switch, Deactivate and Delete… last', async () => {
+test('offers Describe, Change address, Make default, the nesting switch, Deactivate and Delete last', async () => {
 	renderAt('/content-types')
 
 	await openRowMenu('Pages')
 
-	expect(menuItems()).toEqual(['Describe…', 'Change address…', 'Make default…', 'Stop nesting', 'Deactivate', 'Delete…'])
+	expect(menuItems()).toEqual(['Describe', 'Change address', 'Make default', 'Stop nesting', 'Deactivate', 'Delete'])
 })
 
 test('offers the default type no Make default, Deactivate or Delete', async () => {
@@ -117,7 +117,7 @@ test('offers the default type no Make default, Deactivate or Delete', async () =
 
 	await openRowMenu('Posts')
 
-	expect(menuItems()).toEqual(['Describe…', 'Change address…', 'Let items nest'])
+	expect(menuItems()).toEqual(['Describe', 'Change address', 'Let items nest'])
 })
 
 test('offers Activate in place of Deactivate on a closed type', async () => {
@@ -126,7 +126,7 @@ test('offers Activate in place of Deactivate on a closed type', async () => {
 
 	await openRowMenu('Pages')
 
-	expect(menuItems()).toEqual(['Describe…', 'Change address…', 'Make default…', 'Stop nesting', 'Activate', 'Delete…'])
+	expect(menuItems()).toEqual(['Describe', 'Change address', 'Make default', 'Stop nesting', 'Activate', 'Delete'])
 })
 
 test('keeps the shape of a type a plugin declared out of reach, offering only to switch it off', async () => {
@@ -142,7 +142,7 @@ test('describes in a dialog headed Describe, its field holding the stored descri
 	stubLayout()
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Pages', 'Describe…')
+	const dialog = await openRowDialog('Pages', 'Describe')
 
 	expect(within(dialog).getByRole('heading', { name: 'Describe' })).toBeInTheDocument()
 	const field = within(dialog).getByLabelText('Description')
@@ -189,7 +189,7 @@ test('sends the description typed from Save', async () => {
 test('keeps Save on while the description is empty, so a description can be cleared', async () => {
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Describe…')
+	const dialog = await openRowDialog('Pages', 'Describe')
 
 	await userEvent.clear(within(dialog).getByLabelText('Description'))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
@@ -212,7 +212,7 @@ test('shows the stored description as the list reads it again', async () => {
 
 	expect(await (await rowOf('Pages')).findByText('Every page this site keeps.')).toBeInTheDocument()
 	await waitClosed()
-	const again = await openRowDialog('Pages', 'Describe…')
+	const again = await openRowDialog('Pages', 'Describe')
 	expect(within(again).getByLabelText('Description')).toHaveValue('Every page this site keeps.')
 })
 
@@ -237,12 +237,12 @@ test.each([
 ])('changes no description when Describe is closed with $way', async ({ close }) => {
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Describe…')
+	const dialog = await openRowDialog('Pages', 'Describe')
 	await userEvent.type(within(dialog).getByLabelText('Description'), ' Kept by the team.')
 
 	await close(dialog)
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-	const reopened = await openRowDialog('Pages', 'Describe…')
+	const reopened = await openRowDialog('Pages', 'Describe')
 
 	expect(within(reopened).getByLabelText('Description')).toHaveValue('Manage the pages on this site.')
 	expect(sent).toEqual([])
@@ -253,7 +253,7 @@ test('names Describe in Spanish and leaves the stored description of a built-in 
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Páginas', 'Describir…', SPANISH)
+	const dialog = await openRowDialog('Páginas', 'Describir', SPANISH)
 
 	expect(within(dialog).getByRole('heading', { name: 'Describir' })).toBeInTheDocument()
 	expect(within(dialog).getByLabelText('Descripción')).toHaveValue('Manage the pages on this site.')
@@ -265,7 +265,7 @@ test('changes an address in a dialog headed Change address, described by the war
 	stubLayout()
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Pages', 'Change address…')
+	const dialog = await openRowDialog('Pages', 'Change address')
 
 	expect(within(dialog).getByRole('heading', { name: 'Change address' })).toBeInTheDocument()
 	const words = 'Every address of this type moves. Links kept elsewhere to the old addresses stop working.'
@@ -281,7 +281,7 @@ test('changes an address in a dialog headed Change address, described by the war
 
 test('keeps Move every address off while the route word is empty', async () => {
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Change address…')
+	const dialog = await openRowDialog('Pages', 'Change address')
 	const submit = within(dialog).getByRole('button', { name: 'Move every address' })
 
 	await userEvent.clear(within(dialog).getByLabelText('Route word'))
@@ -304,7 +304,7 @@ test('moves every address once Move every address is pressed, busy until the mov
 		}),
 	)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Change address…')
+	const dialog = await openRowDialog('Pages', 'Change address')
 
 	await retype(dialog, 'Route word', 'sections')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
@@ -321,7 +321,7 @@ test('moves every address once Move every address is pressed, busy until the mov
 test('sends the route word without the spaces typed around it', async () => {
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Change address…')
+	const dialog = await openRowDialog('Pages', 'Change address')
 
 	await retype(dialog, 'Route word', '  sections  ')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
@@ -336,7 +336,7 @@ test('shows the reason a refused move gave inside Change address, the route word
 		),
 	)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Change address…')
+	const dialog = await openRowDialog('Pages', 'Change address')
 	await retype(dialog, 'Route word', 'sections')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
@@ -353,7 +353,7 @@ test('asks before handing the root over in a confirm titled by the question, nam
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
 
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	expect(within(dialog).getByRole('heading', { name: 'Make "Pages" the default?' })).toBeInTheDocument()
 	expect(dialog).toHaveAccessibleDescription(
@@ -372,7 +372,7 @@ test.each([
 	serveTypes({ ...POST_TYPE, default: false }, PAGE_TYPE, holder)
 	renderAt('/content-types')
 
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	const question = `Pages will answer at the root. ${plural} moves to /${word}. Every address of both types changes.`
 	expect(within(dialog).getByText(question)).toBeInTheDocument()
@@ -382,7 +382,7 @@ test('asks only where the type will answer when no type holds the root', async (
 	serveTypes({ ...POST_TYPE, default: false }, PAGE_TYPE)
 	renderAt('/content-types')
 
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	expect(within(dialog).getByText('Pages will answer at the root.')).toBeInTheDocument()
 })
@@ -409,7 +409,7 @@ test('hands the root over once confirmed, busy with Cancel greyed until the writ
 		}),
 	)
 	renderAt('/content-types')
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
@@ -425,7 +425,7 @@ test('hands the root over once confirmed, busy with Cancel greyed until the writ
 test('shows the reason a refused hand over gave in a toast, the confirm closed', async () => {
 	refuseEdits(PAGE_TYPE, 'content: the route word is reserved')
 	renderAt('/content-types')
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
@@ -437,7 +437,7 @@ test('shows the reason a refused hand over gave in a toast, the confirm closed',
 test('hands nothing over when the confirm is cancelled', async () => {
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
@@ -458,7 +458,7 @@ test('opens Make default without reading the registry again, naming the holder f
 	await openRowMenu('Pages')
 	const before = reads
 
-	await userEvent.click(screen.getByRole('menuitem', { name: 'Make default…' }))
+	await userEvent.click(screen.getByRole('menuitem', { name: 'Make default' }))
 	const dialog = await screen.findByRole('alertdialog')
 	await aMoment()
 
@@ -527,7 +527,7 @@ test.each([
 test('lands the focus on the list once Make default takes the type out of the filtered list', async () => {
 	servePagesUntilEdited(PAGE_TYPE, { ...PAGE_TYPE, default: true, route_word: '' })
 	renderAt(narrowedTo('isNone', 'default'))
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
@@ -539,7 +539,7 @@ test('lands the focus on the list once Make default takes the type out of the fi
 test('shows the toast of a saved description, then marks the list until the registry answers', async () => {
 	recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Describe…')
+	const dialog = await openRowDialog('Pages', 'Describe')
 	await retype(dialog, 'Description', 'Every section this site keeps.')
 	holdReads('/api/types')
 
@@ -574,7 +574,7 @@ test('shows the toast of a nesting switch, then marks the list until the registr
 test('closes Make default as its toast shows and marks the list until the registry answers', async () => {
 	recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowConfirm('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default')
 	holdReads('/api/types')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
@@ -635,7 +635,7 @@ test('keeps the focus in a Describe opened while an Activate that empties the fi
 	renderAt(narrowedTo('isAny', 'closed'))
 	await openRowMenu('Pages')
 	await userEvent.click(screen.getByRole('menuitem', { name: 'Activate' }))
-	const describe = await openRowDialog('Guides', 'Describe…')
+	const describe = await openRowDialog('Guides', 'Describe')
 	const field = within(describe).getByLabelText('Description')
 	await waitFor(() => expect(field).toHaveFocus())
 
@@ -660,7 +660,7 @@ test('puts the focus back on the row menu of a Describe cancelled while the list
 	renderAt('/content-types')
 	await openRowMenu('Pages')
 	await userEvent.click(screen.getByRole('menuitem', { name: 'Activate' }))
-	const describe = await openRowDialog('Guides', 'Describe…')
+	const describe = await openRowDialog('Guides', 'Describe')
 	const release = holdReads('/api/types', { items: [POST_TYPE, PAGE_TYPE, GUIDE_TYPE] })
 	answer.release()
 	await findToast('"Pages" activated.')

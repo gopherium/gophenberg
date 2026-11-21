@@ -127,13 +127,13 @@ the default content type.
 The actions menu of a row offers:
 
 - **View** opens a published post on your site in a new tab.
-- **Duplicate…** makes a new draft holding the post's title with
+- **Duplicate** makes a new draft holding the post's title with
   `(Copy)` after it, its content, its excerpt, its parent and the
   field values it shows. A value under a field its conditions hide
   stays behind, and so does a Linked from field, which the site
   fills on its own. You can change the title in the dialog first.
   Anyone who can write may duplicate any post not in the trash.
-- **Rename…** changes the title in a dialog, sent with **Save**. It
+- **Rename** changes the title in a dialog, sent with **Save**. It
   writes over the newest version of the post, so the last rename
   wins.
 - **Trash** moves the post to the trash at once, and the message
@@ -145,22 +145,24 @@ as in WordPress. On a touch phone, the first main action that
 applies shows beside the menu of each row instead: View on a
 published post, Restore in the Trash tab.
 
-An action ending in `…` opens a dialog first, as in WordPress.
-**Trash** has none, since it opens nothing. Rename… and Trash show
-only on the posts you may change.
+Rename and Trash show only on the posts you may change.
 
 The rename and duplicate dialogs stay open with their button busy
 until the server answers. Cancel closes nothing while they save. The
 rename's **Save** stays on, and a blank name is refused before
 anything is sent. When the save fails, the dialog says why inside it
-and keeps what you typed.
+and keeps what you typed. A save that gets no answer within the
+site's [time limit](/self-hosting/configuration/#the-variables) fails
+the same way, saying
+`Could not get a valid response from the server.`, and Cancel works
+again.
 
 ## Trash
 
 **Trash** sits last in the actions menu of every row not in the
 trash yet. It moves the post to the trash at once, with no question.
-Tick several rows and the **Trash** button under the list moves them
-all at once.
+Tick several rows and the column titles turn into a bar whose
+**Trash** button moves them all at once.
 
 The editor's Document panel offers **Move to trash** under the
 excerpt, above the item's fields. It is a red button, as in the
@@ -201,7 +203,7 @@ on several ticked rows at once:
   before. Publish it again to put it back on your site. It is the
   main action here, so it also shows on the row the pointer rests
   on.
-- **Permanently delete…** removes the post forever, with its
+- **Permanently delete** removes the post forever, with its
   revisions and autosaves, after a question. The dialog's title
   names the post, such as `Delete "Hello world"?`, and under it
   reads

@@ -119,10 +119,10 @@ The actions menu of a file offers:
 
 - **View** opens the picture at its full size in a new tab, or the
   file itself when it has no full size copy.
-- **Edit…** opens the file's details, as the next part explains.
-- **Rename…** changes the title alone, in a dialog sent with
+- **Edit** opens the file's details, as the next part explains.
+- **Rename** changes the title alone, in a dialog sent with
   **Save**.
-- **Permanently delete…** removes the file, after a question.
+- **Permanently delete** removes the file, after a question.
 
 View is the main action and shows on every file. On a phone it also
 shows as a button beside the menu of each row. The other three show
@@ -134,7 +134,7 @@ row opens the file in a new tab, as View does.
 ## Editing a file
 
 Click the title or the picture of a file you may change to open
-**Edit media**, or pick **Edit…** from its actions menu. On a phone,
+**Edit media**, or pick **Edit** from its actions menu. On a phone,
 tap the row. The dialog holds four fields you write in:
 
 - **Title** names the file in the library.
@@ -161,9 +161,14 @@ sits in the library. It goes to the file's actions menu when that
 part no longer shows, and to the library itself when the file no
 longer shows there. When the save fails, the dialog keeps what you
 typed and says why inside it, starting with `Could not save image.`
-for a picture and `Could not save media.` for any other file.
+for a picture and `Could not save media.` for any other file. A save
+that gets no answer within the site's
+[time limit](/self-hosting/configuration/#the-variables) fails the
+same way, with the reason
+`Could not get a valid response from the server.`, and Cancel works
+again.
 
-**Rename…** stays open the same way and says `Name updated.` Its
+**Rename** stays open the same way and says `Name updated.` Its
 **Save** stays on, and a blank name is refused before anything is
 sent.
 
@@ -202,18 +207,19 @@ dialog from the Document panel, and the same warning applies.
 
 ## Deleting
 
-**Permanently delete…** removes a file and every copy of it from
+**Permanently delete** removes a file and every copy of it from
 disk. There is no media trash, so the question is the only step
 between you and a deleted file. The dialog's title asks it and names
 the file, such as `Delete "Sunset"?`, with
 `The file is deleted from your site, with every size made from it. This action cannot be undone.`
 under it. Cancel has the focus when the dialog opens. Press the red **Delete permanently** and the button
-shows the work running until the server answers, then the dialog
-closes.
+shows the work running until the server answers or the site's time
+limit runs out, then the dialog closes.
 
-Tick several cards and the **Permanently delete…** button under the
-library deletes them all at once, behind one question whose title and
-sentence count them. A phone list has no tick boxes.
+Tick several cards, or tick **Select all** in the row above them.
+That row then offers **Permanently delete**, which deletes them all
+at once, behind one question whose title and sentence count them. A
+phone list has no tick boxes.
 
 A short message at the bottom of the screen names the file, such as
 `"Sunset" permanently deleted.`, or counts the files when you deleted

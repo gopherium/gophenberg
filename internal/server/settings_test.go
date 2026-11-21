@@ -316,6 +316,7 @@ type servedLists struct {
 	ToastActionMilliseconds int64  `json:"toast_action_milliseconds"`
 	ToastNameLength         *int   `json:"toast_name_length"`
 	FormatLocale            string `json:"format_locale"`
+	DialogWriteMilliseconds int64  `json:"dialog_write_timeout_milliseconds"`
 }
 
 // listedSettingsServer returns a signed in handler serving the list settings it is given.
@@ -355,6 +356,7 @@ func TestSettingsGetServesTheListDefaultsWhenTheEnvironmentNamedNone(t *testing.
 		ToastMilliseconds:       server.DefaultToastDuration.Milliseconds(),
 		ToastActionMilliseconds: server.DefaultToastActionDuration.Milliseconds(),
 		FormatLocale:            server.DefaultFormatLocale,
+		DialogWriteMilliseconds: 60000,
 	}
 	if !reflect.DeepEqual(held, want) {
 		t.Errorf("served %+v, want the defaults %+v", held, want)
@@ -367,13 +369,14 @@ func TestSettingsGetServesTheListSettingsTheEnvironmentNamed(t *testing.T) {
 	handler := listedSettingsServer(t, server.ListSettings{
 		PageSizes: []int{5, 15}, PageSize: 15, PickerPageSize: 5, PageCap: 40,
 		ToastDuration: 1500 * time.Millisecond, ToastActionDuration: 2500 * time.Millisecond, FormatLocale: "en-GB",
+		DialogWriteTimeout: 45 * time.Second,
 	})
 
 	held := answeredLists(t, askLocale(handler, http.MethodGet, "/api/settings", ""))
 
 	want := servedLists{
 		PageSizes: []int{5, 15}, PageSize: 15, PickerPageSize: 5,
-		ToastMilliseconds: 1500, ToastActionMilliseconds: 2500, FormatLocale: "en-GB",
+		ToastMilliseconds: 1500, ToastActionMilliseconds: 2500, FormatLocale: "en-GB", DialogWriteMilliseconds: 45000,
 	}
 	if !reflect.DeepEqual(held, want) {
 		t.Errorf("served %+v, want %+v", held, want)
@@ -399,11 +402,12 @@ func TestSettingsPatchLeavesTheListSettingsAsTheEnvironmentNamedThem(t *testing.
 
 	held := answeredLists(t, askLocale(handler, http.MethodPatch, "/api/settings",
 		`{"list_page_sizes":[1,2],"list_page_size":2,"picker_page_size":5,"toast_milliseconds":1,`+
-			`"toast_action_milliseconds":1,"format_locale":"fr-FR"}`))
+			`"toast_action_milliseconds":1,"format_locale":"fr-FR","dialog_write_timeout_milliseconds":1}`))
 
 	kept := slices.Equal(held.PageSizes, []int{5, 15}) && held.PageSize == 15 && held.PickerPageSize == 15
 	timed := held.ToastMilliseconds == server.DefaultToastDuration.Milliseconds() &&
-		held.ToastActionMilliseconds == server.DefaultToastActionDuration.Milliseconds()
+		held.ToastActionMilliseconds == server.DefaultToastActionDuration.Milliseconds() &&
+		held.DialogWriteMilliseconds == server.DefaultDialogWriteTimeout.Milliseconds()
 	if !kept || !timed || held.FormatLocale != server.DefaultFormatLocale {
 		t.Errorf("served %+v, want the list settings the environment named, whatever a write asks", held)
 	}

@@ -52,7 +52,7 @@ function recordDeletes(answer: () => Response | Promise<Response> = gone): strin
  * @returns The confirm dialog.
  */
 function openDelete(): Promise<HTMLElement> {
-	return openRowConfirm('Pages', 'Delete…')
+	return openRowConfirm('Pages', 'Delete')
 }
 
 test('asks before deleting a type in a confirm titled by the question, and deletes nothing yet', async () => {
@@ -135,7 +135,7 @@ test.each([
 		locale: 'es-ES',
 		region: 'Tipos de contenido',
 		pages: 'Páginas',
-		remove: 'Borrar…',
+		remove: 'Borrar',
 		confirm: 'Borrar',
 		removed: 'Se ha borrado permanentemente el tipo de contenido «Páginas».',
 	},
@@ -143,7 +143,7 @@ test.each([
 		locale: 'fr-FR',
 		region: 'Types de contenu',
 		pages: 'Pages',
-		remove: 'Supprimer…',
+		remove: 'Supprimer',
 		confirm: 'Supprimer',
 		removed: 'Type de contenu « Pages » supprimé définitivement.',
 	},

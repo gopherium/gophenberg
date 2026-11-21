@@ -80,12 +80,12 @@ test('lists the content types in a WordPress table, every row action in its menu
 	await expect(posts.getByRole('button')).toHaveCount(1)
 	await rowOf(page, 'Pages').getByRole('button', { name: 'Actions' }).click()
 	await expect(page.getByRole('menuitem')).toHaveText([
-		'Describe…',
-		'Change address…',
-		'Make default…',
+		'Describe',
+		'Change address',
+		'Make default',
 		'Stop nesting',
 		'Deactivate',
-		'Delete…',
+		'Delete',
 	])
 })
 
@@ -136,7 +136,7 @@ test('describes a type in a 560 pixel row dialog that closes on Save', async ({ 
 	const name = await typeNamed(page, 'guide')
 	await openRowMenu(page, name)
 
-	await page.getByRole('menuitem', { name: 'Describe…' }).click()
+	await page.getByRole('menuitem', { name: 'Describe' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Describe' })
 	await expect(dialog.getByLabel('Description')).toBeFocused()
 	await frameBox(page, 'width').toBe(560)
@@ -152,7 +152,7 @@ test('moves every address of a type from Change address', async ({ page }) => {
 	const name = await typeNamed(page, 'recipe')
 	await openRowMenu(page, name)
 
-	await page.getByRole('menuitem', { name: 'Change address…' }).click()
+	await page.getByRole('menuitem', { name: 'Change address' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Change address' })
 	await dialog.getByLabel('Route word').fill(`dishes-${RUN}`)
 	await dialog.getByRole('button', { name: 'Move every address' }).click()
@@ -183,7 +183,7 @@ test('deletes a type behind a 560 pixel confirm titled by the question, Cancel f
 	const name = await typeNamed(page, 'memo')
 	await openRowMenu(page, name)
 
-	await page.getByRole('menuitem', { name: 'Delete…' }).click()
+	await page.getByRole('menuitem', { name: 'Delete' }).click()
 	const dialog = page.getByRole('alertdialog')
 	await expect(dialog.getByRole('heading', { name: `Delete "${name}"?` })).toBeVisible()
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
@@ -202,7 +202,7 @@ test('deletes two picked types behind one confirm', async ({ page }) => {
 
 	await rowOf(page, first).getByRole('checkbox').check()
 	await rowOf(page, second).getByRole('checkbox').check()
-	await page.locator('.dataviews-bulk-actions-footer__action-buttons').getByRole('button', { name: 'Delete…' }).click()
+	await page.locator('.dataviews-bulk-actions__actions').getByRole('button', { name: 'Delete' }).click()
 	const dialog = page.getByRole('alertdialog')
 	await expect(dialog.getByRole('heading', { name: 'Delete 2 content types?' })).toBeVisible()
 	await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
@@ -218,7 +218,7 @@ test('opens a row dialog as a card in the middle of a phone, 24 pixels from each
 	await page.goto(`/admin/content-types?search=${encodeURIComponent(name)}`)
 
 	await page.getByRole('grid').getByRole('button', { name: 'Actions' }).first().click()
-	await page.getByRole('menuitem', { name: 'Describe…' }).click()
+	await page.getByRole('menuitem', { name: 'Describe' }).click()
 
 	await frameBox(page, 'width').toBe(PHONE.width - 48)
 	await frameBox(page, 'left').toBe(24)

@@ -106,7 +106,7 @@ export function OpenPostDialog({ opened, tools, onClose, onBack }: {
 			description={deleteDescription(opened.items.length)}
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onConfirm={() => tools.run(opened.items, (item) => deletePost(item.id), deleteWords(postName))}
+			onConfirm={(signal) => tools.run(opened.items, (item) => deletePost(item.id, signal), deleteWords(postName))}
 			onClose={close}
 		/>
 	)
@@ -138,7 +138,7 @@ function trashViewActions(
 		},
 		{
 			id: 'delete',
-			label: __('Permanently delete…', 'gophenberg'),
+			label: __('Permanently delete', 'gophenberg'),
 			icon: trashIcon,
 			supportsBulk: true,
 			isEligible: mine,
@@ -203,13 +203,13 @@ function listActions(
 		viewAction(served),
 		{
 			id: 'duplicate',
-			label: _x('Duplicate…', 'action label', 'gophenberg'),
+			label: _x('Duplicate', 'action label', 'gophenberg'),
 			isEligible: (post) => post.status !== 'trash',
 			callback: (items) => open({ action: 'duplicate', items, trigger: focusedTrigger() }),
 		},
 		{
 			id: 'rename',
-			label: __('Rename…', 'gophenberg'),
+			label: __('Rename', 'gophenberg'),
 			isEligible: changeable,
 			callback: (items) => open({ action: 'rename', items, trigger: focusedTrigger() }),
 		},

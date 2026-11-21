@@ -442,5 +442,5 @@ test('stays on the page on show when a file lands on another, only the count of 
 
 	expect(screen.getByRole('option', { name: HARBOR.title })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: CLIFF.title })).not.toBeInTheDocument()
-	expect(screen.getByText('1 Item selected')).toBeInTheDocument()
+	expect(screen.getByText('1 item selected')).toBeInTheDocument()
 })

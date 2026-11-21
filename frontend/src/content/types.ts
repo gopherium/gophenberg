@@ -200,9 +200,10 @@ export async function listTypes(): Promise<ContentType[]> {
 /**
  * Registers a content type.
  * @param asked - The key, labels, description and route word to register.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored type.
  */
-export async function createType(asked: NewType): Promise<ContentType> {
+export async function createType(asked: NewType, signal?: AbortSignal): Promise<ContentType> {
 	const response = await accepted('/api/types', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -213,6 +214,7 @@ export async function createType(asked: NewType): Promise<ContentType> {
 			description: asked.description,
 			route_word: asked.routeWord,
 		}),
+		signal,
 	})
 	return toType(typeSchema.parse(await response.json()))
 }
@@ -221,9 +223,10 @@ export async function createType(asked: NewType): Promise<ContentType> {
  * Edits the fields the caller named.
  * @param key - The type to edit.
  * @param edit - The fields to move.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored type.
  */
-export async function updateType(key: string, edit: TypeEdit): Promise<ContentType> {
+export async function updateType(key: string, edit: TypeEdit, signal?: AbortSignal): Promise<ContentType> {
 	const body: Record<string, unknown> = {}
 	if (edit.singularLabel !== undefined) {
 		body.singular_label = edit.singularLabel
@@ -250,6 +253,7 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(body),
+		signal,
 	})
 	return toType(typeSchema.parse(await response.json()))
 }
@@ -257,9 +261,10 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 /**
  * Removes a content type that holds nothing.
  * @param key - The type to remove.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
-export async function deleteType(key: string): Promise<void> {
-	await accepted(`/api/types/${encodeURIComponent(key)}`, { method: 'DELETE' })
+export async function deleteType(key: string, signal?: AbortSignal): Promise<void> {
+	await accepted(`/api/types/${encodeURIComponent(key)}`, { method: 'DELETE', signal })
 }
 
 /**

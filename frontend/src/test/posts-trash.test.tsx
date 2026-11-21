@@ -270,7 +270,7 @@ test('swaps the row actions in the trash view, the restore first', async () => {
 	await openTrashedRowActions()
 
 	await screen.findByRole('menuitem', { name: 'Restore' })
-	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Restore', 'Permanently delete…'])
+	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Restore', 'Permanently delete'])
 	expect(screen.queryByRole('menuitem', { name: 'Trash' })).not.toBeInTheDocument()
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
@@ -351,7 +351,7 @@ test('shows the bulk restore as busy until it settles', async () => {
 	expect(bulkBar().getByRole('button', { name: 'Restore' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
 	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
-	expect(bulkBar().getByRole('button', { name: 'Restore' })).not.toHaveAttribute('aria-disabled')
+	expect(bulkBar().getByRole('button', { name: 'Restore' })).toHaveAttribute('aria-disabled', 'false')
 })
 
 /**
@@ -479,7 +479,7 @@ test('deletes every ticked post for good behind one confirm and counts them', as
 	renderAt('/content/post')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete' }))
 	const dialog = await screen.findByRole('alertdialog')
 	expect(dialog).toHaveAccessibleName('Delete 2 items?')
 	expect(dialog).toHaveAccessibleDescription(
@@ -534,7 +534,7 @@ test('opens a post deleted for good as a missing post', async () => {
 	await screen.findByText(/This item is in the trash/)
 	await goToList(router)
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 	await confirmDelete()
 	await waitFor(() => expect(deleted).toHaveLength(1))
 
@@ -572,7 +572,7 @@ test('asks to confirm before deleting permanently, titled by the question and sa
 	renderAt('/content/post')
 	await openTrashedRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	const dialog = await screen.findByRole('alertdialog')
 	expect(within(dialog).getByRole('heading', { name: 'Delete "Old Notes"?' })).toBeInTheDocument()
@@ -650,7 +650,7 @@ test('counts exact millions with "de" in the French permanent delete title', asy
 test('deletes for good once confirmed', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	await confirmDelete()
 
@@ -662,7 +662,7 @@ test('deletes for good once confirmed', async () => {
 test('names the post it deleted for good in a toast', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	await confirmDelete()
 
@@ -673,7 +673,7 @@ test('moves the focus to the list once a permanent delete finishes', async () =>
 	serveLeaving()
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	await confirmDelete()
 
@@ -684,7 +684,7 @@ test('moves the focus to the list once a permanent delete finishes', async () =>
 test('keeps the post when the permanent delete is dismissed', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
@@ -709,7 +709,7 @@ test('reports a permanent delete the server refused in a toast, never above the 
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
 
 	await confirmDelete()
 
@@ -733,7 +733,7 @@ test('counts only the posts a partly refused bulk permanent delete could not rem
 	)
 	renderAt('/content/post')
 	await tickBothTrashed()
-	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete' }))
 
 	await confirmDelete()
 

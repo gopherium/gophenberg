@@ -455,6 +455,7 @@ type listSettingsRead struct {
 	ToastActionMilliseconds int    `json:"toast_action_milliseconds"`
 	ToastNameLength         *int   `json:"toast_name_length"`
 	FormatLocale            string `json:"format_locale"`
+	DialogWriteMilliseconds int    `json:"dialog_write_timeout_milliseconds"`
 }
 
 // settingsRead returns what the last settings answer carried for the lists.
@@ -523,6 +524,19 @@ func theSettingsWriteDatesAndNumbersIn(ctx context.Context, locale string) error
 	return nil
 }
 
+// theSettingsLetADialogWait asserts how long a busy dialog waits on its write.
+func theSettingsLetADialogWait(ctx context.Context, milliseconds int) error {
+	held, err := settingsRead(ctx)
+	if err != nil {
+		return err
+	}
+	if held.DialogWriteMilliseconds != milliseconds {
+		return fmt.Errorf("the settings let a dialog wait %d milliseconds on its write, want %d",
+			held.DialogWriteMilliseconds, milliseconds)
+	}
+	return nil
+}
+
 // initializeContentList registers the steps of the content list feature.
 func initializeContentList(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -583,4 +597,5 @@ func initializeContentList(sc *godog.ScenarioContext) {
 		theSettingsKeepAToast)
 	sc.Then(`^the settings leave the name in a toast whole$`, theSettingsLeaveTheNameInAToastWhole)
 	sc.Then(`^the settings write dates and numbers in "([^"]*)"$`, theSettingsWriteDatesAndNumbersIn)
+	sc.Then(`^the settings let a dialog wait (\d+) milliseconds on its write$`, theSettingsLetADialogWait)
 }

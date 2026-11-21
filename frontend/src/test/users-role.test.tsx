@@ -119,7 +119,7 @@ test('says inside the dialog in the admin s words that Change role came from a p
 	refuseRoleAsCrossOrigin()
 	renderAt('/users')
 
-	await act(EDITOR.name, 'Change role…')
+	await act(EDITOR.name, 'Change role')
 	await changeRoleTo('Administrator')
 
 	expect(await (await roleDialog()).findByText(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
@@ -132,7 +132,7 @@ test('says inside the dialog in the reader s language that Change role came from
 	refuseRoleAsCrossOrigin()
 	renderAt('/users')
 
-	await act(EDITOR.name, 'Change role…')
+	await act(EDITOR.name, 'Change role')
 	await changeRoleTo('Administrador')
 
 	expect(await (await roleDialog()).findByText(REQUEST_CROSS_ORIGIN_SPANISH)).toBeInTheDocument()
@@ -141,7 +141,7 @@ test('says inside the dialog in the reader s language that Change role came from
 test('offers in Change role the roles the session may give, the narrowest first', async () => {
 	renderAt('/users', { ...adminUser, grantable: ['admin', 'moderator', 'editor', 'author'] })
 
-	await act(EDITOR.name, 'Change role…')
+	await act(EDITOR.name, 'Change role')
 
 	expect(await offeredRoles()).toEqual(['Author', 'Editor', 'Moderator', 'Administrator'])
 })
@@ -156,7 +156,7 @@ test('changes the role of an account and names it in a toast', async () => {
 	)
 	renderAt('/users')
 
-	await act(EDITOR.name, 'Change role…')
+	await act(EDITOR.name, 'Change role')
 	await changeRoleTo('Administrator')
 
 	expect(await toast(`Role changed for "${EDITOR.name}".`)).toBeInTheDocument()
@@ -168,7 +168,7 @@ test('says inside the dialog in WordPress s words why the server refused a role'
 	server.use(roleRefused('role_not_grantable'))
 	renderAt('/users')
 
-	await act(EDITOR.name, 'Change role…')
+	await act(EDITOR.name, 'Change role')
 	await changeRoleTo('Administrator')
 
 	const dialog = await roleDialog()
@@ -180,7 +180,7 @@ test('says inside the dialog why the server refused a role in the reader s langu
 	server.use(roleRefused('role_not_grantable'))
 	renderAt('/users')
 
-	await act(EDITOR.name, 'Cambiar el rol…')
+	await act(EDITOR.name, 'Cambiar el rol')
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('combobox', { name: 'Rol' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Administrador' }))
 	await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cambiar el rol' }))

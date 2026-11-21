@@ -48,6 +48,11 @@ func listSettingsFrom(env gonsole.Env) (server.ListSettings, error) {
 	if err != nil {
 		return server.ListSettings{}, err
 	}
+	held.DialogWriteTimeout, err = env.Duration("DIALOG_WRITE_TIMEOUT", server.DefaultDialogWriteTimeout,
+		browserTimer...)
+	if err != nil {
+		return server.ListSettings{}, err
+	}
 	return held, nil
 }
 

@@ -21,6 +21,7 @@ const listSettingsSchema = z.object({
 	updates_restart_wait_milliseconds: z.number(),
 	show_avatars: z.boolean(),
 	default_role: z.string(),
+	dialog_write_timeout_milliseconds: z.number(),
 })
 
 const errorSchema = z.object({
@@ -35,7 +36,7 @@ export type SiteSettings = z.infer<typeof settingsSchema>
 /** The settings a request asks the site to store. */
 export type SettingsAsked = Partial<SiteSettings>
 
-/** The settings every list, the Updates screen and Add User follow, as the server's environment names them. */
+/** The settings lists, the Updates screen, Add User and dialogs follow, as the server's environment names them. */
 export type ListSettings = z.infer<typeof listSettingsSchema>
 
 /** A setting the server can speak about on its own. */

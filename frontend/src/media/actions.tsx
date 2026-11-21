@@ -85,19 +85,19 @@ export function useMediaActions(
 			viewAction(),
 			{
 				id: 'edit',
-				label: __('Edit…', 'gophenberg'),
+				label: __('Edit', 'gophenberg'),
 				isEligible: mayChange,
 				callback: ([item]) => open({ action: 'edit', item, trigger: 'actions' }),
 			},
 			{
 				id: 'rename',
-				label: __('Rename…', 'gophenberg'),
+				label: __('Rename', 'gophenberg'),
 				isEligible: mayChange,
 				callback: ([item]) => open({ action: 'rename', item, trigger: 'actions' }),
 			},
 			{
 				id: 'delete',
-				label: __('Permanently delete…', 'gophenberg'),
+				label: __('Permanently delete', 'gophenberg'),
 				icon: trashIcon,
 				supportsBulk: true,
 				isEligible: mayChange,

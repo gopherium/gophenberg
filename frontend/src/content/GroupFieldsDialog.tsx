@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { unlessTimedOut } from '../dialogAnswer'
 import { irreversible } from '../lists/itemWords'
 import {
 	backlinkSettings,
@@ -25,6 +26,7 @@ import {
 	createSubField,
 	deleteFieldInGroup,
 	deleteSubField,
+	fieldRead,
 	formAnswer,
 	groupErrorMessage,
 	groupsQueryKey,
@@ -318,7 +320,7 @@ interface FieldDraft {
 	controls: ReactNode
 	blocked: boolean
 	pending: boolean
-	declare: () => Promise<unknown>
+	declare: (signal?: AbortSignal) => Promise<unknown>
 	said: string
 	clear: () => void
 }
@@ -422,11 +424,11 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 		sources: backlinkSources(props.groups ?? [], sourceKey, throughKey),
 	}
 	const add = useMutation({
-		mutationFn: () => {
+		mutationFn: (signal: AbortSignal | undefined) => {
 			const asked = askedField(draft)
 			return props.path === undefined
-				? createFieldInGroup(props.group, asked)
-				: createSubField(props.group, props.path, asked)
+				? createFieldInGroup(props.group, asked, signal)
+				: createSubField(props.group, props.path, asked, signal)
 		},
 	})
 	const change: DraftChanges = {
@@ -449,7 +451,7 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 		),
 		blocked: draftBlocked(draft),
 		pending: add.isPending,
-		declare: () => add.mutateAsync(),
+		declare: (signal) => add.mutateAsync(signal),
 		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
 		clear: () => setLabel(''),
 	}
@@ -741,12 +743,11 @@ function SettingsForm(props: Inside & Asked) {
 	const [typed, setTyped] = useState(() => typedSettings(offered, opened.settings))
 	const [pairs, setPairs] = useState(() => pairsOf(opened.settings))
 	const save = useMutation({
-		mutationFn: () =>
+		mutationFn: (signal: AbortSignal) =>
 			setFieldSettingsInGroup(
-				props.group,
-				props.path ?? opened.key,
+				fieldRead(props, opened),
 				pairedSettings(opened.kind, storedSettings(offered, typed, opened.settings), pairs),
-				opened.updatedAt,
+				signal,
 			),
 	})
 	const said = sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label })
@@ -755,7 +756,7 @@ function SettingsForm(props: Inside & Asked) {
 			title={props.title}
 			submitLabel={__('Save settings', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={() => formAnswer(save.mutateAsync(), said, props)}
+			onSubmit={(signal) => formAnswer(save.mutateAsync(signal), said, props, signal)}
 			onClose={props.onClose}
 		>
 			{(busy) => (
@@ -855,13 +856,7 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; readOnly: boolean; onChange
  */
 function RequireField(props: Inside) {
 	const flip = useMutation({
-		mutationFn: () =>
-			setFieldRequiredInGroup(
-				props.group,
-				props.path ?? props.field.key,
-				!props.field.required,
-				props.field.updatedAt,
-			),
+		mutationFn: () => setFieldRequiredInGroup(fieldRead(props, props.field), !props.field.required),
 		onSuccess: async () => {
 			const said = props.field.required
 				? __('%(field)s is optional again.', 'gophenberg')
@@ -901,12 +896,7 @@ function ListField(props: Inside) {
 	const listed = props.field.settings.listed === true
 	const flip = useMutation({
 		mutationFn: () =>
-			setFieldSettingsInGroup(
-				props.group,
-				props.path ?? props.field.key,
-				{ ...props.field.settings, listed: !listed },
-				props.field.updatedAt,
-			),
+			setFieldSettingsInGroup(fieldRead(props, props.field), { ...props.field.settings, listed: !listed }),
 		onSuccess: async () => {
 			const said = listed
 				? __('%(field)s stays out of the list.', 'gophenberg')
@@ -958,7 +948,7 @@ function RenameForm(props: Inside & Asked) {
 	const [opened] = useState(props.field)
 	const [label, setLabel] = useState(opened.label)
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, props.path ?? opened.key, label, opened.updatedAt),
+		mutationFn: (signal: AbortSignal) => renameFieldInGroup(fieldRead(props, opened), label, signal),
 	})
 	return (
 		<FormDialog
@@ -966,11 +956,12 @@ function RenameForm(props: Inside & Asked) {
 			description={__('The name changes. Nothing stored under this field moves.', 'gophenberg')}
 			submitLabel={__('Rename', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={() =>
+			onSubmit={(signal) =>
 				formAnswer(
-					rename.mutateAsync(),
+					rename.mutateAsync(signal),
 					sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }),
 					props,
+					signal,
 				)
 			}
 			onClose={props.onClose}
@@ -1109,9 +1100,9 @@ function CarryForm(props: Inside & Carried & Asked) {
 	const [picked, setPicked] = useState(props.first)
 	const landing = landings.find((held) => held.value === picked.value) ?? props.first
 	const carry = useMutation({
-		mutationFn: () => {
+		mutationFn: (signal: AbortSignal) => {
 			const [toGroup, toParent] = landing.value.split(':')
-			return moveField(props.group, at, Number(toGroup), toParent)
+			return moveField(props.group, at, { group: Number(toGroup), parent: toParent }, signal)
 		},
 	})
 	const said = sprintf(__('%(field)s moved.', 'gophenberg'), { field: props.field.label })
@@ -1126,7 +1117,7 @@ function CarryForm(props: Inside & Carried & Asked) {
 			}
 			submitLabel={__('Move the field', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={() => formAnswer(carry.mutateAsync(), said, props)}
+			onSubmit={(signal) => formAnswer(carry.mutateAsync(signal), said, props, signal)}
 			onClose={props.onClose}
 		>
 			{(busy) => (
@@ -1333,7 +1324,7 @@ function SubFieldForm(props: Reporter & FieldPlace & Asked & { send: string }) {
 			submitLabel={props.send}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			canSubmit={!draft.blocked}
-			onSubmit={() => formAnswer(draft.declare(), draft.said, props)}
+			onSubmit={(signal) => formAnswer(draft.declare(signal), draft.said, props, signal)}
 			onClose={props.onClose}
 		>
 			{draft.controls}
@@ -1353,10 +1344,10 @@ function DeleteField(props: Inside) {
 		'gophenberg',
 	)
 	const remove = useMutation({
-		mutationFn: () =>
+		mutationFn: (signal: AbortSignal) =>
 			props.path === undefined
-				? deleteFieldInGroup(props.group, props.field.key)
-				: deleteSubField(props.group, props.path),
+				? deleteFieldInGroup(props.group, props.field.key, signal)
+				: deleteSubField(props.group, props.path, signal),
 	})
 	const said = sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label })
 	return (
@@ -1370,12 +1361,12 @@ function DeleteField(props: Inside) {
 					description={`${warning} ${irreversible()}`}
 					confirmLabel={__('Delete the field', 'gophenberg')}
 					cancelLabel={__('Cancel', 'gophenberg')}
-					onConfirm={() =>
-						remove.mutateAsync().then(
+					onConfirm={(signal) =>
+						remove.mutateAsync(signal).then(
 							() => {
 								void props.onDone(said)
 							},
-							(cause: unknown) => props.onRefused(cause, 'delete'),
+							(cause: unknown) => unlessTimedOut(signal, cause, () => props.onRefused(cause, 'delete')),
 						)
 					}
 					onClose={asked.onClose}
