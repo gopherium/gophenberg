@@ -47,6 +47,11 @@ func rootPage(slug string, fields content.Values) content.Content {
 	}
 }
 
+// underPageWord stores the shelf's page type under the legacy word page.
+func underPageWord(stocked *shelf) {
+	stocked.words["page"] = content.PageWord
+}
+
 // filedUnder returns a new page the site does not hold yet, filed under the parent, carrying the identity given.
 func filedUnder(id, parent uuid.UUID, fields content.Values) content.Content {
 	return content.Content{
@@ -94,11 +99,12 @@ func numberedAddressesTaken() shelf {
 // identifiedLaunch is the slug the new post takes once every numbered one is taken.
 var identifiedLaunch = identifiedSlug("launch", newID)
 
-// numberedTries returns the entries a bare create logs trying every numbered address of the new post.
+// numberedTries returns the writes a bare create logs trying every numbered address of the new post.
 func numberedTries() []step {
 	var tries []step
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		tries = append(tries, sent("CreateContent", launchRow(numberedSlug("launch", attempt), content.Values{})))
+		row := launchRow(numberedSlug("launch", attempt), content.Values{})
+		tries = append(tries, begun, readPostWord, sent("CreateContent", row), rolledBack)
 	}
 	return tries
 }
@@ -122,27 +128,52 @@ func historyRetried() []step {
 
 // createArms holds the branches of the create steps the golden lists leave out.
 var createArms = map[string]arm{
-	"Create at a page of the root listing is refused before any statement": {
+	"Create at a page of the root listing is rejected before it writes": {
+		stocked: siteWith(underPageWord),
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, rootPage("2", nil)))
 		},
+		log:  []step{begun, readPageWord, rolledBack},
 		ends: content.ErrReservedAddress,
 		text: content.ReservedAddress("page/2").Error(),
 	},
 	"Create holding values at a page of the root listing is refused and rolls back": {
+		stocked: siteWith(underPageWord),
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, rootPage("3", content.Values{"subtitle": "Third"})))
 		},
-		log:  []step{begun, rolledBack},
+		log:  []step{begun, readPageWord, rolledBack},
 		ends: content.ErrReservedAddress,
 		text: content.ReservedAddress("page/3").Error(),
+	},
+	"Create of a top-level page onto a word the CMS keeps is rejected inside the write": {
+		run: func(ctx context.Context, s *Store) (any, error) {
+			c := rootPage("admin", nil)
+			c.Path = "pages/admin"
+			return valued(s.Create(ctx, c))
+		},
+		log:  []step{begun, readPageWord, rolledBack},
+		ends: content.ErrReservedAddress,
+		text: content.ReservedAddress("admin").Error(),
+	},
+	"Create of a type no row holds answers an unknown type": {
+		run: func(ctx context.Context, s *Store) (any, error) {
+			c := launch(nil)
+			c.Type = "car"
+			return valued(s.Create(ctx, c))
+		},
+		log:  []step{begun, sent("LockTypeRouteWord", keyed{"car"}), rolledBack},
+		ends: content.ErrInvalidType,
+		code: "type_unknown",
+		text: content.UnknownType("car").Error(),
 	},
 	"Create once every numbered address is taken stores the identified one": {
 		stocked: numberedAddressesTaken,
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, launch(nil)))
 		},
-		log:  append(numberedTries(), sent("CreateContent", launchRow(identifiedLaunch, content.Values{}))),
+		log: append(numberedTries(),
+			begun, readPostWord, sent("CreateContent", launchRow(identifiedLaunch, content.Values{})), committed),
 		kept: toContent(launchRow(identifiedLaunch, content.Values{})),
 	},
 	"Create of a post under a parent is refused since posts do not nest": {
@@ -188,7 +219,7 @@ var createArms = map[string]arm{
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, launch(content.Values{"colour": "red"})))
 		},
-		log:  []step{begun, readDeclaredKeys, rolledBack},
+		log:  []step{begun, readPostWord, readDeclaredKeys, rolledBack},
 		ends: content.ErrUnknownField,
 		text: fmt.Errorf("%w: %s", content.ErrUnknownField, "colour").Error(),
 	},
@@ -230,8 +261,8 @@ var createArms = map[string]arm{
 			return valued(s.Create(ctx, launch(nil)))
 		},
 		log: []step{
-			sent("CreateContent", launchRow("launch", content.Values{})),
-			sent("CreateContent", launchRow("launch-2", content.Values{})),
+			begun, readPostWord, sent("CreateContent", launchRow("launch", content.Values{})), rolledBack,
+			begun, readPostWord, sent("CreateContent", launchRow("launch-2", content.Values{})), committed,
 		},
 		kept: toContent(launchRow("launch-2", content.Values{})),
 	},
@@ -240,7 +271,8 @@ var createArms = map[string]arm{
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, launch(nil)))
 		},
-		log:  append(numberedTries(), sent("CreateContent", launchRow(identifiedLaunch, content.Values{}))),
+		log: append(numberedTries(),
+			begun, readPostWord, sent("CreateContent", launchRow(identifiedLaunch, content.Values{})), rolledBack),
 		ends: addressDeadlocked,
 		text: "sqlite: create content: " + addressDeadlocked.Error(),
 	},
@@ -249,7 +281,7 @@ var createArms = map[string]arm{
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, launch(nil)))
 		},
-		log:  []step{sent("CreateContent", launchRow("launch", content.Values{}))},
+		log:  []step{begun, readPostWord, sent("CreateContent", launchRow("launch", content.Values{})), rolledBack},
 		ends: elsewhereDeadlocked,
 		text: "sqlite: create content: " + elsewhereDeadlocked.Error(),
 	},
@@ -329,9 +361,15 @@ var readArms = map[string]arm{
 func helloUpTo() []step {
 	return []step{
 		sent("SiblingSlugTaken", SiblingSlug{ID: helloID, Type: "post", Slug: "hello"}),
-		begun, deferredAddresses, on("GetContent", helloID), readDeclaredKeys, readGroups,
+		begun, deferredAddresses, on("GetContent", helloID), readPostWord, readDeclaredKeys, readGroups,
 		on("ValuesOfContent", helloID), readFields,
 	}
+}
+
+// filedAt returns what writing the edit binds once the store files the item at the address.
+func filedAt(bound editing, path string) editing {
+	bound.Row.Path = path
+	return bound
 }
 
 // aboutAsPage is the about page renamed to the word of the root listing.
@@ -339,6 +377,12 @@ var aboutAsPage = edited(aboutID, func(c *content.Content) { c.Slug, c.Path = "p
 
 // servicesAsRootPage is the services page renamed onto the second page of the root listing.
 var servicesAsRootPage = edited(servicesID, func(c *content.Content) { c.Slug, c.Path = "2", "page/2" })
+
+// servicesAsAdmin is the services page renamed to a word the CMS keeps.
+var servicesAsAdmin = edited(servicesID, func(c *content.Content) { c.Slug, c.Path = "admin", "admin" })
+
+// liftedTeam is the team page lifted to the top under the word its type held when the caller read it.
+var liftedTeam = edited(teamID, func(c *content.Content) { c.ParentID, c.Path = nil, "pages/team" })
 
 // helloWriterAs returns the post naming the value as its writer.
 func helloWriterAs(value any) content.Content {
@@ -370,13 +414,16 @@ var retitledLegacyPage = func() content.Content {
 // updateArms holds the branches of the edit steps the golden lists leave out.
 var updateArms = map[string]arm{
 	"Update of an item already at a page of the root listing keeps its address": {
-		stocked: siteWith(func(stocked *shelf) { stocked.items = append(stocked.items, legacyPageRow()) }),
+		stocked: siteWith(func(stocked *shelf) {
+			underPageWord(stocked)
+			stocked.items = append(stocked.items, legacyPageRow())
+		}),
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Update(ctx, retitledLegacyPage, shelvedAt, nil, 0))
 		},
 		log: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: childID, Type: "page", Slug: "2"}),
-			begun, deferredAddresses, on("GetContent", childID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", childID), readPageWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", childID), readFields, sent("UpdateContent", editRow(retitledLegacyPage)),
 			fieldsCleared(childID, 21), on("RefreshRelationVisibility", childID), committed,
 		},
@@ -429,16 +476,58 @@ var updateArms = map[string]arm{
 		ends: content.ErrNotHierarchical,
 	},
 	"Update onto a page of the root listing is refused before the write": {
+		stocked: siteWith(underPageWord),
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Update(ctx, servicesAsRootPage, shelvedAt, nil, 0))
 		},
 		log: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: servicesID, Type: "page", Slug: "2"}),
-			begun, deferredAddresses, on("GetContent", servicesID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", servicesID), readPageWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", servicesID), readFields, rolledBack,
 		},
 		ends: content.ErrReservedAddress,
 		text: content.ReservedAddress("page/2").Error(),
+	},
+	"Update of a top-level page onto a word the CMS keeps is rejected before the write": {
+		run: func(ctx context.Context, s *Store) (any, error) {
+			return valued(s.Update(ctx, servicesAsAdmin, shelvedAt, nil, 0))
+		},
+		log: []step{
+			sent("SiblingSlugTaken", SiblingSlug{ID: servicesID, Type: "page", Slug: "admin"}),
+			begun, deferredAddresses, on("GetContent", servicesID), readPageWord, readDeclaredKeys, readGroups,
+			on("ValuesOfContent", servicesID), readFields, rolledBack,
+		},
+		ends: content.ErrReservedAddress,
+		text: content.ReservedAddress("admin").Error(),
+	},
+	"Update of a top-level item files it under the word its type holds now": {
+		stocked: siteWith(func(stocked *shelf) { stocked.words["post"] = "articles" }),
+		run: func(ctx context.Context, s *Store) (any, error) {
+			return valued(s.Update(ctx, retitledHello, shelvedAt, nil, 0))
+		},
+		log: append(helloUpTo(), sent("UpdateContent", filedAt(editRow(retitledHello), "articles/hello")),
+			fieldsCleared(helloID, 11), on("RefreshRelationVisibility", helloID), on("LockDescendants", helloID),
+			sent("MoveDescendants", moving{ID: helloID, Path: "articles/hello", At: editedAt}), committed),
+		kept: toContent(ContentRow{
+			ID: helloID, AuthorID: writerID, Type: "post", Status: "published", Slug: "hello", Title: "Hello, world",
+			Content: "<p>Hello</p>", Excerpt: "Hello", Path: "articles/hello", Fields: content.Values{"rating": float64(5)},
+			CreatedAt: shelvedAt, UpdatedAt: editedAt,
+		}),
+	},
+	"Update lifting a page to the top files it under the word its type holds now": {
+		run: func(ctx context.Context, s *Store) (any, error) {
+			return valued(s.Update(ctx, liftedTeam, shelvedAt, nil, 0))
+		},
+		log: []step{
+			sent("SiblingSlugTaken", SiblingSlug{ID: teamID, Type: "page", Slug: "team"}),
+			begun, deferredAddresses, on("GetContent", teamID), readPageWord, readDeclaredKeys, readGroups,
+			on("ValuesOfContent", teamID), readFields, sent("UpdateContent", filedAt(editRow(liftedTeam), "team")),
+			fieldsCleared(teamID, 21), on("RefreshRelationVisibility", teamID), on("LockDescendants", teamID),
+			sent("MoveDescendants", moving{ID: teamID, Path: "team", At: editedAt}), committed,
+		},
+		kept: toContent(storedRowAt(ContentRow{
+			ID: teamID, Type: "page", Status: "draft", Slug: "team", Title: "Team", Path: "team",
+		}, editedAt)),
 	},
 	"Update whose write finds no row while the item stands answers conflict": {
 		prepare: func(f *fakeBackend) { f.breaksAt["UpdateContent"] = map[int]error{1: sql.ErrNoRows} },
@@ -470,7 +559,7 @@ var updateArms = map[string]arm{
 		},
 		log: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: aboutID, Type: "page", Slug: "page"}),
-			begun, deferredAddresses, on("GetContent", aboutID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", aboutID), readPageWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", aboutID), readFields, sent("UpdateContent", editRow(aboutAsPage)),
 			fieldsCleared(aboutID, 21), on("RefreshRelationVisibility", aboutID), on("LockDescendants", aboutID),
 			sent("MoveDescendants", moving{ID: aboutID, Path: "page", At: editedAt}), rolledBack,
@@ -549,7 +638,7 @@ var updateArms = map[string]arm{
 		},
 		log: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: helloID, Type: "post", Slug: "hello"}),
-			begun, deferredAddresses, on("GetContent", helloID), readDeclaredKeys, readGroups, rolledBack,
+			begun, deferredAddresses, on("GetContent", helloID), readPostWord, readDeclaredKeys, readGroups, rolledBack,
 		},
 		text: "sqlite: update content: sqlite: reading a group location: ",
 	},

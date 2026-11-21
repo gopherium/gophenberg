@@ -59,7 +59,7 @@ func checkWrapped(t *testing.T, engine dbkit.Engine, prefix string, given, got e
 var writePasses = []error{
 	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
 	content.ErrTargetNotFound, content.ErrTargetType, content.ErrParentType, content.ErrParentTrashed,
-	content.ErrCycle, content.ErrReservedAddress,
+	content.ErrCycle, content.ErrReservedAddress, content.ErrInvalidType,
 }
 
 // passing returns the sentinels each standing for itself.
@@ -99,8 +99,9 @@ var tails = map[string]tailCase{
 		run: func(ctx context.Context, s *Store) error {
 			return errOf(s.Create(ctx, launch(nil)))
 		},
-		rules: map[typestore.Constraint]error{typestore.ContentPathUnique: content.ErrSlugTaken},
-		wrap:  "postgres: create content: ",
+		rules:     writeRules,
+		sentinels: passing(writePasses...),
+		wrap:      "postgres: create content: ",
 	},
 	"Create on the held path": {
 		entry: beginEvent,
@@ -109,7 +110,7 @@ var tails = map[string]tailCase{
 		},
 		rules:     writeRules,
 		sentinels: passing(writePasses...),
-		wrap:      "postgres: update content: ",
+		wrap:      "postgres: create content: ",
 	},
 	"Update": {
 		entry: beginEvent,
@@ -277,7 +278,7 @@ func TestAWriteFailingOnADomainErrorAndABrokenRelationKeyPassesItAsItIs(t *testi
 
 	given := fmt.Errorf("%w: %w", content.ErrConflict, targetGone)
 
-	got := failingStore(t, dbkit.Postgres, beginEvent, given).writeFailure(given)
+	got := failingStore(t, dbkit.Postgres, beginEvent, given).writeFailure(given, "update content")
 
 	if got != given {
 		t.Errorf("writeFailure(%v) = %v, want it passed as it is", given, got)
@@ -289,7 +290,7 @@ func TestAWriteFailingOnTheAddressAndABrokenRelationKeyPassesItAsItIs(t *testing
 
 	given := fmt.Errorf("%w: %w", addressTaken, targetGone)
 
-	got := failingStore(t, dbkit.Postgres, beginEvent, given).writeFailure(given)
+	got := failingStore(t, dbkit.Postgres, beginEvent, given).writeFailure(given, "update content")
 
 	if got != given {
 		t.Errorf("writeFailure(%v) = %v, want it passed as it is", given, got)
@@ -309,6 +310,9 @@ func TestCreateTriesEveryNumberedSlugThenTheIdentifiedOneBeforeAnsweringSlugTake
 	}
 	var paths []string
 	for _, entry := range f.log {
+		if entry.name != "CreateContent" {
+			continue
+		}
 		paths = append(paths, entry.args.(ContentRow).Path)
 	}
 	want := []string{"posts/launch"}
@@ -447,21 +451,28 @@ var wraps = map[string]wrapCase{
 		"CreateContent", func(ctx context.Context, s *Store) error { return errOf(s.Create(ctx, launch(nil))) },
 		"postgres: create content: ",
 	},
+	"Create when the route word does not read": {
+		"LockTypeRouteWord", func(ctx context.Context, s *Store) error { return errOf(s.Create(ctx, launch(nil))) },
+		"postgres: create content: ",
+	},
 	"Create when the groups do not read": {
 		"ListFieldGroups",
 		func(ctx context.Context, s *Store) error { return errOf(s.Create(ctx, history())) },
-		"postgres: update content: postgres: list field groups: ",
+		"postgres: create content: postgres: list field groups: ",
 	},
 	"Create when the fields do not read": {
 		"ListContentFields",
 		func(ctx context.Context, s *Store) error { return errOf(s.Create(ctx, history())) },
-		"postgres: update content: postgres: list content fields: ",
+		"postgres: create content: postgres: list content fields: ",
 	},
 	"Update when the sibling slugs do not read": {
 		"SiblingSlugTaken", retitleHello, "postgres: update content: read sibling slugs: ",
 	},
 	"Update when the stored item does not read": {
 		"GetContent", retitleHello, "postgres: update content: postgres: get content: ",
+	},
+	"Update when the route word does not read": {
+		"LockTypeRouteWord", retitleHello, "postgres: update content: ",
 	},
 	"Update when the item is not written": {
 		"UpdateContent", retitleHello, "postgres: update content: ",

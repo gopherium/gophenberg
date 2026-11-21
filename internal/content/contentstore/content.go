@@ -28,32 +28,28 @@ const trashSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 // trashSuffixLength is the number of random characters in a trashed slug suffix.
 const trashSuffixLength = 8
 
-// Create stores a new content item, suffixing its slug until its address is free.
+// Create stores a new item under its type's route word or its parent, suffixing its slug until its address is free.
 func (s *Store) Create(ctx context.Context, c content.Content) (content.Content, error) {
-	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		created, err := s.create(ctx, c, prefix, numberedSlug(c.Slug, attempt))
+		created, err := s.create(ctx, c, numberedSlug(c.Slug, attempt))
 		if slugRetries[s.broken(err)] {
 			continue
 		}
 		return created, err
 	}
-	created, err := s.create(ctx, c, prefix, identifiedSlug(c.Slug, c.ID))
+	created, err := s.create(ctx, c, identifiedSlug(c.Slug, c.ID))
 	if s.broken(err) == typestore.ContentPathUnique {
 		return content.Content{}, content.ErrSlugTaken
 	}
 	return created, err
 }
 
-// create stores the content item under slug, addressed beneath prefix.
-func (s *Store) create(
-	ctx context.Context, c content.Content, prefix, slug string,
-) (content.Content, error) {
+// create stores the item under slug in one write, filed under its type's route word or its parent as they stand.
+func (s *Store) create(ctx context.Context, c content.Content, slug string) (content.Content, error) {
 	params := ContentRow{
 		ID:          c.ID,
 		Type:        c.Type,
 		ParentID:    c.ParentID,
-		Path:        content.AddressUnder(prefix, slug),
 		Status:      string(c.Status),
 		Slug:        slug,
 		Title:       c.Title,
@@ -65,52 +61,52 @@ func (s *Store) create(
 		UpdatedAt:   c.UpdatedAt,
 		Fields:      storedValues(c.Fields),
 	}
-	if len(c.Fields) > 0 || c.ParentID != nil {
-		return s.createHeld(ctx, c, params)
-	}
-	if err := content.CheckPaginationPaths([]string{params.Path}); err != nil {
-		return content.Content{}, err
-	}
-	row, err := s.backend.Pool.CreateContent(ctx, params)
+	var row ContentRow
+	err := s.backend.InTx(ctx, func(queries Tx) error {
+		prefix, err := fileable(ctx, queries, c)
+		if err != nil {
+			return err
+		}
+		params.Path = content.AddressUnder(prefix, slug)
+		if err := reservedFiling("", params.Path); err != nil {
+			return err
+		}
+		row, err = s.inserted(ctx, queries, c, params)
+		return err
+	})
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: create content: %w", s.backend.Engine, err)
+		return content.Content{}, s.writeFailure(err, "create content")
 	}
 	return toContent(row), nil
 }
 
-// createHeld stores the item once its type still nests and every value it carries names a declared field.
-func (s *Store) createHeld(
-	ctx context.Context, c content.Content, params ContentRow,
-) (content.Content, error) {
-	var row ContentRow
-	err := s.backend.InTx(ctx, func(queries Tx) error {
-		prefix, err := fileable(ctx, queries, c, content.AddressPrefix(params.Path, params.Slug))
-		if err != nil {
-			return err
-		}
-		params.Path = content.AddressUnder(prefix, params.Slug)
-		if err := content.CheckPaginationPaths([]string{params.Path}); err != nil {
-			return err
-		}
-		matching, err := s.declaredValues(ctx, queries, c)
-		if err != nil {
-			return err
-		}
-		created, err := queries.CreateContent(ctx, params)
-		if err != nil {
-			return err
-		}
-		row = created
-		resolved, err := s.resolveTargets(ctx, queries, matching, toContent(created), nil)
-		if err != nil {
-			return err
-		}
-		return writeRelations(ctx, queries, toContent(created), resolved)
-	})
-	if err != nil {
-		return content.Content{}, s.writeFailure(err)
+// inserted stores the row alone for a top-level item holding no values, and beside its values otherwise.
+func (s *Store) inserted(
+	ctx context.Context, queries Queries, c content.Content, params ContentRow,
+) (ContentRow, error) {
+	if len(c.Fields) > 0 || c.ParentID != nil {
+		return s.createHeld(ctx, queries, c, params)
 	}
-	return toContent(row), nil
+	return queries.CreateContent(ctx, params)
+}
+
+// createHeld stores the item once every value it carries names a declared field, then indexes what they point at.
+func (s *Store) createHeld(
+	ctx context.Context, queries Queries, c content.Content, params ContentRow,
+) (ContentRow, error) {
+	matching, err := s.declaredValues(ctx, queries, c)
+	if err != nil {
+		return ContentRow{}, err
+	}
+	created, err := queries.CreateContent(ctx, params)
+	if err != nil {
+		return ContentRow{}, err
+	}
+	resolved, err := s.resolveTargets(ctx, queries, matching, toContent(created), nil)
+	if err != nil {
+		return ContentRow{}, err
+	}
+	return created, writeRelations(ctx, queries, toContent(created), resolved)
 }
 
 // PublishedByPath returns the published item at the address, or [content.ErrNotFound].
@@ -310,7 +306,7 @@ func (s *Store) update(
 		if err := queries.DeferAddressCheck(ctx); err != nil {
 			return err
 		}
-		prefix, was, err := s.movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
+		prefix, was, err := s.movable(ctx, queries, c, expectedUpdatedAt)
 		if err != nil {
 			return err
 		}
@@ -349,7 +345,7 @@ func (s *Store) update(
 		return s.snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return content.Content{}, s.writeFailure(err)
+		return content.Content{}, s.writeFailure(err, "update content")
 	}
 	return updated, nil
 }
@@ -358,7 +354,7 @@ func (s *Store) update(
 func (s *Store) writeContent(
 	ctx context.Context, queries Queries, was string, p ContentRow, expected time.Time,
 ) (ContentRow, error) {
-	if err := checkPaginationEdit(was, p.Path); err != nil {
+	if err := reservedFiling(was, p.Path); err != nil {
 		return ContentRow{}, err
 	}
 	row, err := queries.UpdateContent(ctx, p, expected)
@@ -408,9 +404,6 @@ func (s *Store) declaredValues(ctx context.Context, queries Queries, c content.C
 
 // nestable returns the reason the item's type no longer takes it under a parent, holding the type as it stands.
 func nestable(ctx context.Context, queries Queries, c content.Content) error {
-	if c.ParentID == nil {
-		return nil
-	}
 	nests, err := queries.LockTypeNesting(ctx, c.Type)
 	if err != nil {
 		return err
@@ -421,20 +414,29 @@ func nestable(ctx context.Context, queries Queries, c content.Content) error {
 	return nil
 }
 
-// fileable returns the address prefix a new item takes, holding the type and its parent as they stand.
-func fileable(ctx context.Context, queries Queries, c content.Content, prefix string) (string, error) {
+// fileable returns the prefix a new item is filed under, its type's route word or its parent as they stand.
+func fileable(ctx context.Context, queries Queries, c content.Content) (string, error) {
+	if c.ParentID == nil {
+		return routeWordOf(ctx, queries, c.Type)
+	}
 	if err := nestable(ctx, queries, c); err != nil {
 		return "", err
-	}
-	if c.ParentID == nil {
-		return prefix, nil
 	}
 	return parentHolds(ctx, queries, *c.ParentID, c.ID)
 }
 
-// movable returns the prefix an edit files the item under and its stored address, holding the type and any new parent.
+// routeWordOf returns the route word the type answers under, held against a type edit until the write ends.
+func routeWordOf(ctx context.Context, queries Queries, typeKey string) (string, error) {
+	word, err := queries.LockTypeRouteWord(ctx, typeKey)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", content.UnknownType(typeKey)
+	}
+	return word, err
+}
+
+// movable returns the prefix an edit files the item under, its route word or parent as they stand, and its old address.
 func (s *Store) movable(
-	ctx context.Context, queries Queries, c content.Content, expected time.Time, prefix string,
+	ctx context.Context, queries Queries, c content.Content, expected time.Time,
 ) (string, string, error) {
 	stored, err := s.byID(ctx, queries, c.ID)
 	if err != nil {
@@ -444,10 +446,11 @@ func (s *Store) movable(
 		return "", "", content.ErrConflict
 	}
 	if c.ParentID == nil {
-		return prefix, stored.Path, nil
+		word, err := routeWordOf(ctx, queries, stored.Type)
+		return word, stored.Path, err
 	}
 	if stored.ParentID != nil && *stored.ParentID == *c.ParentID {
-		return prefix, stored.Path, nestable(ctx, queries, c)
+		return content.AddressPrefix(c.Path, c.Slug), stored.Path, nestable(ctx, queries, c)
 	}
 	moved, err := movedUnder(ctx, queries, c)
 	return moved, stored.Path, err
@@ -508,11 +511,11 @@ func valuesDeclared(ctx context.Context, queries Queries, c content.Content) err
 var domainWriteErrors = []error{
 	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
 	content.ErrTargetNotFound, content.ErrTargetType, content.ErrParentType, content.ErrParentTrashed,
-	content.ErrCycle, content.ErrReservedAddress,
+	content.ErrCycle, content.ErrReservedAddress, content.ErrInvalidType,
 }
 
-// writeFailure returns the error the write carries, and wraps anything else.
-func (s *Store) writeFailure(err error) error {
+// writeFailure returns the error the write carries, and wraps anything else under the verb.
+func (s *Store) writeFailure(err error, verb string) error {
 	broken := s.broken(err)
 	if broken == typestore.ContentPathUnique {
 		return err
@@ -525,7 +528,7 @@ func (s *Store) writeFailure(err error) error {
 	if meant := writeErrors[broken]; meant != nil {
 		return meant
 	}
-	return fmt.Errorf("%s: update content: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: %s: %w", s.backend.Engine, verb, err)
 }
 
 // Depth returns how many levels of content nest below the item.

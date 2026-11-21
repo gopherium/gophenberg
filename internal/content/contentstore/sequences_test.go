@@ -114,6 +114,7 @@ func site() shelf {
 			{ID: 30, GroupID: 3, Key: "summary", Label: "Summary", Kind: "text"},
 		},
 		nesting: map[string]bool{"page": true, "post": false, "person": false},
+		words:   map[string]string{"page": "", "post": "posts", "person": "people"},
 		listed: []ListedRow{
 			{ContentRow: storedRow(ContentRow{ID: helloID, Type: "post", Status: "published", Path: "posts/hello"}),
 				AuthorName: "Writer"},
@@ -155,6 +156,12 @@ var (
 func sent(name string, args any) step {
 	return step{name: name, args: args}
 }
+
+// The entries reading the route word the post and the page types answer under.
+var (
+	readPostWord = sent("LockTypeRouteWord", keyed{"post"})
+	readPageWord = sent("LockTypeRouteWord", keyed{"page"})
+)
 
 // on returns the entry of a statement binding the one identity.
 func on(name string, id uuid.UUID) step {
@@ -299,8 +306,10 @@ var itemSequences = map[string]sequence{
 		run: func(ctx context.Context, s *Store) (any, error) {
 			return valued(s.Create(ctx, launch(nil)))
 		},
-		golden: []step{sent("CreateContent", launchRow("launch", content.Values{}))},
-		kept:   toContent(launchRow("launch", content.Values{})),
+		golden: []step{
+			begun, readPostWord, sent("CreateContent", launchRow("launch", content.Values{})), committed,
+		},
+		kept: toContent(launchRow("launch", content.Values{})),
 	},
 	"Create a post whose address another item holds": {
 		stocked: siteWith(func(stocked *shelf) { stocked.taken = map[string]bool{"posts/launch": true} }),
@@ -308,8 +317,8 @@ var itemSequences = map[string]sequence{
 			return valued(s.Create(ctx, launch(nil)))
 		},
 		golden: []step{
-			sent("CreateContent", launchRow("launch", content.Values{})),
-			sent("CreateContent", launchRow("launch-2", content.Values{})),
+			begun, readPostWord, sent("CreateContent", launchRow("launch", content.Values{})), rolledBack,
+			begun, readPostWord, sent("CreateContent", launchRow("launch-2", content.Values{})), committed,
 		},
 		kept: toContent(launchRow("launch-2", content.Values{})),
 	},
@@ -318,7 +327,7 @@ var itemSequences = map[string]sequence{
 			return valued(s.Create(ctx, launch(content.Values{"rating": float64(5)})))
 		},
 		golden: []step{
-			begun, readDeclaredKeys, readGroups,
+			begun, readPostWord, readDeclaredKeys, readGroups,
 			sent("CreateContent", launchRow("launch", content.Values{"rating": float64(5)})),
 			readFields, fieldsCleared(newID, 11), on("RefreshRelationVisibility", newID), committed,
 		},
@@ -453,7 +462,7 @@ var updateSequences = map[string]sequence{
 		},
 		golden: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: helloID, Type: "post", Slug: "hello"}),
-			begun, deferredAddresses, on("GetContent", helloID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", helloID), readPostWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", helloID), readFields, sent("UpdateContent", editRow(retitledHello)),
 			fieldsCleared(helloID, 11), on("RefreshRelationVisibility", helloID),
 			sent("CreateRevision", helloSnapshotRow), sent("PruneRevisions", pruning{ContentID: helloID, Keep: 10}),
@@ -499,7 +508,7 @@ var updateSequences = map[string]sequence{
 		},
 		golden: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: helloID, Type: "post", Slug: "hello"}),
-			begun, deferredAddresses, on("GetContent", helloID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", helloID), readPostWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", helloID), readFields, sent("TypesOfContent", identities{[]uuid.UUID{adaID}}),
 			sent("UpdateContent", editRow(helloByAda)), fieldsCleared(helloID, 11),
 			sent("AddRelation", RelationRow{FromID: helloID, ToID: adaID, FieldID: 11, Position: 1}),
@@ -513,7 +522,7 @@ var updateSequences = map[string]sequence{
 		golden: []step{
 			sent("SiblingSlugTaken", SiblingSlug{ID: servicesID, Type: "page", Slug: "about"}),
 			sent("SiblingSlugTaken", SiblingSlug{ID: servicesID, Type: "page", Slug: "about-2"}),
-			begun, deferredAddresses, on("GetContent", servicesID), readDeclaredKeys, readGroups,
+			begun, deferredAddresses, on("GetContent", servicesID), readPageWord, readDeclaredKeys, readGroups,
 			on("ValuesOfContent", servicesID), readFields,
 			sent("UpdateContent", editing{Row: ContentRow{
 				ID: servicesID, Status: "published", Slug: "about-2", Title: "Services", Path: "about-2",
@@ -689,7 +698,8 @@ var contentSentinels = []error{
 	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
 	content.ErrTargetNotFound, content.ErrTargetType, content.ErrParentType, content.ErrParentTrashed,
 	content.ErrCycle, content.ErrReservedAddress, content.ErrSlugTaken, content.ErrHoldsChildren,
-	content.ErrInvalidTransition, content.ErrTrashed, content.ErrRevisionNotFound, sql.ErrNoRows,
+	content.ErrInvalidTransition, content.ErrTrashed, content.ErrRevisionNotFound, content.ErrInvalidType,
+	sql.ErrNoRows,
 }
 
 // failable reports whether the fake can fail the entry: a statement, the begin, the commit, a savepoint or its release.
