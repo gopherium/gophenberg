@@ -114,9 +114,11 @@ func folderNames(t *testing.T, path string) []string {
 }
 
 func TestDumpMajorReadsTheMajorPgDumpPrints(t *testing.T) {
+	dump := pgDumpOf(t, 17)
+
 	t.Parallel()
 
-	major, err := updater.DumpMajor(t.Context(), pgDumpOf(t, 17).bin)
+	major, err := updater.DumpMajor(t.Context(), dump.bin)
 
 	if err != nil || major != 17 {
 		t.Errorf("DumpMajor() = %d, %v, want 17 and nil", major, err)
@@ -145,9 +147,9 @@ func TestDumpMajorRefusesAPgDumpThatCannotRun(t *testing.T) {
 }
 
 func TestDumpMajorRefusesAPgDumpThatNamesNoVersion(t *testing.T) {
-	t.Parallel()
-
 	dump := newFakeDump(t, "pg_dump, a dumper", 0)
+
+	t.Parallel()
 
 	_, err := updater.DumpMajor(t.Context(), dump.bin)
 
@@ -155,10 +157,10 @@ func TestDumpMajorRefusesAPgDumpThatNamesNoVersion(t *testing.T) {
 }
 
 func TestTakeWritesTheDumpAndPassesThePasswordOutsideTheCommandLine(t *testing.T) {
-	t.Parallel()
-
 	dump := pgDumpOf(t, 18)
 	backup := backupInto(t, dump, "postgres://maria:s3cret@db.example.com:5432/site?sslmode=require")
+
+	t.Parallel()
 
 	if err := backup.Take(t.Context()); err != nil {
 		t.Fatalf("Take() = %v, want nil", err)
@@ -182,10 +184,10 @@ func TestTakeWritesTheDumpAndPassesThePasswordOutsideTheCommandLine(t *testing.T
 }
 
 func TestTakeMovesThePasswordOfTheQueryOutOfTheCommandLine(t *testing.T) {
-	t.Parallel()
-
 	dump := pgDumpOf(t, 18)
 	backup := backupInto(t, dump, "postgres://maria@db.example.com/site?password=s3cret&sslmode=require")
+
+	t.Parallel()
 
 	if err := backup.Take(t.Context()); err != nil {
 		t.Fatalf("Take() = %v, want nil", err)
@@ -219,9 +221,10 @@ func TestTakeLeavesThePasswordToTheEnvironmentWhenTheAddressNamesNone(t *testing
 }
 
 func TestTakeHandsPgDumpTheQueryAsWrittenWhenItHoldsNoPassword(t *testing.T) {
+	dump := pgDumpOf(t, 18)
+
 	t.Parallel()
 
-	dump := pgDumpOf(t, 18)
 	query := "?options=-c%20statement_timeout%3D0&application_name=Maria+Site"
 	backup := backupInto(t, dump, "postgres://maria:s3cret@db.example.com/site"+query)
 
@@ -265,9 +268,10 @@ func TestTakeHandsPgDumpThePeerAddressOfAServerInstallAsWritten(t *testing.T) {
 }
 
 func TestTakeWritesASpaceOfTheQueryAsLibpqReadsItWhenItMovesThePassword(t *testing.T) {
+	dump := pgDumpOf(t, 18)
+
 	t.Parallel()
 
-	dump := pgDumpOf(t, 18)
 	options := "options=-c%20statement_timeout%3D0"
 	backup := backupInto(t, dump, "postgres://maria@db.example.com/site?password=s3cret&"+options)
 
@@ -320,11 +324,11 @@ func realTool(t *testing.T, name string) string {
 }
 
 func TestTakeRefusesAnAddressThatIsNotAPostgresURL(t *testing.T) {
+	dump := pgDumpOf(t, 18)
+
 	t.Parallel()
 
 	for _, address := range []string{"host=db.example.com password=s3cret", "postgres://db.example.com/%zz"} {
-		dump := pgDumpOf(t, 18)
-
 		err := backupInto(t, dump, address).Take(t.Context())
 
 		wantRefused(t, err, "updater: the backup reads the database address only as a postgres:// URL")
@@ -333,9 +337,9 @@ func TestTakeRefusesAnAddressThatIsNotAPostgresURL(t *testing.T) {
 }
 
 func TestTakeKeepsOnlyTheNewestBackups(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
+
+	t.Parallel()
 	held := []string{
 		"0.19.0-20261001T000000Z.dump", "0.19.5-rc.1-20261010T000000Z.dump", "0.20.0-20261015T000000Z.dump",
 		"0.19.0-later.dump", "notes.txt",
@@ -376,10 +380,10 @@ func placeBackups(t *testing.T, backup updater.Backup, names ...string) {
 }
 
 func TestTakeKeepsTheBackupItTookWhenTheClockWentBack(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
 	backup.Keep = 2
+
+	t.Parallel()
 	placeBackups(t, backup,
 		"0.19.0-20261024T000000Z.dump", "0.20.0-20261025T000000Z.dump", "0.20.0-20261030T000000Z.dump")
 
@@ -394,10 +398,10 @@ func TestTakeKeepsTheBackupItTookWhenTheClockWentBack(t *testing.T) {
 }
 
 func TestTakeKeepsTheBackupTheStateNamesPastTheNumberItKeeps(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
 	backup.Keep, backup.Held = 1, "0.19.0-20261001T000000Z.dump"
+
+	t.Parallel()
 	placeBackups(t, backup, backup.Held, "0.19.5-20261010T000000Z.dump")
 
 	if err := backup.Take(t.Context()); err != nil {
@@ -411,10 +415,10 @@ func TestTakeKeepsTheBackupTheStateNamesPastTheNumberItKeeps(t *testing.T) {
 }
 
 func TestTakeLeavesTheSQLiteBackupsWhenItPrunes(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
 	backup.Keep = 1
+
+	t.Parallel()
 	copies := []string{
 		"0.19.0-20261002T000000Z-update.sqlite", "0.19.0-20261003T000000Z-scheduled.sqlite",
 		"0.19.0-20261004T000000Z-manual.sqlite",
@@ -432,9 +436,9 @@ func TestTakeLeavesTheSQLiteBackupsWhenItPrunes(t *testing.T) {
 }
 
 func TestTakeRefusesAFailedDumpAndKeepsNoPartOfIt(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, newFakeDump(t, "pg_dump (PostgreSQL) 18.0", 2), "postgres://db.example.com/site")
+
+	t.Parallel()
 
 	err := backup.Take(t.Context())
 
@@ -446,9 +450,9 @@ func TestTakeRefusesAFailedDumpAndKeepsNoPartOfIt(t *testing.T) {
 }
 
 func TestTakeRefusesABackupsFolderItCannotWrite(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
+
+	t.Parallel()
 	if err := os.MkdirAll(backup.Folder, 0o755); err != nil {
 		t.Fatalf("making the backups folder: %v", err)
 	}
@@ -460,9 +464,9 @@ func TestTakeRefusesABackupsFolderItCannotWrite(t *testing.T) {
 }
 
 func TestTakeRefusesABackupsFolderItCannotSaveToDisk(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
+
+	t.Parallel()
 	if err := os.MkdirAll(backup.Folder, 0o755); err != nil {
 		t.Fatalf("making the backups folder: %v", err)
 	}
@@ -474,9 +478,9 @@ func TestTakeRefusesABackupsFolderItCannotSaveToDisk(t *testing.T) {
 }
 
 func TestTakeRefusesABackupItCannotKeepUnderItsName(t *testing.T) {
-	t.Parallel()
-
 	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
+
+	t.Parallel()
 	if err := os.MkdirAll(filepath.Join(backup.Folder, backup.Name, "kept"), 0o755); err != nil {
 		t.Fatalf("making a folder under the name of the backup: %v", err)
 	}
