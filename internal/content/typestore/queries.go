@@ -24,6 +24,7 @@ type TypeQueries interface {
 	UpdateContentType(ctx context.Context, t TypeRow) (TypeRow, error)
 	DeferAddressCheck(ctx context.Context) error
 	RetypeContentPaths(ctx context.Context, t TypeRow, was string) ([]string, error)
+	CountContentOutsideRouteWord(ctx context.Context, key, was string) (OutsideRow, error)
 	CountNestedContent(ctx context.Context, key string) (int64, error)
 	DeleteContentType(ctx context.Context, key string) (int64, error)
 	AdoptContentType(ctx context.Context, key string, at time.Time) (int64, error)
@@ -73,6 +74,12 @@ type TypeRow struct {
 	Hierarchical, Revisions, IsDefault, Active                                bool
 	RevisionCap                                                               int
 	CreatedAt, UpdatedAt                                                      time.Time
+}
+
+// OutsideRow is how many addresses of a type do not start with a route word, and the first of them in byte order.
+type OutsideRow struct {
+	Items int64
+	First string
 }
 
 // GroupRow is one stored field group, its location still encoded as JSON.

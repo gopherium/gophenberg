@@ -178,6 +178,9 @@ func sent(name string, args any) step {
 	return step{name: name, args: args}
 }
 
+// countedOutsideBooks is the entry counting the addresses of the book type that do not start with books.
+var countedOutsideBooks = sent("CountContentOutsideRouteWord", outsideOf{Key: "book", Was: "books"})
+
 // fieldSwept returns the entries removing the group's top field under the key and clearing its values from the types.
 func fieldSwept(groupID int, key string, types []string) []step {
 	return []step{
@@ -362,7 +365,7 @@ var typeSequences = map[string]sequence{
 		},
 		golden: []step{
 			begun, sent("LockContentType", keyed{"book"}), sent("UpdateContentType", novelRow("novels")),
-			deferredAddresses,
+			countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", RouteWord: "novels", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
@@ -375,7 +378,7 @@ var typeSequences = map[string]sequence{
 			begun, sent("LockContentType", keyed{"book"}), sent("CountNestedContent", keyed{"book"}), lockedRoot,
 			sent("UpdateContentType", demotedPage), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "page", RouteWord: "pages", UpdatedAt: editedAt}),
-			sent("UpdateContentType", rootBookRow(false)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(false)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
@@ -389,7 +392,7 @@ var typeSequences = map[string]sequence{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot,
 			sent("UpdateContentType", demotedResumes), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "page", RouteWord: "resumes", UpdatedAt: editedAt}),
-			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(true)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
@@ -403,7 +406,7 @@ var typeSequences = map[string]sequence{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot,
 			sent("UpdateContentType", demotedFAQItems), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "page", RouteWord: "faq-items", UpdatedAt: editedAt}),
-			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(true)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
@@ -423,7 +426,7 @@ var typeSequences = map[string]sequence{
 		},
 		golden: []step{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot, lockedRoot,
-			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(true)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
