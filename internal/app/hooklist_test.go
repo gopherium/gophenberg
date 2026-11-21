@@ -22,13 +22,22 @@ func TestIndexOfReadsTheHooksAndTheSettingsOfEachPluginFromOneIndex(t *testing.T
 
 	read, err := indexOf([]byte(`[
 		{"id": "forum", "name": "Forum", "hooks": ["public.head-tags"], "defines": ["forum.badges", {"hook": "forum.check"}],
-			"settings": [{"key": "per_page", "type": "count", "default": "10", "min": 1}]},
+			"settings": [{"key": "per_page", "type": "count", "default": "10", "min": 1}],
+			"description": "Answers questions under each post.", "version": "0.0.1"},
 		{"id": "solved", "name": "Solved", "hooks": ["forum.badges"]},
 		{"id": "quiet", "name": "Quiet"}
 	]`))
 
 	if err != nil {
 		t.Fatalf("indexOf() = %v, want the index read", err)
+	}
+	kept := make([]string, 0, len(read.manifests))
+	for _, manifest := range read.manifests {
+		kept = append(kept, manifest.ID+": "+manifest.Name+": "+manifest.Description+": "+manifest.Version)
+	}
+	whole := []string{"forum: Forum: Answers questions under each post.: 0.0.1", "solved: Solved: : ", "quiet: Quiet: : "}
+	if !slices.Equal(kept, whole) {
+		t.Errorf("indexOf() keeps %q, want every manifest whole in the order of the index", kept)
 	}
 	listed := read.hooks
 	want := map[string][]string{"forum": {"public.head-tags"}, "solved": {"forum.badges"}, "quiet": nil}
