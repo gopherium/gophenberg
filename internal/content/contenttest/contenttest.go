@@ -12,13 +12,14 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// Stores is one fresh set of content, type, site setting and user setting stores, holding only the built-in post type.
+// Stores is one fresh set of stores holding only the built-in post type, and a hook that sets an item's address.
 type Stores struct {
 	Content      content.Store
 	Types        content.TypeStore
 	SiteSettings content.SiteSettingStore
 	UserSettings content.UserSettingStore
 	AddAuthor    func(t *testing.T, name string) uuid.UUID
+	PlantPath    func(t *testing.T, id uuid.UUID, path string)
 }
 
 // Factory returns fresh stores for one case, skipping the case when its engine is out of reach.
@@ -35,6 +36,7 @@ func Cases() []Case {
 	return slices.Concat(
 		contentCases, slugCases, revisionCases, autosaveCases, trashCases, pathCases, publishedCases, nestingCases,
 		relationCases, backlinkCases, nestedRelationCases, listCases, filterCases, valueCases, rootPaginationCases,
+		routeWordSaveCases,
 	)
 }
 
@@ -46,6 +48,7 @@ func TypeCases() []Case {
 		fieldDepthCases, subFieldWriteCases, fieldMoveCases, fieldMoveValueCases, fieldSweepCases,
 		layoutSweepCases, definitionSweepCases, contractKeyCases, contractStampCases, contractOrderCases,
 		contractSweepCases, frozenSweepCases, frozenKeepCases, frozenRelationCases, contractWriteCases,
+		routeWordStopCases,
 	)
 }
 
