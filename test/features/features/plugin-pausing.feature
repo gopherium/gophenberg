@@ -1,13 +1,14 @@
 Feature: A site keeps running when one plugin fails at start
-  The site keeps one record per compiled plugin: its state and the error
-  that paused it. The state is not installed, inactive, active or paused.
+  The site keeps one record per compiled plugin: its state and, for a
+  paused plugin, the step it failed at and its own error, kept apart. The
+  state is not installed, inactive, active or paused.
   The first start that sees a plugin records it as active. Each start
   registers the active and paused plugins one by one. A plugin that fails
   or panics as it registers, migrates, declares its roles or content
   types, lists hooks its methods do not match, hands over its routes, or
-  starts is paused with its error, the way WordPress's recovery mode
-  pauses a plugin, and the rest of the site starts. A paused plugin is
-  left out of the site and tried again at every start.
+  starts is paused at that step with its own error, the way WordPress's
+  recovery mode pauses a plugin, and the rest of the site starts. A paused
+  plugin is left out of the site and tried again at every start.
   An inactive plugin, one turned off on purpose, is never tried. A start
   cut short by a shutdown pauses nothing.
 
@@ -27,8 +28,19 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes register: the title is too long"
+    And the plugin records hold "notes" as paused at the step "register", its error saying "the title is too long"
     And the site logged that "notes" is paused at the step "register"
+
+  Scenario Outline: A paused plugin keeps its own error with nothing in front while the log keeps the whole error
+    Given <trouble>
+    When the site serves
+    Then the plugin records hold "notes" as paused at the step "<step>", its whole error reading "<error>"
+    And the site logged that "notes" is paused at the step "<step>", its error reading "<logged>"
+
+    Examples:
+      | trouble                                                            | step     | error                     | logged                                           |
+      | the Register of "notes" fails with "the title is too long"         | register | the title is too long     | pluginkit: notes register: the title is too long |
+      | the content types of "notes" fail with "the field list is missing" | types    | the field list is missing | plugin notes types: the field list is missing    |
 
   Scenario: A plugin that calls itself by another id is paused under its manifest id
     Given the Register of "notes" answers a plugin that calls itself "notez"
@@ -36,7 +48,7 @@ Feature: A site keeps running when one plugin fails at start
     Then the route of "events" answers 200
     And the route of "notes" answers 404
     And the route of "notez" answers 404
-    And the plugin records hold "notes" as paused, its error saying "the plugin calls itself"
+    And the plugin records hold "notes" as paused at the step "register", its error saying "the plugin calls itself"
     And the plugin records hold no record of "notez"
     And the site logged that "notes" is paused at the step "register"
 
@@ -46,7 +58,7 @@ Feature: A site keeps running when one plugin fails at start
     Then the route of "events" answers 200
     And the route of "notes" answers 404
     And the Start of "notes" never ran
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes migrate: schema exploded"
+    And the plugin records hold "notes" as paused at the step "migrate", its error saying "schema exploded"
     And the site logged that "notes" is paused at the step "migrate"
 
   Scenario: A plugin whose Start fails is paused and its routes are not mounted
@@ -54,7 +66,7 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes start: no route table"
+    And the plugin records hold "notes" as paused at the step "start", its error saying "no route table"
     And the site logged that "notes" is paused at the step "start"
 
   Scenario: A plugin whose roles fail to declare is paused and its roles are left out
@@ -62,7 +74,7 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "manage_archive"
+    And the plugin records hold "notes" as paused at the step "roles", its error saying "manage_archive"
     And the site logged that "notes" is paused at the step "roles"
 
   Scenario: A plugin whose content types fail to declare is paused
@@ -70,7 +82,7 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "the field list is missing"
+    And the plugin records hold "notes" as paused at the step "types", its error saying "the field list is missing"
     And the site logged that "notes" is paused at the step "types"
 
   Scenario: A paused plugin keeps the content types it declared before and none is offered as an orphan
@@ -88,16 +100,16 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "<error>"
+    And the plugin records hold "notes" as paused at the step "<step>", its error saying "panicked: boom"
     And the site logged that "notes" is paused at the step "<step>"
 
     Examples:
-      | method       | step     | error                                    |
-      | Register     | register | pluginkit: notes register panicked: boom |
-      | Migrate      | migrate  | pluginkit: notes migrate panicked: boom  |
-      | Roles        | roles    | plugin notes roles panicked: boom        |
-      | DeclareTypes | types    | plugin notes types panicked: boom        |
-      | Start        | start    | pluginkit: notes start panicked: boom    |
+      | method       | step     |
+      | Register     | register |
+      | Migrate      | migrate  |
+      | Roles        | roles    |
+      | DeclareTypes | types    |
+      | Start        | start    |
 
   Scenario Outline: A plugin whose routes fail to load is paused and never starts
     Given <trouble>
@@ -105,14 +117,14 @@ Feature: A site keeps running when one plugin fails at start
     Then the route of "events" answers 200
     And the route of "notes" answers 404
     And the Start of "notes" never ran
-    And the plugin records hold "notes" as paused, its error saying "<error>"
+    And the plugin records hold "notes" as paused at the step "routes", its error saying "<error>"
     And the site logged that "notes" is paused at the step "routes"
 
     Examples:
-      | trouble                                       | error                                               |
-      | the Routes of "notes" panics with "boom"      | pluginkit: notes routes panicked: boom              |
-      | the PublicPaths of "notes" panics with "boom" | pluginkit: notes routes panicked: boom              |
-      | the Routes of "notes" answers no handler      | pluginkit: notes routes: Routes answered no handler |
+      | trouble                                       | error                      |
+      | the Routes of "notes" panics with "boom"      | panicked: boom             |
+      | the PublicPaths of "notes" panics with "boom" | panicked: boom             |
+      | the Routes of "notes" answers no handler      | Routes answered no handler |
 
   Scenario Outline: A plugin whose listed hooks differ from its methods is paused and never starts
     Given <trouble>
@@ -120,15 +132,15 @@ Feature: A site keeps running when one plugin fails at start
     Then the route of "events" answers 200
     And the route of "notes" answers 404
     And the Start of "notes" never ran
-    And the plugin records hold "notes" as paused, its error saying "<error>"
+    And the plugin records hold "notes" as paused at the step "hooks", its error saying "<error>"
     And the site logged that "notes" is paused at the step "hooks"
 
     Examples:
-      | trouble                                                         | error                                                                                   |
-      | "notes" lists the hook "public.head-tags" with no method for it | plugin notes hooks: lists public.head-tags but has no HeadTags method                   |
-      | "notes" has a head tags method and lists no hook                | plugin notes hooks: has a HeadTags method but does not list public.head-tags            |
-      | "notes" lists the hook "public.head-tag" with no method for it  | plugin notes hooks: lists public.head-tag, a hook neither the site nor a plugin defines |
-      | "notes" adds a head tag marking itself and lists its hook twice | plugin notes hooks: lists public.head-tags twice                                        |
+      | trouble                                                         | error                                                               |
+      | "notes" lists the hook "public.head-tags" with no method for it | lists public.head-tags but has no HeadTags method                   |
+      | "notes" has a head tags method and lists no hook                | has a HeadTags method but does not list public.head-tags            |
+      | "notes" lists the hook "public.head-tag" with no method for it  | lists public.head-tag, a hook neither the site nor a plugin defines |
+      | "notes" adds a head tag marking itself and lists its hook twice | lists public.head-tags twice                                        |
 
   Scenario: A paused plugin that starts again is active with no error
     Given the plugin records already hold "notes" as paused with "a setting is missing"
@@ -141,7 +153,7 @@ Feature: A site keeps running when one plugin fails at start
     And the Start of "notes" fails with "no route table"
     When the site serves
     Then the route of "events" answers 200
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes start: no route table"
+    And the plugin records hold "notes" as paused at the step "start", its error saying "no route table"
 
   Scenario Outline: A plugin the records hold as <state> is never registered
     Given the plugin records already hold "notes" as <state>
@@ -184,7 +196,7 @@ Feature: A site keeps running when one plugin fails at start
     And the Start of "notes" fails with "no route table"
     When the site starts
     Then the update status says the update to this version is kept
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes start: no route table"
+    And the plugin records hold "notes" as paused at the step "start", its error saying "no route table"
 
   Scenario: A plugin whose start runs past the budget is named in a warning
     Given GOPHENBERG_PLUGIN_START_BUDGET is "10ms"

@@ -93,10 +93,15 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the drift report names no orphan from "([^"]*)"$`, p.noOrphanFrom)
 	sc.Then(`^the route of "([^"]*)" answers (\d+)$`, p.routeAnswers)
 	sc.Then(`^the plugin records hold "([^"]*)" as (active|inactive|not installed) with no error$`, p.holdsClean)
-	sc.Then(`^the plugin records hold "([^"]*)" as paused, its error saying "(.*)"$`, p.holdsPaused)
+	sc.Then(`^the plugin records hold "([^"]*)" as paused at the step "([^"]*)", its error saying "(.*)"$`,
+		p.holdsPaused)
+	sc.Then(`^the plugin records hold "([^"]*)" as paused at the step "([^"]*)", its whole error reading "(.*)"$`,
+		p.holdsPausedExactly)
 	sc.Then(`^the plugin records hold no record$`, p.holdsNone)
 	sc.Then(`^the plugin records hold no record of "([^"]*)"$`, p.holdsNoneOf)
 	sc.Then(`^the site logged that "([^"]*)" is paused at the step "([^"]*)"$`, p.loggedPause)
+	sc.Then(`^the site logged that "([^"]*)" is paused at the step "([^"]*)", its error reading "(.*)"$`,
+		p.loggedPauseReading)
 	sc.Then(`^the (Register|Start) of "([^"]*)" never ran$`, p.neverRan)
 	sc.Then(`^the site logged a warning that "([^"]*)" started slower than its budget$`, p.warnedSlow)
 	sc.Then(`^the site logged no slow start for "([^"]*)"$`, p.warnedNoSlow)
@@ -303,11 +308,21 @@ func (p *pausingScenario) holdsClean(ctx context.Context, id, state string) erro
 	}, state+" with no error")
 }
 
-// holdsPaused fails unless the plugin records hold the plugin id paused with an error carrying text.
-func (p *pausingScenario) holdsPaused(ctx context.Context, id, text string) error {
+// holdsPaused fails unless the plugin records hold the plugin id paused at step with an error carrying text.
+func (p *pausingScenario) holdsPaused(ctx context.Context, id, step, text string) error {
+	want := pluginkit.PluginRecord{ID: id, State: pluginkit.PluginPaused, Step: pluginkit.Step(step)}
 	return p.holds(ctx, id, func(held pluginkit.PluginRecord) bool {
-		return held.State == pluginkit.PluginPaused && strings.Contains(held.LastError, text)
-	}, "paused for "+text)
+		projected := pluginkit.PluginRecord{ID: held.ID, State: held.State, Step: held.Step}
+		return projected == want && strings.Contains(held.LastError, text)
+	}, fmt.Sprintf("paused at the step %s for %s", step, text))
+}
+
+// holdsPausedExactly fails unless the plugin records hold the plugin id paused at step with text as its whole error.
+func (p *pausingScenario) holdsPausedExactly(ctx context.Context, id, step, text string) error {
+	want := pluginkit.PluginRecord{ID: id, State: pluginkit.PluginPaused, Step: pluginkit.Step(step), LastError: text}
+	return p.holds(ctx, id, func(held pluginkit.PluginRecord) bool {
+		return held == want
+	}, fmt.Sprintf("%+v", want))
 }
 
 // holds fails unless the record of the plugin id passes kept, naming want.
@@ -363,6 +378,11 @@ func (p *pausingScenario) logged() string {
 // loggedPause fails unless the site logged the pause of the plugin id at step.
 func (p *pausingScenario) loggedPause(id, step string) error {
 	return p.loggedLine(fmt.Sprintf("msg=%q plugin=%s step=%s", pausedLine, id, step))
+}
+
+// loggedPauseReading fails unless the site logged the pause of the plugin id at step with text as its whole error.
+func (p *pausingScenario) loggedPauseReading(id, step, text string) error {
+	return p.loggedLine(fmt.Sprintf("msg=%q plugin=%s step=%s error=%q", pausedLine, id, step, text))
 }
 
 // warnedSlow fails unless the site warned that the plugin id started slower than its budget.
