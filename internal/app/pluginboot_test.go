@@ -26,17 +26,17 @@ import (
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-// errDropped is the failure a refusing store answers.
+// errDropped is the failure a rejecting store answers.
 var errDropped = errors.New("connection dropped")
 
-// refusingStore is a plugin store in memory whose reads or writes fail when it is told.
-type refusingStore struct {
+// rejectingStore is a plugin store in memory whose reads or writes fail when it is told.
+type rejectingStore struct {
 	*pluginstoretest.Memory
 	reads, writes bool
 }
 
 // Records answers the records, or errDropped when reads fail.
-func (s refusingStore) Records(ctx context.Context) (map[string]pluginkit.PluginRecord, error) {
+func (s rejectingStore) Records(ctx context.Context) (map[string]pluginkit.PluginRecord, error) {
 	if s.reads {
 		return nil, errDropped
 	}
@@ -44,19 +44,19 @@ func (s refusingStore) Records(ctx context.Context) (map[string]pluginkit.Plugin
 }
 
 // Activate activates id, or answers errDropped when writes fail.
-func (s refusingStore) Activate(ctx context.Context, id string) error {
+func (s rejectingStore) Activate(ctx context.Context, id string) error {
 	if s.writes {
 		return errDropped
 	}
 	return s.Memory.Activate(ctx, id)
 }
 
-// Pause pauses id, or answers errDropped when writes fail.
-func (s refusingStore) Pause(ctx context.Context, id, failure string) error {
+// Pause pauses id at step with reason, or answers errDropped when writes fail.
+func (s rejectingStore) Pause(ctx context.Context, id string, step pluginkit.Step, reason string) error {
 	if s.writes {
 		return errDropped
 	}
-	return s.Memory.Pause(ctx, id, failure)
+	return s.Memory.Pause(ctx, id, step, reason)
 }
 
 // bootOver returns a start over store and no database, its plugins lent no share.
@@ -134,33 +134,33 @@ func TestStartPluginsStopsWhenThePluginStoreFails(t *testing.T) {
 
 	paused := pluginkit.PluginRecord{ID: "notes", State: pluginkit.PluginPaused, LastError: "a setting is missing"}
 	for name, asked := range map[string]struct {
-		store   refusingStore
+		store   rejectingStore
 		plugins registrations
 		want    string
 	}{
-		"a read": {refusingStore{Memory: pluginstoretest.NewMemory(), reads: true}, listOf(idle("notes")),
+		"a read": {rejectingStore{Memory: pluginstoretest.NewMemory(), reads: true}, listOf(idle("notes")),
 			"pluginkit: read the plugin records: connection dropped"},
-		"a new plugin": {refusingStore{Memory: pluginstoretest.NewMemory(), writes: true}, listOf(idle("notes")),
+		"a new plugin": {rejectingStore{Memory: pluginstoretest.NewMemory(), writes: true}, listOf(idle("notes")),
 			"pluginkit: activate notes: connection dropped"},
 		"a role pause": {
-			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
+			rejectingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
 			listOf(declaringRole("notes", "archivist", "manage_archive")),
 			"pluginkit: pause notes: connection dropped",
 		},
 		"a type pause": {
-			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("holding")), writes: true},
+			rejectingStore{Memory: pluginstoretest.NewMemory(activeRecord("holding")), writes: true},
 			listOf(refusingDeclarer{holdingPlugin: newHoldingPlugin(), err: errors.New("declare exploded")}),
 			"pluginkit: pause holding: connection dropped",
 		},
 		"a routes pause": {
-			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
+			rejectingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
 			listOf(handlerless{idle: "notes"}), "pluginkit: pause notes: connection dropped",
 		},
 		"a hooks pause": {
-			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
+			rejectingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
 			listOf(unlisted{idle: "notes"}), "pluginkit: pause notes: connection dropped",
 		},
-		"a plugin that starts again": {refusingStore{Memory: pluginstoretest.NewMemory(paused), writes: true},
+		"a plugin that starts again": {rejectingStore{Memory: pluginstoretest.NewMemory(paused), writes: true},
 			listOf(idle("notes")), "pluginkit: activate notes: connection dropped"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -189,10 +189,57 @@ func TestStartPluginsPausesAPluginUnderTheIDItHadBeforeItsStepPanicked(t *testin
 	}
 	records, err := store.Records(t.Context())
 	want := pluginkit.PluginRecord{
-		ID: "turncoat", State: pluginkit.PluginPaused, LastError: "plugin turncoat roles panicked: boom",
+		ID: "turncoat", State: pluginkit.PluginPaused, Step: pluginkit.StepRoles, LastError: "panicked: boom",
 	}
 	if err != nil || records["turncoat"] != want {
 		t.Errorf("Records() = %+v (%v), want %+v", records, err, want)
+	}
+}
+
+func TestStepOfKeepsTheWholeErrorTheLogPrintsBesideThePluginsOwn(t *testing.T) {
+	t.Parallel()
+
+	returned := stepOf("notes", stepHooks, func() error { return errors.New("lists public.head-tags twice") })
+	panicked := stepOf("notes", pluginkit.StepRoles, func() error { panic("boom") })
+
+	if got := fmt.Sprint(returned.Err); got != "plugin notes hooks: lists public.head-tags twice" {
+		t.Errorf("a returned error reads %q, want the plugin id and the step in front of it", got)
+	}
+	if returned.Reason != "lists public.head-tags twice" {
+		t.Errorf("a returned error keeps the reason %q, want the plugin's own error alone", returned.Reason)
+	}
+	if got := fmt.Sprint(panicked.Err); got != "plugin notes roles panicked: boom" || !panicked.Panicked {
+		t.Errorf("a panic reads %q with Panicked %v, want the plugin id and the step in front of it", got,
+			panicked.Panicked)
+	}
+	if panicked.Reason != "panicked: boom" {
+		t.Errorf("a panic keeps the reason %q, want the panic's value alone", panicked.Reason)
+	}
+}
+
+// driftingError is an error whose text changes each time it is read.
+type driftingError struct {
+	reads *int
+}
+
+// Error returns a text naming how many times the error was read.
+func (e driftingError) Error() string {
+	*e.reads++
+	return fmt.Sprintf("read number %d", *e.reads)
+}
+
+func TestStepOfReadsThePluginsErrorOnceForTheLogAndTheRecord(t *testing.T) {
+	t.Parallel()
+
+	drifting := driftingError{reads: new(int)}
+
+	failure := stepOf("notes", stepTypes, func() error { return drifting })
+
+	if got := fmt.Sprint(failure.Err); got != "plugin notes types: "+failure.Reason {
+		t.Errorf("the log reads %q and the record %q, want one read of the plugin's error in both", got, failure.Reason)
+	}
+	if !errors.Is(failure.Err, drifting) {
+		t.Errorf("the error %v leaves out the plugin's own, want it kept for errors.Is", failure.Err)
 	}
 }
 
@@ -249,8 +296,8 @@ func TestStartPluginsPausesAPluginWhoseSettingsAreRejectedAtRegister(t *testing.
 	records, err := store.Records(t.Context())
 	want := map[string]pluginkit.PluginRecord{
 		"notes": {
-			ID: "notes", State: pluginkit.PluginPaused,
-			LastError: "pluginkit: notes register: settings[0] per_page: a count needs a default",
+			ID: "notes", State: pluginkit.PluginPaused, Step: pluginkit.StepRegister,
+			LastError: "settings[0] per_page: a count needs a default",
 		},
 		"gallery": {ID: "gallery", State: pluginkit.PluginActive},
 	}
@@ -282,7 +329,7 @@ func (failingHeads) Start(context.Context) error {
 func TestDeclarePluginsRefusesACoreTableTheRegistryRefuses(t *testing.T) {
 	t.Parallel()
 
-	start := bootOver(refusingStore{Memory: pluginstoretest.NewMemory()})
+	start := bootOver(rejectingStore{Memory: pluginstoretest.NewMemory()})
 
 	_, err := start.declarePlugins(t.Context(), &pausing{}, []goncierge.Role{{Name: "Admin"}}, nil)
 

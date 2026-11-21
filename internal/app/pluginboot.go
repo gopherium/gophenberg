@@ -29,6 +29,13 @@ const pausedLine = "plugin paused"
 // slowStartLine is the warning serve logs for each plugin whose Start ran past its budget.
 const slowStartLine = "plugin started slower than its budget"
 
+const (
+	// stepTypes is the declaration of a plugin's content types, a step only this site runs.
+	stepTypes pluginkit.Step = "types"
+	// stepHooks is the check of a plugin's listed hooks against its methods, a step only this site runs.
+	stepHooks pluginkit.Step = "hooks"
+)
+
 // pluginStart is what one start of the plugins left: a host over each tried plugin, the started ones' routes and hooks.
 type pluginStart struct {
 	host        *pluginkit.Host
@@ -103,20 +110,20 @@ func (b boot) declarePlugins(
 	if err := declareRoles(b.built.roles, core, nil); err != nil {
 		return declaredPlugins{}, err
 	}
-	withRoles, err := paused.keep(ctx, registered, "roles", func(plugin sdk.Plugin) error {
+	withRoles, err := paused.keep(ctx, registered, pluginkit.StepRoles, func(plugin sdk.Plugin) error {
 		return declarePlugin(b.built.roles, plugin)
 	})
 	if err != nil {
 		return declaredPlugins{}, err
 	}
 	held := declaredPlugins{walked: definitions.Walked{}}
-	withTypes, err := paused.keep(ctx, withRoles, "types", func(plugin sdk.Plugin) error {
+	withTypes, err := paused.keep(ctx, withRoles, stepTypes, func(plugin sdk.Plugin) error {
 		return b.declarePluginTypes(ctx, plugin, held.walked)
 	})
 	if err != nil {
 		return declaredPlugins{}, err
 	}
-	withHooks, err := paused.keep(ctx, withTypes, "hooks", func(plugin sdk.Plugin) error {
+	withHooks, err := paused.keep(ctx, withTypes, stepHooks, func(plugin sdk.Plugin) error {
 		return pluginhooks.Check(plugin, b.listed.byPlugin[plugin.ID()], b.listed.defined)
 	})
 	if err != nil {
@@ -186,26 +193,24 @@ func startedOf(kept []sdk.Plugin, started []pluginkit.StartedPlugin) []sdk.Plugi
 // logged logs each failure the plugin records paused, keeping its id.
 func (p *pausing) logged(failures []pluginkit.Failure) {
 	for _, failure := range failures {
-		p.note(failure.ID, string(failure.Step), failure.Err)
+		p.note(failure)
 	}
 }
 
-// keep runs step on each plugin, answering the ones it passed and pausing each it failed under the step's name.
+// keep runs step on each plugin, answering the ones it passed and pausing each it failed at that step.
 func (p *pausing) keep(
-	ctx context.Context, plugins []sdk.Plugin, step string, run func(sdk.Plugin) error,
+	ctx context.Context, plugins []sdk.Plugin, step pluginkit.Step, run func(sdk.Plugin) error,
 ) ([]sdk.Plugin, error) {
 	kept := make([]sdk.Plugin, 0, len(plugins))
 	for _, plugin := range plugins {
-		id := plugin.ID()
-		failed := stepOf(id, step, func() error { return run(plugin) })
-		if failed == nil {
+		failure := stepOf(plugin.ID(), step, func() error { return run(plugin) })
+		if failure.Err == nil {
 			kept = append(kept, plugin)
 			continue
 		}
-		if err := p.records.Pause(ctx, id, failed); err != nil {
+		if err := p.pause(ctx, failure); err != nil {
 			return nil, err
 		}
-		p.note(id, step, failed)
 	}
 	return kept, nil
 }
@@ -214,10 +219,9 @@ func (p *pausing) keep(
 func (p *pausing) routed(ctx context.Context, plugins []sdk.Plugin) ([]sdk.Plugin, pluginkit.RoutesOutcome, error) {
 	read := pluginkit.RoutesEach(plugins)
 	for _, failure := range read.Failed {
-		if err := p.records.Pause(ctx, failure.ID, failure.Err); err != nil {
+		if err := p.pause(ctx, failure); err != nil {
 			return nil, read, err
 		}
-		p.note(failure.ID, string(failure.Step), failure.Err)
 	}
 	kept := slices.DeleteFunc(slices.Clone(plugins), func(plugin sdk.Plugin) bool {
 		return slices.ContainsFunc(read.Failed, func(failure pluginkit.Failure) bool { return failure.ID == plugin.ID() })
@@ -225,17 +229,46 @@ func (p *pausing) routed(ctx context.Context, plugins []sdk.Plugin) ([]sdk.Plugi
 	return kept, read, nil
 }
 
-// stepOf runs the step of the plugin id, naming both in the error it answers or in the panic it recovered.
-func stepOf(id, step string, run func() error) (failed error) {
+// pause pauses the plugin the failure names through the records, then logs the pause and keeps its id.
+func (p *pausing) pause(ctx context.Context, failure pluginkit.Failure) error {
+	if err := p.records.Pause(ctx, failure); err != nil {
+		return err
+	}
+	p.note(failure)
+	return nil
+}
+
+// stepOf runs the step of the plugin id, answering its failure, or one with no Err when the step passed.
+func stepOf(id string, step pluginkit.Step, run func() error) (failure pluginkit.Failure) {
+	failure = pluginkit.Failure{ID: id, Step: step}
 	defer func() {
 		if caught := recover(); caught != nil {
-			failed = fmt.Errorf("plugin %s %s panicked: %v", id, step, caught)
+			failure.Panicked, failure.Reason = true, fmt.Sprintf("panicked: %v", caught)
+			failure.Err = fmt.Errorf("plugin %s %s %s", id, step, failure.Reason)
 		}
 	}()
 	if err := run(); err != nil {
-		return fmt.Errorf("plugin %s %s: %w", id, step, err)
+		failed := &stepError{front: fmt.Sprintf("plugin %s %s: ", id, step), text: fmt.Sprint(err), err: err}
+		failure.Err, failure.Reason = failed, failed.text
 	}
-	return nil
+	return failure
+}
+
+// stepError is the error a plugin's step returned, its text read once and kept apart from the plugin id and the step.
+type stepError struct {
+	front string
+	text  string
+	err   error
+}
+
+// Error returns the text with the plugin id and the step in front, as the log line prints it.
+func (e *stepError) Error() string {
+	return e.front + e.text
+}
+
+// Unwrap returns the error the step returned.
+func (e *stepError) Unwrap() error {
+	return e.err
 }
 
 // mark marks each plugin the start paused as paused in walked.
@@ -247,10 +280,10 @@ func (p *pausing) mark(walked definitions.Walked) {
 	}
 }
 
-// note logs the pause of the plugin id at step for err and keeps its id.
-func (p *pausing) note(id, step string, err error) {
-	p.logger.Warn(pausedLine, "plugin", id, "step", step, "error", err)
-	p.paused = append(p.paused, id)
+// note logs the pause the failure names, with its whole error, and keeps the paused plugin's id.
+func (p *pausing) note(failure pluginkit.Failure) {
+	p.logger.Warn(pausedLine, "plugin", failure.ID, "step", string(failure.Step), "error", failure.Err)
+	p.paused = append(p.paused, failure.ID)
 }
 
 // declarePluginTypes hands a declaring plugin a registrar over the types, noting its walk and what it could not claim.
