@@ -1,6 +1,8 @@
 {
 	"id": "feed",
 	"name": "Feed",
+	"description": "Serves your published posts as an RSS feed.",
+	"version": "0.0.1",
 	"backend": "github.com/gopherium/gophenberg/plugins/feed",
 	"hooks": ["public.head-tags"],
 	"settings": [

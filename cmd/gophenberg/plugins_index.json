@@ -3,6 +3,8 @@
 		"id": "feed",
 		"name": "Feed",
 		"backend": "github.com/gopherium/gophenberg/plugins/feed",
+		"description": "Serves your published posts as an RSS feed.",
+		"version": "0.0.1",
 		"hooks": [
 			"public.head-tags"
 		],
