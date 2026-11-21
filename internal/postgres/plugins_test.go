@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gopherium/framework/dbkit"
+	"github.com/gopherium/framework/pluginkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -51,7 +52,7 @@ func TestPluginStoreReportsAPauseItCannotWrite(t *testing.T) {
 	store, pool := pluginStoreWithPool(t)
 	sabotage(t, pool, "ALTER TABLE core.plugins RENAME TO plugins_gone")
 
-	err := store.Pause(t.Context(), "events", "a setting is missing")
+	err := store.Pause(t.Context(), "events", pluginkit.StepRegister, "a setting is missing")
 	if err == nil || !strings.Contains(err.Error(), `pausing the plugin "events"`) {
 		t.Errorf("Pause() error = %v, want the failed pause named", err)
 	}
