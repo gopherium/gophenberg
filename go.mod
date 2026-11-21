@@ -20,7 +20,7 @@ require (
 	github.com/gopherium/framework/gonsole/auth v0.9.0
 	github.com/gopherium/framework/gonsole/auth/postgres v0.2.0
 	github.com/gopherium/framework/gonsole/auth/sqlite v0.2.0
-	github.com/gopherium/framework/pluginkit v0.12.1-0.20261115235611-a3016beffa5b
+	github.com/gopherium/framework/pluginkit v0.12.1-0.20261118235724-fb63afbc52cc
 	github.com/gopherium/gophenberg/sdk v0.5.0
 	github.com/gopherium/gouncer v0.5.0
 	github.com/gopherium/gouncer/authkit v0.24.0
