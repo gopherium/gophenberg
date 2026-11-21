@@ -1945,6 +1945,10 @@ msgid "%(type)s keeps nesting, because some of its items sit inside another."
 msgstr "%(type)s continue de s'imbriquer, car certains de ses éléments se trouvent dans un autre."
 
 #, fuzzy
+msgid "%(type)s keeps the route word /%(word)s while %(items)s of its items sit outside it, such as /%(path)s, the ones in the trash included. Change and save each one, restoring it from the trash first if needed, or delete it permanently. Then try again."
+msgstr "%(type)s garde le mot de route /%(word)s tant que %(items)s de ses éléments se trouvent en dehors, comme /%(path)s, ceux de la corbeille compris. Modifiez et enregistrez chacun d'eux, en le rétablissant d'abord depuis la corbeille si besoin, ou supprimez-le définitivement. Réessayez ensuite."
+
+#, fuzzy
 msgid "Destination"
 msgstr "Destination"
 
