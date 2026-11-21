@@ -135,6 +135,7 @@ type CorePlugin struct {
 	ID        string
 	State     string
 	LastError string
+	Step      string
 }
 
 type CoreSetting struct {
