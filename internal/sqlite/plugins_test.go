@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gopherium/framework/dbkit"
+	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/sqlite"
 	"github.com/gopherium/gophenberg/internal/sqlite/db"
@@ -29,7 +30,7 @@ var pluginWrites = []pluginCall{
 		}},
 	{"a pause names its plugin", db.PausePlugin, `sqlite: pausing the plugin "events": `,
 		func(ctx context.Context, store *sqlite.PluginStore) error {
-			return store.Pause(ctx, "events", "a setting is missing")
+			return store.Pause(ctx, "events", pluginkit.StepRegister, "a setting is missing")
 		}},
 }
 
