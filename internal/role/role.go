@@ -49,6 +49,9 @@ const ChangeOthersWork Capability = "change_others_work"
 // UpdateCore is the capability reading and running the checks for a newer Gophenberg.
 const UpdateCore Capability = "update_core"
 
+// ActivatePlugins is the capability reading which plugins the site holds and whether each one runs.
+const ActivatePlugins Capability = "activate_plugins"
+
 // grant is one role and the capabilities it holds.
 type grant struct {
 	role         string
@@ -59,6 +62,7 @@ type grant struct {
 var carried = []grant{
 	{Admin, []Capability{
 		AccessAdmin, ManageUsers, ManageThemes, ManageTypes, ManageSettings, ChangeOthersWork, UpdateCore,
+		ActivatePlugins,
 	}},
 	{Editor, []Capability{AccessAdmin, ChangeOthersWork}},
 	{Author, []Capability{AccessAdmin}},

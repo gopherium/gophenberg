@@ -23,8 +23,9 @@ func TestCoreGrantsEachCoreRoleItsCapabilities(t *testing.T) {
 	}
 	tests := map[string][]string{
 		role.Admin: {
-			string(role.AccessAdmin), string(role.ChangeOthersWork), string(role.ManageSettings),
-			string(role.ManageThemes), string(role.ManageTypes), string(role.ManageUsers), string(role.UpdateCore),
+			string(role.AccessAdmin), string(role.ActivatePlugins), string(role.ChangeOthersWork),
+			string(role.ManageSettings), string(role.ManageThemes), string(role.ManageTypes), string(role.ManageUsers),
+			string(role.UpdateCore),
 		},
 		role.Editor: {string(role.AccessAdmin), string(role.ChangeOthersWork)},
 		role.Author: {string(role.AccessAdmin)},
@@ -43,6 +44,9 @@ func TestCoreGrantsEachCoreRoleItsCapabilities(t *testing.T) {
 	}
 	if held := registry.HoldersOf(string(role.UpdateCore)); !slices.Equal(held, []string{role.Admin}) {
 		t.Errorf("HoldersOf(UpdateCore) = %v, want admin alone", held)
+	}
+	if held := registry.HoldersOf(string(role.ActivatePlugins)); !slices.Equal(held, []string{role.Admin}) {
+		t.Errorf("HoldersOf(ActivatePlugins) = %v, want admin alone", held)
 	}
 }
 
