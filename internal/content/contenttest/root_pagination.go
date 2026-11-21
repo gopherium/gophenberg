@@ -85,9 +85,11 @@ func createRefusesARootPaginationAddress(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("New(About) error = %v, want nil", err)
 	}
+	flat := MustPost(t, "2", author).Place(content.PageWord, "2")
+	flat.Type = legacyPageType(t, s.Types).Key
 
 	for name, built := range map[string]content.Content{
-		"flat":   MustPost(t, "2", author).Place(content.PageWord, "2"),
+		"flat":   flat,
 		"nested": child.Place(content.PageWord, "2"),
 	} {
 		_, err := s.Content.Create(t.Context(), built)
@@ -221,15 +223,22 @@ func updateRefusesThePageRouteWord(t *testing.T, s Stores) {
 	}
 }
 
-// updateKeepsALegacyPageRouteWordUntilItMoves edits a type under page in place and refuses its return after it moved.
-func updateKeepsALegacyPageRouteWordUntilItMoves(t *testing.T, s Stores) {
+// legacyPageType stores the chapter type under page, a word stored before the paging word was reserved, and returns it.
+func legacyPageType(t *testing.T, types content.TypeStore) content.Type {
+	t.Helper()
 	legacy, err := content.NewType("chapter", "Chapter", "Chapters", content.PageWord)
 	if err != nil {
 		t.Fatalf("NewType(chapter) error = %v, want nil", err)
 	}
-	if _, err := s.Types.Create(t.Context(), legacy); err != nil {
+	if _, err := types.Create(t.Context(), legacy); err != nil {
 		t.Fatalf("Create(chapter) error = %v, want nil", err)
 	}
+	return legacy
+}
+
+// updateKeepsALegacyPageRouteWordUntilItMoves edits a type under page in place and refuses its return after it moved.
+func updateKeepsALegacyPageRouteWordUntilItMoves(t *testing.T, s Stores) {
+	legacy := legacyPageType(t, s.Types)
 	described := legacy
 	described.Description, described.UpdatedAt = "Chapters of the site.", time.Now().UTC()
 	if held, err := s.Types.Update(t.Context(), described); err != nil || held.RouteWord != content.PageWord {
@@ -243,7 +252,7 @@ func updateKeepsALegacyPageRouteWordUntilItMoves(t *testing.T, s Stores) {
 	back := moved
 	back.RouteWord, back.UpdatedAt = content.PageWord, time.Now().UTC()
 
-	_, err = s.Types.Update(t.Context(), back)
+	_, err := s.Types.Update(t.Context(), back)
 
 	if !errors.Is(err, content.ErrRouteWordReserved) {
 		t.Fatalf("Update() back to page error = %v, want %v", err, content.ErrRouteWordReserved)
