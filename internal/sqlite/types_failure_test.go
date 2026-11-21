@@ -42,6 +42,8 @@ var typeFaults = []typeFault{
 			return ignoreValue(types.Update(t.Context(), car))
 		})},
 	{"UpdateContentType from Update", db.UpdateContentType, "sqlite: update content type: ", withCar(relabelCar)},
+	{"CountContentOutsideRouteWord from Update", db.CountContentOutsideRouteWord, "sqlite: update content type: ",
+		withCar(retypeCar)},
 	{"PrefixContentPaths from Update", db.PrefixContentPaths, "sqlite: update content type: ", withCar(retypeCar)},
 	{"RetypeContentPaths from Update", db.RetypeContentPaths, "sqlite: update content type: ", withCar(retypeCar)},
 	{"CountNestedContent from Nested", db.CountNestedContent, "sqlite: count nested content: ",
