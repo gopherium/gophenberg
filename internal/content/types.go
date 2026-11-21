@@ -46,6 +46,16 @@ func NestingInUse(key string, items int) error {
 		fmt.Sprintf("%s: %d in %s", ErrNestingInUse, items, key), Details{"type": key, "items": items})
 }
 
+// ErrAddressOutsideRouteWord reports that an address of the content type does not start with its route word.
+var ErrAddressOutsideRouteWord = errors.New("content: an address of the type sits outside its route word")
+
+// AddressOutsideRouteWord returns the error naming the type, its word, how many addresses sit outside it and the first.
+func AddressOutsideRouteWord(key, word string, items int, path string) error {
+	return Refuse(ErrAddressOutsideRouteWord, "address_outside_route_word",
+		fmt.Sprintf("%s: %s under %q, %d outside, first %q", ErrAddressOutsideRouteWord, key, word, items, path),
+		Details{"type": key, "word": word, "items": items, "path": path})
+}
+
 // ErrTypeInactive reports that the content type is not active.
 var ErrTypeInactive = errors.New("content: type is not active")
 
