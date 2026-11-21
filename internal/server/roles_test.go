@@ -41,6 +41,8 @@ func signedInAs(t *testing.T, roles *goncierge.Registry, held string) (http.Hand
 		MediaStore: newFakeMediaStore(),
 		Roles:      roles,
 		Updates:    &storedUpdates{},
+
+		InstalledPlugins: heldPlugins{},
 	})
 	recorder := doLogin(t, handler, `{"email":"holder@example.com","password":"correct horse battery"}`)
 	if recorder.Code != http.StatusOK {
@@ -75,6 +77,8 @@ func capabilityOf(gated route) string {
 		return string(role.ManageThemes)
 	case strings.HasPrefix(gated.pattern, "/api/updates"):
 		return string(role.UpdateCore)
+	case gated.pattern == "/api/plugin-admin":
+		return string(role.ActivatePlugins)
 	default:
 		return string(role.ManageTypes)
 	}
@@ -146,8 +150,9 @@ func TestTheSessionCarriesWhatAnAdministratorMayDoAndGive(t *testing.T) {
 		t.Fatalf("decoding the session %q: %v", recorder.Body.String(), err)
 	}
 	every := []string{
-		string(role.AccessAdmin), string(role.ChangeOthersWork), string(role.ManageSettings),
-		string(role.ManageThemes), string(role.ManageTypes), string(role.ManageUsers), string(role.UpdateCore),
+		string(role.AccessAdmin), string(role.ActivatePlugins), string(role.ChangeOthersWork),
+		string(role.ManageSettings), string(role.ManageThemes), string(role.ManageTypes), string(role.ManageUsers),
+		string(role.UpdateCore),
 	}
 	widestFirst := []string{role.Admin, role.Editor, role.Author, role.Member}
 	if !slices.Equal(held.Capabilities, every) || !slices.Equal(held.Grantable, widestFirst) {
