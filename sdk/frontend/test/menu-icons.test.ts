@@ -11,6 +11,7 @@ import {
 	list,
 	media,
 	page,
+	plugins,
 	post,
 	settings,
 	update,
@@ -30,6 +31,7 @@ import {
 	listIcon,
 	mediaIcon,
 	pageIcon,
+	pluginsIcon,
 	postIcon,
 	settingsIcon,
 	Tooltip,
@@ -43,6 +45,7 @@ test('hands the sidebar rows the glyphs WordPress draws them with', () => {
 	expect(categoryIcon).toBe(category)
 	expect(mediaIcon).toBe(media)
 	expect(brushIcon).toBe(brush)
+	expect(pluginsIcon).toBe(plugins)
 	expect(settingsIcon).toBe(settings)
 	expect(languageIcon).toBe(language)
 	expect(customPostTypeIcon).toBe(customPostType)
