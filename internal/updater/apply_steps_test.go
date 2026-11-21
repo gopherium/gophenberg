@@ -68,13 +68,13 @@ func TestApplyRefusesAnInstallRootItCannotWrite(t *testing.T) {
 		"a backups folder it cannot read": {folder: "backups", mode: 0o300},
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			if err := os.MkdirAll(filepath.Join(f.layout.Root, denial.folder), 0o755); err != nil {
 				t.Fatalf("making the folder %s: %v", denial.folder, err)
 			}
 			denied(t, filepath.Join(f.layout.Root, denial.folder), denial.mode)
+
+			t.Parallel()
 
 			_, err := f.job().Apply(t.Context())
 
@@ -85,12 +85,12 @@ func TestApplyRefusesAnInstallRootItCannotWrite(t *testing.T) {
 }
 
 func TestApplyTellsWhoToLetWriteToADataFolderItCannotWrite(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	job := f.job()
 	job.Settings.Data = t.TempDir()
 	denied(t, job.Settings.Data, 0o500)
+
+	t.Parallel()
 
 	_, err := job.Apply(t.Context())
 
@@ -99,8 +99,6 @@ func TestApplyTellsWhoToLetWriteToADataFolderItCannotWrite(t *testing.T) {
 }
 
 func TestApplyWritesEachStepToTheStateFileBeforeItRunsIt(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	held := updater.State{Step: "committed", From: "0.19.0", To: running, Refused: []string{"0.19.5", offered}}
 	writeState(t, f.layout, held)
@@ -122,6 +120,8 @@ func TestApplyWritesEachStepToTheStateFileBeforeItRunsIt(t *testing.T) {
 	job.Settings.PgDump = scriptedDump(t, "pg_dump (PostgreSQL) 99.2", 0,
 		stateCopy(t, f.layout, copies[updater.StepBackup])).bin
 
+	t.Parallel()
+
 	state := applied(t, job)
 
 	for step, copied := range copies {
@@ -139,14 +139,15 @@ func TestApplyWritesEachStepToTheStateFileBeforeItRunsIt(t *testing.T) {
 }
 
 func TestApplyKeepsRefusingAVersionWhenARetryStopsBeforeItsSwitch(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, updater.State{Refused: []string{offered}})
 	stopped := updater.Layout{Root: t.TempDir()}
 	retry := f.job()
 	retry.To, retry.Retry = offered, true
 	retry.Settings.PgDump = scriptedDump(t, "pg_dump (PostgreSQL) 99.2", 2, stateCopy(t, f.layout, stopped)).bin
+
+	t.Parallel()
+
 	_, err := retry.Apply(t.Context())
 	wantRefused(t, err, "updater: back up the database with")
 	writeState(t, f.layout, readState(t, stopped))
@@ -162,8 +163,6 @@ func TestApplyPointsPreviousBackWhenItCannotPointCurrent(t *testing.T) {
 
 	for name, before := range map[string]string{"no previous link": "", "a previous link": "0.19.0"} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			writeState(t, f.layout, committed)
 			if before != "" {
@@ -173,6 +172,8 @@ func TestApplyPointsPreviousBackWhenItCannotPointCurrent(t *testing.T) {
 			if err := os.MkdirAll(filepath.Join(f.layout.Root, ".current.partial", "kept"), 0o755); err != nil {
 				t.Fatalf("making a folder under the name of the new current link: %v", err)
 			}
+
+			t.Parallel()
 
 			_, err := f.job().Apply(t.Context())
 
@@ -189,8 +190,6 @@ func TestApplyPointsPreviousBackWhenItCannotPointCurrent(t *testing.T) {
 }
 
 func TestApplyKeepsTheBackupTheStateNamesWhenItPutsTheStateBack(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	f.env["GOPHENBERG_UPDATE_BACKUPS_KEEP"] = "1"
 	held := updater.State{
@@ -207,6 +206,8 @@ func TestApplyKeepsTheBackupTheStateNamesWhenItPutsTheStateBack(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(f.layout.Root, "previous", "kept"), 0o755); err != nil {
 		t.Fatalf("making a folder called previous: %v", err)
 	}
+
+	t.Parallel()
 
 	_, err := f.job().Apply(t.Context())
 
@@ -229,18 +230,19 @@ func TestApplyStopsWhenAnotherCommandWroteTheStateSinceItRead(t *testing.T) {
 			})
 		},
 		"before the switch": func(f *jobFixture, job *updater.Job) {
-			written := updater.Layout{Root: f.t.TempDir()}
-			writeState(f.t, written, committedTakenBack)
-			job.Settings.PgDump = scriptedDump(f.t, "pg_dump (PostgreSQL) 99.2", 0, stateCopy(f.t, written, f.layout)).bin
+			job.Settings.PgDump = f.spareDump.bin
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			writeState(t, f.layout, committed)
+			written := updater.Layout{Root: t.TempDir()}
+			writeState(t, written, committedTakenBack)
+			f.spareDump = scriptedDump(t, "pg_dump (PostgreSQL) 99.2", 0, stateCopy(t, written, f.layout))
 			job := f.job()
 			meanwhile(f, &job)
+
+			t.Parallel()
 
 			_, err := job.Apply(t.Context())
 
@@ -258,14 +260,14 @@ func TestApplyStopsWhenAnotherCommandWroteTheStateSinceItRead(t *testing.T) {
 }
 
 func TestApplyPointsNoLinkWhenItCannotWriteTheSwitchedState(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, committed)
 	folder := filepath.Dir(f.layout.StateFile())
 	modeRestored(t, folder)
 	job := f.job()
 	job.Settings.PgDump = scriptedDump(t, "pg_dump (PostgreSQL) 99.2", 0, fmt.Sprintf("chmod 500 %q\n", folder)).bin
+
+	t.Parallel()
 
 	_, err := job.Apply(t.Context())
 
@@ -280,13 +282,13 @@ func TestApplyPointsNoLinkWhenItCannotWriteTheSwitchedState(t *testing.T) {
 }
 
 func TestApplyStopsWhenItCannotReadTheStateBeforeAStep(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, committed)
 	job := f.job()
 	job.Settings.PgDump = scriptedDump(t, "pg_dump (PostgreSQL) 99.2", 0,
 		fmt.Sprintf("printf 'step: switched' > %q\n", f.layout.StateFile())).bin
+
+	t.Parallel()
 
 	_, err := job.Apply(t.Context())
 
@@ -300,8 +302,6 @@ func TestApplyCountsTheDatabaseInTheDiskItNeedsOnlyForABackup(t *testing.T) {
 
 	for name, skip := range map[string]bool{"with a backup": false, "without a backup": true} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			f.env["GOPHENBERG_UPDATE_DISK_MARGIN_MB"] = "1073741824"
 			job := f.job()
@@ -311,6 +311,8 @@ func TestApplyCountsTheDatabaseInTheDiskItNeedsOnlyForABackup(t *testing.T) {
 				need += databaseSize(t, f.db)
 			}
 
+			t.Parallel()
+
 			_, err := job.Apply(t.Context())
 
 			wantRefused(t, err, fmt.Sprintf("the update needs %d MB for the archive", (need+1<<20-1)>>20))
@@ -319,14 +321,14 @@ func TestApplyCountsTheDatabaseInTheDiskItNeedsOnlyForABackup(t *testing.T) {
 }
 
 func TestApplyTakesAPgDumpAsNewAsTheServerAndRefusesOneMajorOlder(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	major := serverMajor(t, f.db)
 	older := f.job()
 	older.Settings.PgDump = pgDumpOf(t, major-1).bin
 	same := f.job()
 	same.Settings.PgDump = pgDumpOf(t, major).bin
+
+	t.Parallel()
 
 	_, err := older.Apply(t.Context())
 	state := applied(t, same)
@@ -339,13 +341,13 @@ func TestApplyTakesAPgDumpAsNewAsTheServerAndRefusesOneMajorOlder(t *testing.T) 
 }
 
 func TestApplyWritesBackOnlyTheRefusedVersionsWhenItFailsAfterClearingAStop(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	stopped := updater.State{Step: updater.StepStage, From: running, To: "0.20.5", Refused: []string{"0.19.5"}}
 	writeState(t, f.layout, stopped)
 	job := f.job()
 	job.Settings.PgDump = newFakeDump(t, "pg_dump (PostgreSQL) 99.0", 2).bin
+
+	t.Parallel()
 
 	_, err := job.Apply(t.Context())
 
@@ -354,11 +356,17 @@ func TestApplyWritesBackOnlyTheRefusedVersionsWhenItFailsAfterClearingAStop(t *t
 }
 
 func TestApplyNamesTheCommandThatRetriesAVersionThatFailed(t *testing.T) {
-	t.Parallel()
-
-	for _, named := range []string{"", offered} {
+	fixtures := make([]*jobFixture, 0, 2)
+	for range []string{"", offered} {
 		f := newJobFixture(t)
 		writeState(t, f.layout, updater.State{Refused: []string{offered}})
+		fixtures = append(fixtures, f)
+	}
+
+	t.Parallel()
+
+	for i, named := range []string{"", offered} {
+		f := fixtures[i]
 		job := f.job()
 		job.To = named
 
@@ -374,12 +382,12 @@ func TestApplyNamesTheCommandThatRetriesAVersionThatFailed(t *testing.T) {
 }
 
 func TestApplyRetriesAVersionThatFailedWhenAPersonAsks(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, updater.State{Refused: []string{"0.20.5", offered}})
 	job := f.job()
 	job.To, job.Retry = offered, true
+
+	t.Parallel()
 
 	state := applied(t, job)
 
@@ -390,12 +398,12 @@ func TestApplyRetriesAVersionThatFailedWhenAPersonAsks(t *testing.T) {
 }
 
 func TestApplySkipsTheBackupWhenAskedForAReleaseThatKeepsTheMinimumVersion(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	job := f.job()
 	job.SkipBackup = true
 	job.Settings.PgDump = filepath.Join(t.TempDir(), "pg_dump")
+
+	t.Parallel()
 
 	state := applied(t, job)
 
@@ -406,12 +414,12 @@ func TestApplySkipsTheBackupWhenAskedForAReleaseThatKeepsTheMinimumVersion(t *te
 }
 
 func TestApplyBacksUpAReleaseThatRaisedTheMinimumVersionEvenWhenAskedToSkip(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	f.offer(offered, keepOffer)
 	job := f.job()
 	job.SkipBackup = true
+
+	t.Parallel()
 
 	state := applied(t, job)
 
@@ -481,7 +489,7 @@ var stepCases = map[string]stepCase{
 	},
 	"a backup that fails": {
 		change: func(f *jobFixture, job *updater.Job) {
-			job.Settings.PgDump = newFakeDump(f.t, "pg_dump (PostgreSQL) 99.0", 2).bin
+			job.Settings.PgDump = f.spareDump.bin
 		},
 		step: updater.StepBackup,
 		text: "updater: back up the database with",
@@ -502,12 +510,13 @@ func TestApplyPutsTheInstallRootBackWhenAStepFails(t *testing.T) {
 
 	for name, failing := range stepCases {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
+			f.spareDump = newFakeDump(t, "pg_dump (PostgreSQL) 99.0", 2)
 			writeState(t, f.layout, committed)
 			job := f.job()
 			failing.change(f, &job)
+
+			t.Parallel()
 
 			_, err := job.Apply(t.Context())
 
@@ -519,13 +528,13 @@ func TestApplyPutsTheInstallRootBackWhenAStepFails(t *testing.T) {
 }
 
 func TestApplyRecordsOnlyTheLatestFailure(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	earlier := committed
 	earlier.Failure = &updater.JobFailure{At: f.now.Add(-time.Hour), Step: updater.StepStage, Error: "an earlier job"}
 	writeState(t, f.layout, earlier)
 	f.site.replace(f.artifact, []byte("another archive"))
+
+	t.Parallel()
 
 	_, err := f.job().Apply(t.Context())
 
@@ -535,12 +544,12 @@ func TestApplyRecordsOnlyTheLatestFailure(t *testing.T) {
 }
 
 func TestApplyClearsTheFailureAnEarlierJobRecorded(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	earlier := committed
 	earlier.Failure = &updater.JobFailure{At: f.now.Add(-time.Hour), Step: updater.StepStage, Error: "an earlier job"}
 	writeState(t, f.layout, earlier)
+
+	t.Parallel()
 
 	state := applied(t, f.job())
 
@@ -550,13 +559,13 @@ func TestApplyClearsTheFailureAnEarlierJobRecorded(t *testing.T) {
 }
 
 func TestApplyRefusesAnArchiveTheTimestampKeySigned(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, committed)
 	f.artifact = f.site.archive(releaseArchive(t, aboutScript(offered, "official", 0)), f.site.timestamp)
 	f.offer(running, keepOffer)
 	job := f.job()
+
+	t.Parallel()
 
 	_, err := job.Apply(t.Context())
 
@@ -571,11 +580,11 @@ func TestApplyClearsAnUpdateThatStoppedBeforeItsSwitchEnded(t *testing.T) {
 		updater.StepDownload, updater.StepStage, updater.StepBackup, updater.StepSwitched,
 	} {
 		t.Run(string(step), func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			writeState(t, f.layout, updater.State{Step: step, From: running, To: "0.20.5", Refused: []string{"0.19.5"}})
 			f.placeBuild("0.20.5")
+
+			t.Parallel()
 			left := []string{
 				f.layout.Download("0.20.5"), filepath.Join(f.layout.Backups(), "0.20.0-20261019T120000Z.dump.partial"),
 			}
@@ -611,11 +620,11 @@ func TestApplyLeavesAloneTheFilesOfAStateItCannotTrust(t *testing.T) {
 		"a version an update never names": {Step: updater.StepStage, From: running},
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			writeState(t, f.layout, held)
 			f.placeBuild("0.20.5")
+
+			t.Parallel()
 
 			applied(t, f.job())
 
@@ -626,11 +635,11 @@ func TestApplyLeavesAloneTheFilesOfAStateItCannotTrust(t *testing.T) {
 }
 
 func TestApplyKeepsTheStateOfAnUpdateItRefusesToTake(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, committed)
 	f.site.publish(f.site.release)
+
+	t.Parallel()
 
 	_, err := f.job().Apply(t.Context())
 
