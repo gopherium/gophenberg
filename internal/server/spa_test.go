@@ -302,6 +302,86 @@ func TestAdminPageCommentBeforeTheHeadKeepsTheTagWhole(t *testing.T) {
 	}
 }
 
+func TestAdminPageCommentHoldingAHeadIsNotTheHead(t *testing.T) {
+	t.Parallel()
+
+	page := `<!doctype html><!-- <head> --><head><title>Gophenberg</title></head>`
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1000")
+	body := recorder.Body.String()
+	unchanged := strings.Replace(body, meta, "", 1) == page
+	if recorder.Code != http.StatusOK || !unchanged || !strings.Contains(body, "<!-- <head> -->") {
+		t.Errorf("body = %q, want the comment left whole and the page otherwise unchanged", body)
+	}
+	if strings.Contains(body, "<!-- <head>"+meta) || !strings.Contains(body, "<head>"+meta) {
+		t.Errorf("body = %q, want %s written after the real head, not inside the comment", body, meta)
+	}
+}
+
+func TestAdminPageWithLeadingSpaceThenADoctypeCarriesTheLimitAfterTheDoctype(t *testing.T) {
+	t.Parallel()
+
+	page := "\n<!doctype html><title>Admin</title>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1000")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != "\n<!doctype html>"+meta+"<title>Admin</title>" {
+		t.Errorf("body = %q, want the limit after the doctype, with the leading newline kept", body)
+	}
+}
+
+func TestAdminPageWithLeadingCommentThenADoctypeCarriesTheLimitAfterTheDoctype(t *testing.T) {
+	t.Parallel()
+
+	page := "<!-- note --><!doctype html><title>Admin</title>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Second},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1000")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != "<!-- note --><!doctype html>"+meta+"<title>Admin</title>" {
+		t.Errorf("body = %q, want the limit after the doctype, with the leading comment kept", body)
+	}
+}
+
+func TestAdminPageUnclosedCommentHoldingAHeadUsesTheLeadingDoctype(t *testing.T) {
+	t.Parallel()
+
+	page := "<!doctype html><!-- <head>"
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte(page)}},
+		Lists: server.ListSettings{DialogWriteTimeout: time.Millisecond},
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/admin/", "")
+
+	meta := dialogLimitMeta("1")
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || body != "<!doctype html>"+meta+"<!-- <head>" {
+		t.Errorf("body = %q, want the limit after the doctype when a comment never closes", body)
+	}
+}
+
 func TestAdminPageQuotedHeadAttributeKeepsItsGreaterThan(t *testing.T) {
 	t.Parallel()
 

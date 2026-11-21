@@ -160,11 +160,17 @@ func pageWithDialogLimit(page []byte, limit time.Duration) []byte {
 }
 
 // headTagEnd returns the index just after the first opening head tag, or -1 when the page has none.
-// The tag may carry attributes. The search folds ASCII letters only, so the index stays in the original page.
+// The tag may carry attributes. HTML comments are skipped so a comment that holds "<head>" is not the tag.
+// The search folds ASCII letters only, so the index stays in the original page.
 func headTagEnd(page []byte) int {
 	const open = "<head"
-	for i := 0; i+len(open) <= len(page); i++ {
+	for i := 0; i+len(open) <= len(page); {
+		if after, ok := skipHTMLComment(page, i); ok {
+			i = after
+			continue
+		}
 		if !asciiHasPrefix(page[i:], open) {
+			i++
 			continue
 		}
 		next := i + len(open)
@@ -173,17 +179,46 @@ func headTagEnd(page []byte) int {
 				return end
 			}
 		}
+		i++
 	}
 	return -1
 }
 
 // leadingDoctypeEnd returns the index just after a doctype that opens the page, or -1 when it has none.
+// Leading HTML whitespace and comments are skipped so the doctype is still found; the returned index is
+// in the original page, so that whitespace stays put when the meta is written after the doctype.
 func leadingDoctypeEnd(page []byte) int {
 	const marker = "<!doctype"
-	if !asciiHasPrefix(page, marker) {
+	i := 0
+	for i < len(page) {
+		if isHTMLSpace(page[i]) {
+			i++
+			continue
+		}
+		if after, ok := skipHTMLComment(page, i); ok {
+			i = after
+			continue
+		}
+		break
+	}
+	if !asciiHasPrefix(page[i:], marker) {
 		return -1
 	}
-	return htmlTagEnd(page, len(marker))
+	return htmlTagEnd(page, i+len(marker))
+}
+
+// skipHTMLComment reports whether page[from:] opens an HTML comment and returns the index just after it.
+// An unclosed comment ends at the end of the page.
+func skipHTMLComment(page []byte, from int) (int, bool) {
+	if from+3 >= len(page) || page[from] != '<' || page[from+1] != '!' || page[from+2] != '-' || page[from+3] != '-' {
+		return from, false
+	}
+	for i := from + 4; i+2 < len(page); i++ {
+		if page[i] == '-' && page[i+1] == '-' && page[i+2] == '>' {
+			return i + 3, true
+		}
+	}
+	return len(page), true
 }
 
 // htmlTagEnd returns the index just after the tag's closing >, starting at from, or -1 when it never closes.
