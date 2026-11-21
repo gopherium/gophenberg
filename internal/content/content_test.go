@@ -137,6 +137,25 @@ func TestNewRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestUnknownTypeNamesTheTypeItWasAskedFor(t *testing.T) {
+	t.Parallel()
+
+	err := content.UnknownType("car")
+
+	if !errors.Is(err, content.ErrInvalidType) {
+		t.Errorf("error = %v, want it to carry %v", err, content.ErrInvalidType)
+	}
+	if code, _ := content.CodeOf(err); code != "type_unknown" {
+		t.Errorf("code = %q, want type_unknown", code)
+	}
+	if held, _ := content.DetailsOf(err); held["value"] != "car" {
+		t.Errorf("details = %v, want the type asked for named as the value", held)
+	}
+	if got, want := err.Error(), "content: invalid type: car"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+}
+
 func TestSlugify(t *testing.T) {
 	t.Parallel()
 
