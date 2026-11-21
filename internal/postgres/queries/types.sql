@@ -59,6 +59,11 @@ WITH moved AS (
 )
 SELECT path FROM moved WHERE path LIKE 'page/%';
 
+-- name: CountContentOutsideRouteWord :one
+SELECT count(*) AS items, coalesce(min(c.path COLLATE "C"), '')::text AS first_path
+FROM core.content c
+WHERE c.type = @key AND substr(c.path, 1, length(@was::text) + 1) <> (@was::text || '/');
+
 -- name: LockDefaultContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
     t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description

@@ -192,6 +192,9 @@ SELECT t.hierarchical FROM core.content_types t WHERE t.key = @key FOR SHARE;
 -- name: LockTypeForMove :one
 SELECT t.hierarchical FROM core.content_types t WHERE t.key = @key FOR NO KEY UPDATE;
 
+-- name: LockTypeRouteWord :one
+SELECT t.route_word FROM core.content_types t WHERE t.key = @key FOR KEY SHARE;
+
 -- name: SiblingSlugTaken :one
 SELECT EXISTS (
     SELECT 1 FROM core.content p
