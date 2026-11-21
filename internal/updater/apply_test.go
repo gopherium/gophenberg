@@ -34,11 +34,14 @@ type jobFixture struct {
 	site     *updateSite
 	artifact update.Artifact
 	dump     fakeDump
-	env      map[string]string
-	address  string
-	db       *sql.DB
-	store    *memoryStore
-	now      time.Time
+	// spareDump is a second pg_dump stand-in for a case that refuses a dump other than the fixture's own,
+	// written by the test before it runs in parallel.
+	spareDump fakeDump
+	env       map[string]string
+	address   string
+	db        *sql.DB
+	store     *memoryStore
+	now       time.Time
 }
 
 // newJobFixture returns a job test whose update site offers the official 0.21.0 under the minimum version 0.20.0.
@@ -166,9 +169,9 @@ func (f *jobFixture) wantFailure(step updater.Step, text string) {
 }
 
 func TestApplySwitchesToTheNewBuildAndKeepsTheOldOne(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
+
+	t.Parallel()
 
 	state, err := f.job().Apply(t.Context())
 
@@ -191,9 +194,9 @@ func TestApplySwitchesToTheNewBuildAndKeepsTheOldOne(t *testing.T) {
 }
 
 func TestApplyHandsPgDumpThePasswordOutsideTheCommandLine(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
+
+	t.Parallel()
 
 	if _, err := f.job().Apply(t.Context()); err != nil {
 		t.Fatalf("Apply() = %v, want the update switched", err)
@@ -212,12 +215,12 @@ func TestApplyHandsPgDumpThePasswordOutsideTheCommandLine(t *testing.T) {
 }
 
 func TestApplyStopsWhileAnotherUpdateRuns(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	release := locked(t, f.db)
 	defer release()
 	before := tree(t, f.layout.Root)
+
+	t.Parallel()
 
 	_, err := f.job().Apply(t.Context())
 
@@ -230,10 +233,10 @@ func TestApplyStopsWhileAnotherUpdateRuns(t *testing.T) {
 }
 
 func TestApplyRefusesADatabaseItCannotRead(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	_ = f.db.Close()
+
+	t.Parallel()
 
 	_, err := f.job().Apply(t.Context())
 
@@ -250,8 +253,6 @@ func TestApplyLeavesEveryPartialFileButADumpsInTheBackupsFolder(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			f := newJobFixture(t)
 			stop(f)
 			dump := filepath.Join(f.layout.Backups(), "0.20.0-20261019T120000Z.dump.partial")
@@ -264,6 +265,8 @@ func TestApplyLeavesEveryPartialFileButADumpsInTheBackupsFolder(t *testing.T) {
 					t.Fatalf("writing %s: %v", path, err)
 				}
 			}
+
+			t.Parallel()
 
 			_, _ = f.job().Apply(t.Context())
 
@@ -364,7 +367,7 @@ var planCases = map[string]planCase{
 		},
 	},
 	"a pg_dump older than the server": {
-		change: func(f *jobFixture, job *updater.Job) { job.Settings.PgDump = pgDumpOf(f.t, 9).bin },
+		change: func(f *jobFixture, job *updater.Job) { job.Settings.PgDump = f.spareDump.bin },
 		texts:  []string{"is pg_dump 9, so install a newer one or point GOPHENBERG_PG_DUMP_BIN at it"},
 	},
 	"no pg_dump for a release that raised the minimum version": {
@@ -404,9 +407,11 @@ func TestApplyRefusesWhatTheInstallCannotTakeBeforeItChangesAnything(t *testing.
 
 	for name, refused := range planCases {
 		t.Run(name, func(t *testing.T) {
+			f := newJobFixture(t)
+			f.spareDump = pgDumpOf(t, 9)
+
 			t.Parallel()
 
-			f := newJobFixture(t)
 			job := f.job()
 			refused.change(f, &job)
 			before := tree(t, f.layout.Root)
