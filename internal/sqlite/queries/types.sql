@@ -59,6 +59,11 @@ SET path = ltrim(CAST(@route_word AS TEXT) || '/' ||
 WHERE type = @key
 RETURNING path;
 
+-- name: CountContentOutsideRouteWord :one
+SELECT count(*) AS items, CAST(coalesce(min(path), '') AS TEXT) AS first_path
+FROM core_content
+WHERE type = @key AND substr(path, 1, length(CAST(@was AS TEXT)) + 1) <> (CAST(@was AS TEXT) || '/');
+
 -- name: LockDefaultContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
     t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description

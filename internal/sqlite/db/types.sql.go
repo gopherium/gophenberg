@@ -111,6 +111,29 @@ func (q *Queries) ClearRevisionFieldValues(ctx context.Context, arg ClearRevisio
 	return err
 }
 
+const CountContentOutsideRouteWord = `-- name: CountContentOutsideRouteWord :one
+SELECT count(*) AS items, CAST(coalesce(min(path), '') AS TEXT) AS first_path
+FROM core_content
+WHERE type = ?1 AND substr(path, 1, length(CAST(?2 AS TEXT)) + 1) <> (CAST(?2 AS TEXT) || '/')
+`
+
+type CountContentOutsideRouteWordParams struct {
+	Key string
+	Was string
+}
+
+type CountContentOutsideRouteWordRow struct {
+	Items     int64
+	FirstPath string
+}
+
+func (q *Queries) CountContentOutsideRouteWord(ctx context.Context, arg CountContentOutsideRouteWordParams) (CountContentOutsideRouteWordRow, error) {
+	row := q.db.QueryRowContext(ctx, CountContentOutsideRouteWord, arg.Key, arg.Was)
+	var i CountContentOutsideRouteWordRow
+	err := row.Scan(&i.Items, &i.FirstPath)
+	return i, err
+}
+
 const CountNestedContent = `-- name: CountNestedContent :one
 
 SELECT count(*) FROM core_content p WHERE p.type = ?1 AND p.parent_id IS NOT NULL
