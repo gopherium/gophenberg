@@ -165,3 +165,14 @@ test('names the address no item can answer at', () => {
 	expect(held).toContain('Gophenberg keeps /page/2 for itself or for another content type')
 	expect(held).toContain('Give the item a different slug.')
 })
+
+test('names the type, its route word and the first item outside it', () => {
+	const held = errorText({
+		error: 'content: an address of the type sits outside its route word',
+		code: 'address_outside_route_word',
+		meta: { type: 'car', word: 'vehicles', items: 4, path: 'cars-sport/coupe' },
+	})
+
+	expect(held).toContain('car keeps the route word /vehicles while 4 of its items sit outside it')
+	expect(held).toContain('such as /cars-sport/coupe, the ones in the trash included.')
+})
