@@ -279,8 +279,6 @@ func TestRollbackWaitsForTheStateLockAndTakesBackWhatTheStateThenNames(t *testin
 }
 
 func TestApplyWaitsForTheStateLockAndStopsOnceAnotherCommandWroteTheState(t *testing.T) {
-	t.Parallel()
-
 	f := newJobFixture(t)
 	writeState(t, f.layout, committed)
 	read := make(chan struct{})
@@ -288,6 +286,8 @@ func TestApplyWaitsForTheStateLockAndStopsOnceAnotherCommandWroteTheState(t *tes
 	f.site.onServe(func(string) { once.Do(func() { close(read) }) })
 	job := f.job()
 	var err error
+
+	t.Parallel()
 
 	waitsForTheLockOnceRead(t, f.layout, committedTakenBack, read, func() { _, err = job.Apply(t.Context()) })
 
