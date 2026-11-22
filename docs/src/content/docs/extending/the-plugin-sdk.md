@@ -965,10 +965,10 @@ through `ValidatedInputControl` from `@gophenberg/frontend-sdk`, as
 the Email and Name of Add User do. Give it `required` and its label
 ends in `(Required)`. Its message shows under the field once the
 reader leaves it or sends the form. To show the server's reason
-about that field there, such as a taken email, pass
-`customValidity={{ type: 'invalid', message }}`. Then call the
+about that field there, such as an address the server finds wrong,
+pass `customValidity={{ type: 'invalid', message }}`. Then call the
 form's `reportValidity()` in an effect that runs once the message is
-set, as Add User does. The reader may have sent the form with Enter
+set, as Settings does. The reader may have sent the form with Enter
 from that very field. The field was never left, so its message stays
 hidden. `reportValidity()` shows it and moves the focus to the field.
 Set `customValidity` back to `undefined` once the reader changes the
