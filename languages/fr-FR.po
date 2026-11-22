@@ -2496,8 +2496,8 @@ msgid "This is a custom build of Gophenberg, so it updates by hand."
 msgstr "Il s'agit d'une version compilée sur mesure de Gophenberg, elle se met donc à jour à la main."
 
 #, fuzzy
-msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
-msgstr "Le type %(name)s passerait à /%(word)s, que Gophenberg garde pour lui. Modifiez son nom au pluriel et réessayez."
+msgid "%(name)s (%(type)s) would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
+msgstr "Le type %(name)s (%(type)s) passerait à /%(word)s, que Gophenberg garde pour lui. Modifiez son nom au pluriel et réessayez."
 
 #, fuzzy
 msgid "Gophenberg keeps /%(path)s for itself or for another content type, so your content cannot answer there. Give the item a different slug."
@@ -2865,6 +2865,10 @@ msgstr "Le type %(name)s (%(type)s) utiliserait /%(word)s, qu'un autre type de c
 #, fuzzy
 msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Pick a different route word."
 msgstr "Le type %(name)s (%(type)s) utiliserait /%(word)s, qu'un autre type de contenu utilise déjà. Choisissez un autre mot de route."
+
+#, fuzzy
+msgid "%(name)s (%(type)s) would use /%(word)s, which no address can spell. Change its plural name and try again."
+msgstr "Le type %(name)s (%(type)s) utiliserait /%(word)s, qu'aucune adresse ne peut épeler. Modifiez son nom au pluriel et réessayez."
 
 #, fuzzy
 msgid "No drafts"
