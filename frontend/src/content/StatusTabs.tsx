@@ -25,7 +25,7 @@ export function statusSearch(raw: Record<string, unknown>): { status?: TabStatus
  * @param status - The status the tab narrows the list to, none for All.
  * @returns The search of the tab.
  */
-function tabSearch(held: Record<string, unknown>, status: TabStatus | undefined): Record<string, unknown> {
+export function tabSearch(held: Record<string, unknown>, status: string | undefined): Record<string, unknown> {
 	const kept = Object.fromEntries(Object.entries(held).filter(([key]) => !['page', 'search', 'status'].includes(key)))
 	return status === undefined ? kept : { ...kept, status }
 }

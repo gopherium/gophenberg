@@ -12,7 +12,14 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
 
-import { MANAGE_SETTINGS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_USERS, UPDATE_CORE } from '@gophenberg/frontend-sdk'
+import {
+	ACTIVATE_PLUGINS,
+	MANAGE_SETTINGS,
+	MANAGE_THEMES,
+	MANAGE_TYPES,
+	MANAGE_USERS,
+	UPDATE_CORE,
+} from '@gophenberg/frontend-sdk'
 
 import { adminBasepath } from './basepath'
 import { CapabilityGate } from './CapabilityGate'
@@ -20,6 +27,7 @@ import { Layout } from './Layout'
 import { plugins } from './plugins'
 import { useDefaultType } from './content/nav'
 import { statusSearch } from './content/StatusTabs'
+import { pluginStatusSearch } from './pluginsscreen/nav'
 
 const rootRoute = createRootRoute()
 
@@ -124,6 +132,14 @@ const themesRoute = createRoute({
 	component: lazyRouteComponent(() => import('./themes/ThemesScreen'), 'ThemesScreen'),
 })
 
+const pluginsRoute = createRoute({
+	getParentRoute: () => adminRoute,
+	path: '/plugins',
+	validateSearch: (raw: Record<string, unknown>) => ({ ...listSearch(raw), ...pluginStatusSearch(raw) }),
+	staticData: { capability: ACTIVATE_PLUGINS },
+	component: lazyRouteComponent(() => import('./pluginsscreen/PluginsScreen'), 'PluginsScreen'),
+})
+
 const settingsRoute = createRoute({
 	getParentRoute: () => adminRoute,
 	path: '/settings',
@@ -157,6 +173,7 @@ const routeTree = rootRoute.addChildren([
 			usersRoute,
 			newUserRoute,
 			themesRoute,
+			pluginsRoute,
 			settingsRoute,
 			updatesRoute,
 		]),

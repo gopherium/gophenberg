@@ -2,6 +2,7 @@
 
 import {
 	ACCESS_ADMIN,
+	ACTIVATE_PLUGINS,
 	CHANGE_OTHERS_WORK,
 	MANAGE_SETTINGS,
 	MANAGE_THEMES,
@@ -31,6 +32,7 @@ export const adminCapabilities = [
 	MANAGE_SETTINGS,
 	CHANGE_OTHERS_WORK,
 	UPDATE_CORE,
+	ACTIVATE_PLUGINS,
 ]
 
 /** The account tests render as, an administrator unless a test names another role. */
