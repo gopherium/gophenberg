@@ -36,6 +36,9 @@ export const CHANGE_OTHERS_WORK: Capability = 'change_others_work'
 /** The capability checking for and installing a new version of Gophenberg. */
 export const UPDATE_CORE: Capability = 'update_core'
 
+/** The capability listing the plugins the site holds and whether each one runs. */
+export const ACTIVATE_PLUGINS: Capability = 'activate_plugins'
+
 /**
  * Reports whether an account carrying the given capabilities may change work the author owns.
  * @param capabilities - The capabilities the session carries, missing counting as none.

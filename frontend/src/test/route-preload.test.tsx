@@ -19,6 +19,7 @@ const SPLIT_ROUTES = [
 	'/framed/admin/content-types',
 	'/framed/admin/users',
 	'/framed/admin/users/new',
+	'/framed/admin/plugins',
 	'/content/$typeKey/$postId/edit',
 ]
 

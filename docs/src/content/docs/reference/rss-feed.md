@@ -50,6 +50,8 @@ feed when it starts and serves the rest of the site. The feed's
 address answers 404 until you fix the value and restart the server,
 see
 [a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
+Until then the admin's [Plugins screen](/guides/plugins/) shows the
+feed as Paused, with the error about the value under its name.
 
 `check`, `migrate` and `seed -yes` still fail on a bad value. With
 `banana` as the value, `check` prints:

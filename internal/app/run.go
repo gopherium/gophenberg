@@ -21,6 +21,7 @@ import (
 
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/wire"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -61,7 +62,10 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 		return err
 	}
 	defer built.close()
-	b := boot{settings: settings, guard: guard, built: built, logger: logger, stamp: compiled.stamp, listed: index.hooks}
+	b := boot{
+		settings: settings, guard: guard, built: built, logger: logger, stamp: compiled.stamp, listed: index.hooks,
+		manifests: index.manifests,
+	}
 	serving, restart := context.WithCancelCause(ctx)
 	defer restart(nil)
 	b.admin = b.updatesFromAdmin(serving, restart, settingsEnv(getenv))
@@ -111,16 +115,17 @@ func started(getenv func(string) string, logger *slog.Logger) (runConfig, *updat
 	return settings, guard, err
 }
 
-// boot is one start of the site: its settings, guard, stores, plugins, logger, stamp, admin updates, listed hooks.
+// boot is one start of the site: its settings, guard, stores, plugins, logger, stamp, admin updates, hooks, manifests.
 type boot struct {
-	settings runConfig
-	guard    *updater.Guard
-	built    site
-	host     *pluginkit.Host
-	logger   *slog.Logger
-	stamp    string
-	admin    *adminUpdates
-	listed   listedHooks
+	settings  runConfig
+	guard     *updater.Guard
+	built     site
+	host      *pluginkit.Host
+	logger    *slog.Logger
+	stamp     string
+	admin     *adminUpdates
+	listed    listedHooks
+	manifests []wire.Manifest
 }
 
 // updates returns the checks for a newer Gophenberg, the install of the site and the updates administrators start.
@@ -189,6 +194,7 @@ func (b boot) serverConfig(plugins pluginStart) server.Config {
 		Plugins:           plugins.routes,
 		PluginPublicPaths: plugins.publicPaths,
 		PluginHead:        plugins.hooks,
+		InstalledPlugins:  installedPlugins{manifests: b.manifests, records: built.pluginRecords},
 		ContentChanges:    b.contentChanges(plugins.hooks),
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,

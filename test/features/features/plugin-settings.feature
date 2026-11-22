@@ -61,7 +61,7 @@ Feature: Plugins read the settings their manifest declares
   Scenario Outline: A value its type rejects pauses the plugin and names the variable
     Given <variable> is "<value>"
     When the site serves
-    Then the plugin records hold "notes" as paused, its error saying "<reason>"
+    Then the plugin records hold "notes" as paused at the step "register", its error saying "<reason>"
     And the site logged that "notes" is paused at the step "register"
     And the plugin records hold "gallery" as active with no error
 
@@ -77,7 +77,7 @@ Feature: Plugins read the settings their manifest declares
   Scenario Outline: A declaration outside the rules pauses the plugin at the step register
     Given the plugin "drafts" declares <declaration>
     When the site serves
-    Then the plugin records hold "drafts" as paused, its error saying "<reason>"
+    Then the plugin records hold "drafts" as paused at the step "register", its error saying "<reason>"
     And the site logged that "drafts" is paused at the step "register"
     And the plugin records hold "notes" as active with no error
 
@@ -92,14 +92,14 @@ Feature: Plugins read the settings their manifest declares
   Scenario: A plugin whose id holds two hyphens in a row cannot declare settings
     Given the plugin "drafts--old" declares the text setting "title"
     When the site serves
-    Then the plugin records hold "drafts--old" as paused, its error saying "the id drafts--old must not hold two hyphens in a row or end with one when the plugin has settings"
+    Then the plugin records hold "drafts--old" as paused at the step "register", its error saying "the id drafts--old must not hold two hyphens in a row or end with one when the plugin has settings"
     And the site logged that "drafts--old" is paused at the step "register"
 
   Scenario: A plugin paused for a rejected value never shows its secret
     Given GOPHENBERG_PLUGIN_NOTES__API_KEY is "key-for-example-184467235"
     And GOPHENBERG_PLUGIN_NOTES__PER_PAGE is "banana"
     When the site serves
-    Then the plugin records hold "notes" as paused, its error saying "GOPHENBERG_PLUGIN_NOTES__PER_PAGE: must be a whole number, got "banana""
+    Then the plugin records hold "notes" as paused at the step "register", its error saying "GOPHENBERG_PLUGIN_NOTES__PER_PAGE: must be a whole number, got "banana""
     And no line of the site's log holds "key-for-example-184467235"
 
   Scenario: A secret read as text answers nothing and the log names only the plugin and the key

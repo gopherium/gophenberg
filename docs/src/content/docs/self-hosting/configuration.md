@@ -1229,7 +1229,10 @@ docker compose run --rm -T gophenberg check
 
 The site keeps one record for each plugin compiled into it, in its
 database. A record holds the plugin's state, which is active,
-paused, inactive or not installed, and the error that paused it.
+paused, inactive or not installed. For a paused plugin it also holds
+the step the plugin failed at, such as `register`, and apart from it
+the plugin's own error, such as
+`GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"`.
 The first start that sees a plugin records it as active.
 
 At every start, `serve` takes the active and paused plugins one by
@@ -1269,11 +1272,15 @@ time=2026-11-08T09:30:12.345Z level=WARN msg="plugin paused" plugin=feed step=re
 ```
 
 Every start tries a paused plugin again. Once it starts, it is
-active again and its error is cleared. So fix the setting and
-restart the server, and the plugin comes back with no other step.
+active again and its step and its error are cleared. So fix the
+setting and restart the server, and the plugin comes back with
+nothing else to do.
 
 An inactive plugin is one turned off on purpose. It is never
-registered or tried. No screen or command turns a plugin off or on
+registered or tried. The admin's [Plugins screen](/guides/plugins/)
+shows each plugin's state, and for a paused one the step it failed
+at and its error, to every account whose role carries
+`activate_plugins`. No screen or command turns a plugin off or on
 yet.
 
 A start cut short by a shutdown, such as a `SIGTERM` while the

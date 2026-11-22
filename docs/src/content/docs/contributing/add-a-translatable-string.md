@@ -71,6 +71,12 @@ shows the catalogue text while the stored text still equals the shipped
 English and no plugin declared the type. A text Gophenberg ships for a
 new built-in type belongs in that file, never on a screen.
 
+A plugin's name and description also arrive from the server, and they
+are the second exception. `frontend/src/pluginsscreen/words.ts` hands
+them to `__`, and the template reads them from each plugin's
+`plugin.json`. So the plugins Gophenberg ships show in the reader's
+language on the Plugins screen.
+
 ## When one word means two things
 
 English reuses words that other languages separate. Status means one
@@ -118,6 +124,11 @@ for byte, so a forgotten `make pot` fails the build. A second test reads
 the Go source and templates with the real Go parsers and names any string
 missing from the template. The linter refuses bare text in the admin's
 markup. Nothing here depends on a human remembering.
+
+The template also reads four keys of every `plugins/*/plugin.json`: the
+plugin's `name` and `description`, and each setting's `label` and
+`help`. So run `make pot` after you edit one of them, or add a plugin to
+`plugins/`, or the test that rebuilds the template fails.
 
 If you also changed a translation, run `make catalogs` too. Compiled
 catalogues are committed, and they are compared the same way.

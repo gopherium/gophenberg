@@ -56,6 +56,7 @@ type settingsScenario struct {
 	*pausingScenario
 	declared map[string][]wire.Setting
 	shipped  map[string]wire.Manifest
+	named    map[string]manifestWords
 	last     map[string]string
 }
 
@@ -75,7 +76,7 @@ type settingsPlugin struct {
 func (p *pausingScenario) bindSettings(sc *godog.ScenarioContext) {
 	s := &settingsScenario{
 		pausingScenario: p, declared: map[string][]wire.Setting{}, shipped: map[string]wire.Manifest{},
-		last: map[string]string{},
+		named: map[string]manifestWords{}, last: map[string]string{},
 	}
 	sc.Given(`^the plugin "([^"]*)" declares these settings:$`, s.declareTable)
 	sc.Given(`^the plugin "([^"]*)" declares no settings$`, s.declareNone)
@@ -100,6 +101,7 @@ func (p *pausingScenario) bindSettings(sc *godog.ScenarioContext) {
 	sc.Given(`^the feed plugin is compiled into the site$`, s.compileFeed)
 	sc.Given(`^three published posts$`, s.publishThree)
 	sc.Then(`^the feed carries (\d+) posts under the title "([^"]*)"$`, s.feedCarries)
+	s.bindPluginList(sc)
 }
 
 // declare compiles the plugin id into the site the first time, adds declared to its settings and writes the index.
@@ -124,12 +126,16 @@ func (s *settingsScenario) writeIndex() error {
 	return err
 }
 
-// manifestOf returns the manifest of the compiled plugin id, the one it ships with when it ships one.
+// manifestOf returns the manifest of the compiled plugin id, the one it ships with if any, named as a scenario said.
 func (s *settingsScenario) manifestOf(id string) wire.Manifest {
-	if shipped, ok := s.shipped[id]; ok {
-		return shipped
+	manifest, shipped := s.shipped[id]
+	if !shipped {
+		manifest = wire.Manifest{ID: id, Name: id, Hooks: s.plugins[id].listed, Settings: s.declared[id]}
 	}
-	return wire.Manifest{ID: id, Name: id, Hooks: s.plugins[id].listed, Settings: s.declared[id]}
+	if words, named := s.named[id]; named {
+		manifest.Name, manifest.Description = words.name, words.description
+	}
+	return manifest
 }
 
 // compileFeed compiles the feed plugin into the site under the manifest it ships with.

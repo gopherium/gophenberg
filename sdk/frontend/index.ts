@@ -89,6 +89,7 @@ export {
 	media as mediaIcon,
 	notAllowed as notAllowedIcon,
 	page as pageIcon,
+	plugins as pluginsIcon,
 	post as postIcon,
 	redo as redoIcon,
 	cloudUpload as saveIcon,
@@ -107,6 +108,7 @@ export { CheckboxControl, DropZone, RadioControl, RangeControl } from '@wordpres
 export { speak } from '@wordpress/a11y'
 export {
 	ACCESS_ADMIN,
+	ACTIVATE_PLUGINS,
 	ADMIN,
 	AUTHOR,
 	CHANGE_OTHERS_WORK,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { CHANGE_OTHERS_WORK, MANAGE_THEMES, UPDATE_CORE } from '@gophenberg/frontend-sdk'
+import { ACTIVATE_PLUGINS, CHANGE_OTHERS_WORK, MANAGE_THEMES, UPDATE_CORE } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { defaultUser } from '@gopherium/react-auth/testing'
 import { screen, waitFor } from '@testing-library/react'
@@ -12,7 +12,7 @@ import { warmPostsScreen } from './warm'
 warmPostsScreen()
 
 /** The gated screens, each behind the capability it asks for. */
-const GATED = ['Users', 'Themes', 'Content Types', 'Settings', 'Updates']
+const GATED = ['Users', 'Themes', 'Plugins', 'Content Types', 'Settings', 'Updates']
 
 /** The screens every signed in role reaches. */
 const OPEN = ['Media', 'Language']
@@ -32,6 +32,7 @@ beforeEach(() =>
 		http.get('/api/users', () => HttpResponse.json([])),
 		http.get('/api/themes', () => HttpResponse.json({ themes: [] })),
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
+		http.get('/api/plugin-admin', () => HttpResponse.json({ plugins: [] })),
 	),
 )
 
@@ -143,4 +144,28 @@ test('answers a deep link into the Updates screen without update_core by opening
 
 	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('heading', { name: 'Gophenberg Updates' })).toBeNull())
+})
+
+test('shows a role carrying only the plugins capability the Plugins screen alone', async () => {
+	renderAt('/', holding('caretaker', [ACTIVATE_PLUGINS]))
+
+	await screen.findByRole('link', { name: 'Media' })
+
+	expect(screen.getByRole('link', { name: 'Plugins' })).toHaveAttribute('href', '/admin/plugins')
+	for (const label of GATED.filter((gated) => gated !== 'Plugins')) {
+		expect(screen.queryByRole('link', { name: label })).toBeNull()
+	}
+})
+
+test('leaves a role carrying the plugins capability on the Plugins screen it asked for', async () => {
+	renderAt('/plugins', holding('caretaker', [ACTIVATE_PLUGINS]))
+
+	expect(await screen.findByRole('heading', { level: 2, name: 'Plugins' })).toBeInTheDocument()
+})
+
+test('answers a deep link into the Plugins screen without activate_plugins by opening the default list', async () => {
+	renderAt('/plugins', holding('editor', [CHANGE_OTHERS_WORK]))
+
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('heading', { name: 'Plugins' })).toBeNull())
 })

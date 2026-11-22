@@ -15,13 +15,14 @@ type listedHooks struct {
 	defined  []string
 }
 
-// manifestIndex is what the site reads of the manifest index: the hooks and the settings each plugin declares.
+// manifestIndex is what the site reads of the manifest index: every manifest, and each plugin's hooks and settings.
 type manifestIndex struct {
-	hooks    listedHooks
-	settings map[string][]wire.Setting
+	manifests []wire.Manifest
+	hooks     listedHooks
+	settings  map[string][]wire.Setting
 }
 
-// indexOf reads the hooks and the settings of each compiled plugin from the manifest index, none from no index.
+// indexOf reads every manifest of the manifest index with each one's hooks and settings, none from no index.
 func indexOf(index []byte) (manifestIndex, error) {
 	held := manifestIndex{hooks: listedHooks{byPlugin: map[string][]string{}}, settings: map[string][]wire.Setting{}}
 	if len(index) == 0 {
@@ -31,6 +32,7 @@ func indexOf(index []byte) (manifestIndex, error) {
 	if err := json.Unmarshal(index, &manifests); err != nil {
 		return manifestIndex{}, fmt.Errorf("reading the plugin manifest index: %w", err)
 	}
+	held.manifests = manifests
 	for _, manifest := range manifests {
 		held.hooks.byPlugin[manifest.ID] = manifest.Hooks
 		held.settings[manifest.ID] = manifest.Settings

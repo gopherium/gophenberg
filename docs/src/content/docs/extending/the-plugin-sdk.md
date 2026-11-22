@@ -462,7 +462,7 @@ covers `Needs` in full.
 
 A capability is one named permission, such as `notes.manage`. A role
 is a set of capabilities an account holds. The core declares four
-roles, `admin`, `editor`, `author` and `member`, and seven
+roles, `admin`, `editor`, `author` and `member`, and eight
 capabilities. A plugin adds its own through `RoleProvider`, which
 returns them as data:
 
@@ -704,8 +704,10 @@ const manages = can(session, 'hello.manage')
 ```
 
 The SDK names the core's capabilities as constants, such as
-`MANAGE_USERS` and `UPDATE_CORE`, so `can(session, UPDATE_CORE)`
-asks whether the account may update Gophenberg.
+`MANAGE_USERS`, `UPDATE_CORE` and `ACTIVATE_PLUGINS`, so
+`can(session, UPDATE_CORE)` asks whether the account may update
+Gophenberg, and `can(session, ACTIVATE_PLUGINS)` whether it may open
+the [Plugins screen](/guides/plugins/).
 
 A row can open a sub menu of its own, as the Site Editor's Navigation
 row opens the list of menus. Give the route a `staticData.Sidebar`
@@ -836,15 +838,17 @@ for the account at `/api/auth/session`, so serve that address with
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
 admin: `audioIcon`, `authorIcon`, `backIcon`, `backupIcon`,
-`brushIcon`, `categoryIcon`, `closeIcon`, `customPostTypeIcon`,
-`downIcon`, `fileIcon`, `imageIcon`, `languageIcon`, `listIcon`,
-`listViewIcon`, `mediaIcon`, `pageIcon`, `postIcon`, `redoIcon`,
+`brushIcon`, `categoryIcon`, `checkIcon`, `closeIcon`,
+`customPostTypeIcon`, `downIcon`, `fileIcon`, `imageIcon`,
+`languageIcon`, `listIcon`, `listViewIcon`, `mediaIcon`,
+`notAllowedIcon`, `pageIcon`, `pluginsIcon`, `postIcon`, `redoIcon`,
 `saveIcon`, `settingsIcon`, `sidebarIcon`, `sidebarRtlIcon`,
 `trashIcon`, `undoIcon`, `upIcon`, `updateIcon`, `uploadIcon` and
 `videoIcon`. `authorIcon` is the one an
 author cell shows when the site shows no avatars, `postIcon` the one
 an empty content list shows, `mediaIcon` the one an empty media
-library shows, and `uploadIcon` the one an upload button carries.
+library shows, `pluginsIcon` the one an empty Plugins list shows,
+and `uploadIcon` the one an upload button carries.
 `imageIcon`, `videoIcon`, `audioIcon` and `fileIcon` are the ones a
 media card draws for a file that shows no picture, picked by its
 file type as WordPress picks them.
@@ -855,7 +859,8 @@ the one a panel's close button carries.
 The sidebar rows carry the icons WordPress draws for the same rows:
 `postIcon` for Posts and every type a site adds, `pageIcon` for
 Pages, `categoryIcon` for Categories, `mediaIcon` for Media,
-`brushIcon` for Themes, `customPostTypeIcon` for Content Types,
+`brushIcon` for Themes, `pluginsIcon` for Plugins,
+`customPostTypeIcon` for Content Types,
 `listIcon` for Field Groups, `languageIcon` for Language,
 `settingsIcon` for Settings and `updateIcon` for Updates.
 Import them from the SDK, so the admin keeps one copy of the icon set:
@@ -1138,8 +1143,15 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
 - New: `Settings` and `Deps.Settings` read the settings a plugin
   declares in its `plugin.json`, in seven types, with `Core` for the
   trusted proxies. See [settings](#settings).
+- New: the admin's [Plugins screen](/guides/plugins/) lists every
+  plugin with the `name`, `description` and `version` its
+  `plugin.json` gives, and why one is paused. `description` is a new
+  key, see [the manifest](/extending/write-a-plugin/#1-the-manifest).
 - `Deps.Getenv`, `Deps.Env` and the `Env` type are gone, a breaking
   change.
+- `make generate` rejects a `plugin.json` that spells a key in
+  another case, such as `Version` for `version`, holds one key twice,
+  or holds text that is not valid UTF-8, a breaking change.
 
 **To move:**
 
@@ -1161,6 +1173,9 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
    `id "hook" is reserved`. Rename its folder under `plugins/` to
    match, and start the names of its commands and of the capabilities
    it declares with the new id.
+7. Spell each key of your `plugin.json` in lower case, exactly as
+   [the manifest](/extending/write-a-plugin/#1-the-manifest) lists
+   it, and keep one of any key you wrote twice.
 
 ### v0.5.0
 

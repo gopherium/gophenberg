@@ -149,7 +149,7 @@ func TestRunPausesAPluginWhoseRegisterFailsAndServes(t *testing.T) {
 		t.Fatalf("run() error = %v, want the site served with the plugin paused", err)
 	}
 	want := pluginkit.PluginRecord{
-		ID: "notes", State: pluginkit.PluginPaused, LastError: "pluginkit: notes register: register exploded",
+		ID: "notes", State: pluginkit.PluginPaused, Step: pluginkit.StepRegister, LastError: "register exploded",
 	}
 	if got := recordsAt(t, databaseURL)["notes"]; got != want {
 		t.Errorf("the notes record = %+v, want %+v", got, want)
@@ -235,8 +235,8 @@ func TestRunPausesAPluginWhoseSettingsAreRejectedAndServes(t *testing.T) {
 		t.Fatalf("serveSite() error = %v, want the site served with the plugin paused", err)
 	}
 	want := pluginkit.PluginRecord{
-		ID: "feed", State: pluginkit.PluginPaused,
-		LastError: `pluginkit: feed register: GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"`,
+		ID: "feed", State: pluginkit.PluginPaused, Step: pluginkit.StepRegister,
+		LastError: `GOPHENBERG_PLUGIN_FEED__ITEMS: must be a whole number, got "banana"`,
 	}
 	if got := recordsAt(t, databaseURL)["feed"]; got != want || registered {
 		t.Errorf("the feed record = %+v with its Register run %v, want %+v and the Register never run", got,

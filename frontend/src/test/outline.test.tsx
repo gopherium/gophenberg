@@ -19,6 +19,7 @@ const TITLES: Record<string, string> = {
 	'/users': 'Users',
 	'/users/new': 'Add User',
 	'/themes': 'Themes',
+	'/plugins': 'Plugins',
 	'/language': 'Language',
 	'/settings': 'Settings',
 	'/update-core': 'Gophenberg Updates',
@@ -34,6 +35,7 @@ const VISITABLE = Object.entries(TITLES).map(([path, title]) => [
 const EMPTY = [
 	['/content/post', 'No items yet'],
 	['/media', 'No media items yet'],
+	['/plugins', 'No plugins yet'],
 ]
 
 const EDITOR_ROUTES = ['/content/$typeKey/$postId/edit']
@@ -49,6 +51,7 @@ beforeEach(() => {
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
 		http.get('/api/users', () => HttpResponse.json([])),
 		http.get('/api/themes', () => HttpResponse.json({ themes: [] })),
+		http.get('/api/plugin-admin', () => HttpResponse.json({ plugins: [] })),
 		http.get('/api/media', () => HttpResponse.json({ items: [], total: 0, per_page: siteSettings.list_page_size })),
 		http.get('/api/locale', () => HttpResponse.json({ locale: 'en-US', supported: ['en-US'] })),
 		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),

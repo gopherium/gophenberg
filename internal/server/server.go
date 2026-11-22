@@ -53,6 +53,8 @@ type Config struct {
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
 	PluginPublicPaths map[string][]string
+	// InstalledPlugins answers the plugins the site holds and the state of each. Nil leaves the plugin list unhandled.
+	InstalledPlugins InstalledPlugins
 	// PluginHead answers the tags plugins add to the head of the built-in site's pages. Nil adds none.
 	PluginHead publicsite.HeadSource
 	// ContentChanges hears each saved write of an item. Nil tells no one.
@@ -282,6 +284,10 @@ func (s *server) mountAdmin(r chi.Router, auth *authkit.Handlers, cfg Config) {
 			r.Post("/api/updates/check", s.handleUpdatesCheck(cfg.Updates, cfg.UpdatesCheckAge))
 			r.Post("/api/updates/apply", s.handleUpdatesApply(cfg.Updates))
 		})
+	}
+	if cfg.InstalledPlugins != nil {
+		plugins := auth.RequireCapability(string(role.ActivatePlugins))
+		r.With(plugins).Get("/api/plugin-admin", s.handlePluginList(cfg.InstalledPlugins))
 	}
 }
 

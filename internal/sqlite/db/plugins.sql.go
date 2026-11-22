@@ -10,11 +10,12 @@ import (
 )
 
 const ActivatePlugin = `-- name: ActivatePlugin :exec
-INSERT INTO core_plugins (id, state, last_error)
-VALUES (?1, 'active', '')
+INSERT INTO core_plugins (id, state, last_error, step)
+VALUES (?1, 'active', '', '')
 ON CONFLICT (id) DO UPDATE
 SET state = excluded.state,
-    last_error = excluded.last_error
+    last_error = excluded.last_error,
+    step = excluded.step
 `
 
 func (q *Queries) ActivatePlugin(ctx context.Context, id string) error {
@@ -24,7 +25,7 @@ func (q *Queries) ActivatePlugin(ctx context.Context, id string) error {
 
 const ListPlugins = `-- name: ListPlugins :many
 
-SELECT id, state, last_error
+SELECT id, state, last_error, step
 FROM core_plugins
 `
 
@@ -38,7 +39,12 @@ func (q *Queries) ListPlugins(ctx context.Context) ([]CorePlugin, error) {
 	var items []CorePlugin
 	for rows.Next() {
 		var i CorePlugin
-		if err := rows.Scan(&i.ID, &i.State, &i.LastError); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.State,
+			&i.LastError,
+			&i.Step,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -53,19 +59,21 @@ func (q *Queries) ListPlugins(ctx context.Context) ([]CorePlugin, error) {
 }
 
 const PausePlugin = `-- name: PausePlugin :exec
-INSERT INTO core_plugins (id, state, last_error)
-VALUES (?1, 'paused', ?2)
+INSERT INTO core_plugins (id, state, last_error, step)
+VALUES (?1, 'paused', ?2, ?3)
 ON CONFLICT (id) DO UPDATE
 SET state = excluded.state,
-    last_error = excluded.last_error
+    last_error = excluded.last_error,
+    step = excluded.step
 `
 
 type PausePluginParams struct {
 	ID        string
 	LastError string
+	Step      string
 }
 
 func (q *Queries) PausePlugin(ctx context.Context, arg PausePluginParams) error {
-	_, err := q.db.ExecContext(ctx, PausePlugin, arg.ID, arg.LastError)
+	_, err := q.db.ExecContext(ctx, PausePlugin, arg.ID, arg.LastError, arg.Step)
 	return err
 }
