@@ -49,6 +49,31 @@ Feature: Field settings
     When the administrator relabels the field "rating" in "Extras" as "Stars"
     Then the field "rating" on "post" carries the setting "min"
 
+  Scenario: One field edit carries the label, the required flag and the settings together
+    Given the "number" field "rating" in "Extras" with settings:
+      """
+      {"min": 1}
+      """
+    When the administrator sends one edit of "rating" in "Extras" with the label "Stars", required, and the settings:
+      """
+      {"min": 2, "max": 8}
+      """
+    Then the field "rating" on "post" is labeled "Stars"
+    And the field "rating" on "post" is required
+    And the field "rating" on "post" carries the setting "max"
+
+  Scenario: An edit whose default is longer than maxlength is rejected and names the default
+    Given the "text" field "subtitle" in "Extras" with settings:
+      """
+      {"maxlength": 3}
+      """
+    When the administrator patches the settings of "subtitle" in "Extras" to:
+      """
+      {"maxlength": 3, "default": "much too long"}
+      """
+    Then the request is rejected with the code "setting_bounds"
+    And the error names "default" under "setting"
+
   Scenario: A value below the minimum is refused on save
     Given the "number" field "rating" in "Extras" with settings:
       """

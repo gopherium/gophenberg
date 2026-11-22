@@ -103,26 +103,80 @@ func theAdministratorRelabelsInGroup(ctx context.Context, key, title, label stri
 	return w.expect(http.StatusOK)
 }
 
-// theFieldCarriesTheSetting asserts the served field definition holds the named setting.
-func theFieldCarriesTheSetting(ctx context.Context, key, typeKey, setting string) error {
+// theAdministratorSendsOneEdit carries a new label, the required flag and new settings in one field edit.
+func theAdministratorSendsOneEdit(ctx context.Context, key, title, label string, settings *godog.DocString) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	listed, err := fieldsOnType(w, typeKey)
+	held, err := groupNamed(w, title)
 	if err != nil {
 		return err
 	}
-	for _, held := range listed {
-		if held.Key != key {
-			continue
-		}
-		if _, found := held.Settings[setting]; !found {
-			return fmt.Errorf("the field %q serves settings %v, want %q among them", key, held.Settings, setting)
-		}
-		return nil
+	where := groupsPath + "/" + strconv.Itoa(held.ID) + "/fields/" + key
+	stamp, err := fieldStampIn(w, held.ID, key)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("the type %q lists no field %q", typeKey, key)
+	body := fmt.Sprintf(`{"label":%q,"required":true,"settings":%s,"updated_at":%q}`, label, settings.Content, stamp)
+	if err := w.patchJSON(where, body); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// fieldServedOn returns the field definition the registry serves under the key on the named type.
+func fieldServedOn(ctx context.Context, key, typeKey string) (listedField, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return listedField{}, err
+	}
+	listed, err := fieldsOnType(w, typeKey)
+	if err != nil {
+		return listedField{}, err
+	}
+	for _, held := range listed {
+		if held.Key == key {
+			return held, nil
+		}
+	}
+	return listedField{}, fmt.Errorf("the type %q lists no field %q", typeKey, key)
+}
+
+// theFieldCarriesTheSetting asserts the served field definition holds the named setting.
+func theFieldCarriesTheSetting(ctx context.Context, key, typeKey, setting string) error {
+	held, err := fieldServedOn(ctx, key, typeKey)
+	if err != nil {
+		return err
+	}
+	if _, found := held.Settings[setting]; !found {
+		return fmt.Errorf("the field %q serves settings %v, want %q among them", key, held.Settings, setting)
+	}
+	return nil
+}
+
+// theFieldIsLabeled asserts the served field definition carries the label.
+func theFieldIsLabeled(ctx context.Context, key, typeKey, label string) error {
+	held, err := fieldServedOn(ctx, key, typeKey)
+	if err != nil {
+		return err
+	}
+	if held.Label != label {
+		return fmt.Errorf("the field %q serves the label %q, want %q", key, held.Label, label)
+	}
+	return nil
+}
+
+// theFieldIsRequired asserts the served field definition carries the required flag.
+func theFieldIsRequired(ctx context.Context, key, typeKey string) error {
+	held, err := fieldServedOn(ctx, key, typeKey)
+	if err != nil {
+		return err
+	}
+	if !held.Required {
+		return fmt.Errorf("the field %q serves as optional, want it required", key)
+	}
+	return nil
 }
 
 // theAdministratorSavesTheNumber sends one numeric field value to the remembered post.
@@ -255,6 +309,10 @@ func initializeFieldSettings(sc *godog.ScenarioContext) {
 	)
 	sc.Then(`^the field edit is refused as stale$`, theFieldEditIsRefusedAsStale)
 	sc.When(`^the administrator relabels the field "([^"]*)" in "([^"]*)" as "([^"]*)"$`, theAdministratorRelabelsInGroup)
+	sc.When(
+		`^the administrator sends one edit of "([^"]*)" in "([^"]*)" with the label "([^"]*)", required, and the settings:$`,
+		theAdministratorSendsOneEdit,
+	)
 	sc.When(`^the administrator saves "([^"]*)" into "([^"]*)" of "([^"]*)"$`, theAdministratorSavesInto)
 	sc.When(`^the administrator retitles "([^"]*)" as "([^"]*)"$`, theAdministratorRetitles)
 	sc.When(
@@ -262,7 +320,11 @@ func initializeFieldSettings(sc *godog.ScenarioContext) {
 		theEditorAutosavesTheNumber,
 	)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" carries the setting "([^"]*)"$`, theFieldCarriesTheSetting)
+	sc.Then(`^the field "([^"]*)" on "([^"]*)" is labeled "([^"]*)"$`, theFieldIsLabeled)
+	sc.Then(`^the field "([^"]*)" on "([^"]*)" is required$`, theFieldIsRequired)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
+	sc.Then(`^the request is rejected with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
 	sc.Then(`^the post "([^"]*)" holds the number (\d+) in "([^"]*)"$`, thePostHoldsTheNumber)
 	sc.Then(`^the buffer it saved holds the number (\d+) in "([^"]*)"$`, theBufferHoldsTheNumber)
 	sc.Then(
