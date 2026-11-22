@@ -836,6 +836,9 @@ msgstr ""
 msgid "Every kind of content this site holds."
 msgstr ""
 
+msgid "Every plugin this site holds, and whether it runs."
+msgstr ""
+
 msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
 msgstr ""
 
@@ -846,6 +849,14 @@ msgid "Export definitions"
 msgstr ""
 
 msgid "February"
+msgstr ""
+
+#: plugins/feed/plugin.json
+msgid "Feed"
+msgstr ""
+
+#: plugins/feed/plugin.json
+msgid "Feed title"
 msgstr ""
 
 msgid "Fewest files"
@@ -959,6 +970,10 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
+#: plugins/feed/plugin.json
+msgid "How many posts the feed carries"
+msgstr ""
+
 msgid "Images"
 msgstr ""
 
@@ -975,6 +990,30 @@ msgid "Installed"
 msgstr ""
 
 msgid "Instructions"
+msgstr ""
+
+msgid "It failed while it declared its content types. Error message: %s"
+msgstr ""
+
+msgid "It failed while it declared its roles. Error message: %s"
+msgstr ""
+
+msgid "It failed while it handed over its web addresses. Error message: %s"
+msgstr ""
+
+msgid "It failed while it started. Error message: %s"
+msgstr ""
+
+msgid "It failed while it updated its database tables. Error message: %s"
+msgstr ""
+
+msgid "It failed while the site checked its hooks. Error message: %s"
+msgstr ""
+
+msgid "It failed while the site set it up. Error message: %s"
+msgstr ""
+
+msgid "It failed. Error message: %s"
 msgstr ""
 
 msgid "It moves here from another group and keeps its stored values."
@@ -1196,6 +1235,9 @@ msgstr ""
 msgid "No"
 msgstr ""
 
+msgid "No active plugins"
+msgstr ""
+
 msgid "No description"
 msgstr ""
 
@@ -1223,7 +1265,13 @@ msgstr ""
 msgid "No parent"
 msgstr ""
 
+msgid "No paused plugins"
+msgstr ""
+
 msgid "No pending items"
+msgstr ""
+
+msgid "No plugins yet"
 msgstr ""
 
 msgid "No private items"
@@ -1349,6 +1397,9 @@ msgstr ""
 msgid "Please provide a name."
 msgstr ""
 
+msgid "Plugin"
+msgstr ""
+
 msgid "Plural name"
 msgstr ""
 
@@ -1356,6 +1407,10 @@ msgid "Points at"
 msgstr ""
 
 msgid "Post published."
+msgstr ""
+
+#: plugins/feed/plugin.json
+msgid "Posts in the feed"
 msgstr ""
 
 msgid "Posts per page"
@@ -1491,6 +1546,10 @@ msgid "Select Media"
 msgstr ""
 
 msgid "September"
+msgstr ""
+
+#: plugins/feed/plugin.json
+msgid "Serves your published posts as an RSS feed."
 msgstr ""
 
 msgid "Serving"
@@ -1630,6 +1689,10 @@ msgstr ""
 msgid "The changes to this field group are not saved."
 msgstr ""
 
+#: plugins/feed/plugin.json
+msgid "The channel title feed readers display"
+msgstr ""
+
 msgid "The check on %(date)s at %(time)s failed: %(error)s"
 msgstr ""
 
@@ -1751,6 +1814,9 @@ msgid "The next check runs in %(time)s."
 msgstr ""
 
 msgid "The number of revisions to keep has to be a whole number, and it cannot be negative. Enter a different number."
+msgstr ""
+
+msgid "The plugins could not be loaded."
 msgstr ""
 
 msgid "The registry could not be reached."
@@ -2210,6 +2276,10 @@ msgid "Media"
 msgstr ""
 
 msgctxt "admin section"
+msgid "Plugins"
+msgstr ""
+
+msgctxt "admin section"
 msgid "Settings"
 msgstr ""
 
@@ -2323,6 +2393,26 @@ msgstr ""
 
 msgctxt "person"
 msgid "Name"
+msgstr ""
+
+msgctxt "plugin"
+msgid "Reason"
+msgstr ""
+
+msgctxt "plugin"
+msgid "Status"
+msgstr ""
+
+msgctxt "plugin status"
+msgid "Active"
+msgstr ""
+
+msgctxt "plugin status"
+msgid "Inactive"
+msgstr ""
+
+msgctxt "plugin status"
+msgid "Paused"
 msgstr ""
 
 msgctxt "post"

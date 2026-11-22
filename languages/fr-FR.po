@@ -2891,6 +2891,86 @@ msgid "Trash is empty"
 msgstr "La corbeille est vide"
 
 #, fuzzy
+msgid "Every plugin this site holds, and whether it runs."
+msgstr "Toutes les extensions que ce site contient, et si chacune fonctionne."
+
+#, fuzzy
+msgid "Feed"
+msgstr "Flux"
+
+#, fuzzy
+msgid "Feed title"
+msgstr "Titre du flux"
+
+#, fuzzy
+msgid "How many posts the feed carries"
+msgstr "Le nombre d'articles que contient le flux"
+
+#, fuzzy
+msgid "It failed while it declared its content types. Error message: %s"
+msgstr "Elle a échoué pendant qu'elle déclarait ses types de contenu. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while it declared its roles. Error message: %s"
+msgstr "Elle a échoué pendant qu'elle déclarait ses rôles. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while it handed over its web addresses. Error message: %s"
+msgstr "Elle a échoué pendant qu'elle transmettait ses adresses web. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while it started. Error message: %s"
+msgstr "Elle a échoué au démarrage. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while it updated its database tables. Error message: %s"
+msgstr "Elle a échoué pendant qu'elle mettait à jour ses tables de base de données. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while the site checked its hooks. Error message: %s"
+msgstr "Elle a échoué pendant que le site vérifiait ses hooks. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed while the site set it up. Error message: %s"
+msgstr "Elle a échoué pendant que le site la configurait. Message d'erreur : %s"
+
+#, fuzzy
+msgid "It failed. Error message: %s"
+msgstr "Elle a échoué. Message d'erreur : %s"
+
+#, fuzzy
+msgid "No active plugins"
+msgstr "Aucune extension active"
+
+#, fuzzy
+msgid "No paused plugins"
+msgstr "Aucune extension en pause"
+
+#, fuzzy
+msgid "No plugins yet"
+msgstr "Aucune extension pour l'instant"
+
+#, fuzzy
+msgid "Plugin"
+msgstr "Extension"
+
+#, fuzzy
+msgid "Posts in the feed"
+msgstr "Articles dans le flux"
+
+#, fuzzy
+msgid "Serves your published posts as an RSS feed."
+msgstr "Diffuse vos articles publiés sous forme de flux RSS."
+
+#, fuzzy
+msgid "The channel title feed readers display"
+msgstr "Le titre du canal qu'affichent les lecteurs de flux"
+
+#, fuzzy
+msgid "The plugins could not be loaded."
+msgstr "Les extensions n'ont pas pu être chargées."
+
+#, fuzzy
 msgctxt "admin section"
 msgid "Media"
 msgstr "Médias"
@@ -2919,6 +2999,11 @@ msgstr "Réglages"
 msgctxt "admin section"
 msgid "Themes"
 msgstr "Thèmes"
+
+#, fuzzy
+msgctxt "admin section"
+msgid "Plugins"
+msgstr "Extensions"
 
 #, fuzzy
 msgctxt "column"
@@ -3014,6 +3099,31 @@ msgstr "Lien"
 msgctxt "person"
 msgid "Name"
 msgstr "Nom"
+
+#, fuzzy
+msgctxt "plugin"
+msgid "Reason"
+msgstr "Raison"
+
+#, fuzzy
+msgctxt "plugin"
+msgid "Status"
+msgstr "État"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Active"
+msgstr "Active"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Inactive"
+msgstr "Inactive"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Paused"
+msgstr "En pause"
 
 #, fuzzy
 msgctxt "post"

@@ -16,6 +16,9 @@ const IGNORED = ['**/test/**', '**/stubs/**', '**/scripts/**']
 /** The directories the Go side's messages live under. */
 export const GO_ROOTS = ['internal', 'cmd', 'plugins']
 
+/** The globs naming every plugin manifest whose texts the template carries, read from the repository root. */
+const MANIFESTS = ['plugins/*/plugin.json']
+
 /** The packages that pin the translation runtime and the brick for themselves. */
 export const PINNING = ['frontend', 'sdk/frontend']
 
@@ -39,6 +42,7 @@ export function potConfig(sources: string[] = SOURCES): PotOptions {
 		sources,
 		ignored: IGNORED,
 		goRoots: GO_ROOTS,
+		manifests: MANIFESTS,
 	}
 }
 

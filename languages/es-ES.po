@@ -2635,6 +2635,86 @@ msgstr "No hay elementos publicados"
 msgid "Trash is empty"
 msgstr "La papelera está vacía"
 
+#, fuzzy
+msgid "Every plugin this site holds, and whether it runs."
+msgstr "Todos los plugins que hay en este sitio, y si cada uno está en marcha."
+
+#, fuzzy
+msgid "Feed"
+msgstr "Feed"
+
+#, fuzzy
+msgid "Feed title"
+msgstr "Título del feed"
+
+#, fuzzy
+msgid "How many posts the feed carries"
+msgstr "Cuántas entradas incluye el feed"
+
+#, fuzzy
+msgid "It failed while it declared its content types. Error message: %s"
+msgstr "Falló mientras declaraba sus tipos de contenido. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while it declared its roles. Error message: %s"
+msgstr "Falló mientras declaraba sus roles. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while it handed over its web addresses. Error message: %s"
+msgstr "Falló mientras entregaba sus direcciones web. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while it started. Error message: %s"
+msgstr "Falló al arrancar. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while it updated its database tables. Error message: %s"
+msgstr "Falló mientras actualizaba sus tablas de la base de datos. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while the site checked its hooks. Error message: %s"
+msgstr "Falló mientras el sitio comprobaba sus hooks. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed while the site set it up. Error message: %s"
+msgstr "Falló mientras el sitio lo configuraba. Mensaje de error: %s"
+
+#, fuzzy
+msgid "It failed. Error message: %s"
+msgstr "Falló. Mensaje de error: %s"
+
+#, fuzzy
+msgid "No active plugins"
+msgstr "No hay plugins activos"
+
+#, fuzzy
+msgid "No paused plugins"
+msgstr "No hay plugins en pausa"
+
+#, fuzzy
+msgid "No plugins yet"
+msgstr "Todavía no hay plugins"
+
+#, fuzzy
+msgid "Plugin"
+msgstr "Plugin"
+
+#, fuzzy
+msgid "Posts in the feed"
+msgstr "Entradas en el feed"
+
+#, fuzzy
+msgid "Serves your published posts as an RSS feed."
+msgstr "Ofrece tus entradas publicadas como un feed RSS."
+
+#, fuzzy
+msgid "The channel title feed readers display"
+msgstr "El título del canal que muestran los lectores de feeds"
+
+#, fuzzy
+msgid "The plugins could not be loaded."
+msgstr "No se han podido cargar los plugins."
+
 msgctxt "admin section"
 msgid "Media"
 msgstr "Medios"
@@ -2660,6 +2740,11 @@ msgstr "Ajustes"
 msgctxt "admin section"
 msgid "Themes"
 msgstr "Temas"
+
+#, fuzzy
+msgctxt "admin section"
+msgid "Plugins"
+msgstr "Plugins"
 
 msgctxt "column"
 msgid "Date"
@@ -2748,6 +2833,31 @@ msgstr "Enlace"
 msgctxt "person"
 msgid "Name"
 msgstr "Nombre"
+
+#, fuzzy
+msgctxt "plugin"
+msgid "Reason"
+msgstr "Motivo"
+
+#, fuzzy
+msgctxt "plugin"
+msgid "Status"
+msgstr "Estado"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Active"
+msgstr "Activo"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Inactive"
+msgstr "Inactivo"
+
+#, fuzzy
+msgctxt "plugin status"
+msgid "Paused"
+msgstr "En pausa"
 
 msgctxt "post"
 msgid "Status"
