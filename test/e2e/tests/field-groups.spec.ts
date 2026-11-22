@@ -63,6 +63,62 @@ async function textFieldIn(page: Page, group: number, label: string) {
 }
 
 /**
+ * Declares an optional text field in a group, shown only while its source field reads Two hours.
+ * @param page - The page whose session declares it.
+ * @param group - The id of the group that holds it.
+ * @param label - The name of the field, its key made from it.
+ * @param source - The key of the field whose value shows it.
+ */
+async function fieldShownBy(page: Page, group: number, label: string, source: string) {
+	const answer = await page.request.post(`/api/groups/${group}/fields`, {
+		data: {
+			key: label.toLowerCase(),
+			label,
+			kind: 'text',
+			many: false,
+			required: false,
+			settings: { conditions: [[{ source, operator: '==', value: 'Two hours' }]] },
+		},
+	})
+	expect(answer.status()).toBe(201)
+}
+
+/**
+ * Waits until every animation inside an element has finished or been cancelled.
+ * @param element - The element whose animations it waits on.
+ */
+async function settled(element: Locator) {
+	await element.evaluate((node) =>
+		Promise.allSettled(node.getAnimations({ subtree: true }).map((run) => run.finished)),
+	)
+}
+
+/**
+ * Returns whether a row of controls wraps and stays inside its holder, and how far a box up to it runs sideways.
+ * @param row - The row of controls.
+ * @returns Whether it takes more than one line, whether every control sits inside the holder, and the widest overrun.
+ */
+async function fitOf(row: Locator) {
+	return row.evaluate((node) => {
+		const holder = node.closest('[role="region"], [role="dialog"]') as HTMLElement
+		const edges = holder.getBoundingClientRect()
+		const controls = [...node.children].map((control) => control.getBoundingClientRect())
+		let sideways = holder.scrollWidth - holder.clientWidth
+		for (let held = node; held !== holder; held = held.parentElement as HTMLElement) {
+			sideways = Math.max(sideways, held.scrollWidth - held.clientWidth)
+		}
+		return {
+			wrapped: new Set(controls.map((control) => Math.round(control.bottom))).size > 1,
+			inside: controls.every(
+				(control) =>
+					Math.round(control.left) >= Math.round(edges.left) && Math.round(control.right) <= Math.round(edges.right),
+			),
+			sideways,
+		}
+	})
+}
+
+/**
  * Returns the link back to the Field Groups list in the breadcrumbs of a group page.
  * @param main - The main work of the page.
  * @returns The breadcrumb link.
@@ -180,4 +236,35 @@ test('wraps the actions of a field on a phone, each button whole on one line ins
 		}
 	})
 	expect(fit).toEqual({ heights: 1, inside: true, oneLine: true })
+})
+
+test('wraps a location rule and a field condition on a phone, every control inside the details and the dialog', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page, 'Apprenticeship')
+	await textFieldIn(page, group.id, 'Duration')
+	await fieldShownBy(page, group.id, 'Summary', 'duration')
+	await page.setViewportSize(PHONE)
+
+	await page.goto(`/admin/field-groups/${group.id}`)
+	const main = page.getByRole('main')
+	const details = main.getByRole('region', { name: 'Field group settings' })
+	const rule = details.getByRole('group', { name: 'Rule 1 of set 1' })
+	await expect(rule.getByRole('combobox', { name: 'Value' })).toHaveText(`Apprenticeships ${RUN}`)
+	expect.soft(await fitOf(rule), 'the rule row fits the details').toEqual({
+		wrapped: true,
+		inside: true,
+		sideways: 0,
+	})
+
+	await main.getByRole('button', { name: 'Rules showing Summary' }).click()
+	const dialog = page.getByRole('dialog', { name: 'Rules showing Summary' })
+	await expect(dialog.getByRole('textbox', { name: 'Value' })).toHaveValue('Two hours')
+	await settled(dialog)
+	const condition = dialog.getByRole('button', { name: 'Remove', exact: true }).locator('xpath=..')
+	expect.soft(await fitOf(condition), 'the condition row fits the dialog').toEqual({
+		wrapped: true,
+		inside: true,
+		sideways: 0,
+	})
 })
