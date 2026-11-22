@@ -33,9 +33,10 @@ import (
 // sessionCookieName scopes the login cookie to this product.
 const sessionCookieName = "__Host-gophenberg_session"
 
-// UserStore persists the accounts the server signs in and administers.
+// UserStore persists the accounts the server signs in, administers and invites.
 type UserStore interface {
 	authkit.AdminStore
+	authkit.InviteStore
 	// UsersByIDs returns the accounts holding the ids in one read.
 	UsersByIDs(ctx context.Context, ids []uuid.UUID) ([]gouncer.User, error)
 }
@@ -115,6 +116,10 @@ type Config struct {
 	UpdatesCheckAge time.Duration
 	// UpdatesScreen is how often the Updates screen asks for progress and how long it waits, served with the settings.
 	UpdatesScreen UpdatesScreen
+	// InviteSender mails each activation link. Nil answers the link to the reader who invited.
+	InviteSender authkit.InviteSender
+	// InviteTTL is how long an activation link lives. Zero applies authkit's default.
+	InviteTTL time.Duration
 }
 
 // rolesOf returns the roles the configuration hands over, or the core's alone when it hands none.
@@ -147,8 +152,8 @@ func loggerOf(cfg Config) *slog.Logger {
 }
 
 // NewServer returns the HTTP handler serving the CMS API. Every route
-// requires a login session except login, logout, and each plugin's
-// declared public paths.
+// requires a login session except login, activate, logout, and each
+// plugin's declared public paths.
 func NewServer(cfg Config) http.Handler {
 	roles := rolesOf(cfg)
 	privileged := roles.HoldersOf(string(role.ManageUsers))
@@ -158,6 +163,7 @@ func NewServer(cfg Config) http.Handler {
 	admin := authkit.NewAdmin(authkit.AdminConfig{
 		Store: cfg.Users, Privileged: privileged, Roles: roles, Avatars: &cfg.Avatars, AvatarSize: usersListAvatar,
 	})
+	invitations := invitationsOf(cfg, roles, auth, admin)
 	s := &server{
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
@@ -181,6 +187,7 @@ func NewServer(cfg Config) http.Handler {
 	router.Use(afterVisits(cfg.Cron, cfg.CronOnVisits))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
+	router.With(ratelimit.ResolveClientIP(cfg.TrustedProxies)).Post("/api/auth/activate", invitations.Activate)
 	mountCron(router, cfg, s.logger)
 	router.Post("/api/auth/logout", auth.Logout)
 	router.Route("/api/locale", func(locale chi.Router) {
@@ -203,7 +210,7 @@ func NewServer(cfg Config) http.Handler {
 	})
 	router.Group(func(privileged chi.Router) {
 		privileged.Use(readerOnly, auth.RequireSession, auth.RequirePrivilege)
-		s.mountAccounts(privileged, admin)
+		s.mountAccounts(privileged, admin, invitations)
 	})
 	router.Group(func(gated chi.Router) {
 		gated.Use(readerOnly, auth.RequireSession)
@@ -292,9 +299,11 @@ func (s *server) mountAdmin(r chi.Router, auth *authkit.Handlers, cfg Config) {
 }
 
 // mountAccounts registers the account routes only a privileged role reaches.
-func (s *server) mountAccounts(r chi.Router, admin *authkit.AdminHandlers) {
+func (s *server) mountAccounts(r chi.Router, admin *authkit.AdminHandlers, invitations *authkit.Invitations) {
 	r.Get("/api/users", admin.List)
 	r.Post("/api/users", admin.Create)
+	r.Post("/api/users/invite", invitations.Invite)
+	r.Post("/api/users/invite/resend", invitations.Resend)
 	r.Get("/api/users/post-counts", s.handleUserPostCounts())
 	r.Patch("/api/users/{id}", admin.SetDisabled)
 	r.Put("/api/users/{id}/role", admin.SetRole)

@@ -75,6 +75,16 @@ func TestFallsBackToIndexForAdminClientRoutes(t *testing.T) {
 	}
 }
 
+func TestAnActivationLinkOpensTheApp(t *testing.T) {
+	t.Parallel()
+
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin/activate?token=a-link", "")
+
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "Gophenberg") {
+		t.Errorf("activation link answered %d %q, want the SPA index.html", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestADirectoryUnderTheSPAFallsBackToTheApp(t *testing.T) {
 	t.Parallel()
 

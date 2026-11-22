@@ -28,6 +28,7 @@ type route struct {
 // publicRoutes names the API routes served without a session.
 var publicRoutes = []route{
 	{http.MethodPost, "/api/auth/login"},
+	{http.MethodPost, "/api/auth/activate"},
 	{http.MethodPost, "/api/auth/logout"},
 	{http.MethodGet, "/api/locale"},
 	{http.MethodGet, "/api/content/v1"},
@@ -73,6 +74,8 @@ var staffRoutes = []route{
 var adminRoutes = []route{
 	{http.MethodGet, "/api/users"},
 	{http.MethodPost, "/api/users"},
+	{http.MethodPost, "/api/users/invite"},
+	{http.MethodPost, "/api/users/invite/resend"},
 	{http.MethodGet, "/api/users/post-counts"},
 	{http.MethodPatch, "/api/users/{id}"},
 	{http.MethodPut, "/api/users/{id}/role"},
