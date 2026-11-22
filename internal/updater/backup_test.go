@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -59,10 +60,17 @@ if [ %d -ne 0 ]; then
 fi
 printf %q
 `, line, first, dump.log, dump.log, exit, exit, dumpBody)
-	if err := os.WriteFile(dump.bin, []byte(script), 0o755); err != nil {
+	if err := writeScript(dump.bin, script); err != nil {
 		t.Fatalf("writing the fake pg_dump: %v", err)
 	}
 	return dump
+}
+
+// writeScript writes body to an executable file at path while no process can start.
+func writeScript(path, body string) error {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	return os.WriteFile(path, []byte(body), 0o755)
 }
 
 // pgDumpOf returns a pg_dump stand-in of the PostgreSQL major that dumps without a failure.
