@@ -1182,6 +1182,10 @@ msgid "The changes to this field group are not saved."
 msgstr "Los cambios de este grupo de campos no se han guardado."
 
 #, fuzzy
+msgid "The content types could not be loaded, so the group has no content type to start on."
+msgstr "No se han podido cargar los tipos de contenido, así que el grupo no tiene ningún tipo de contenido en el que empezar."
+
+#, fuzzy
 msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
 msgstr "No se han podido cargar los tipos de contenido, así que no se muestra dónde aparecen estos grupos ni qué campos eclipsan."
 
