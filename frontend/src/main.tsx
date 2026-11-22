@@ -16,6 +16,7 @@ import { AdminGate } from './AdminGate'
 import { AdminHost } from './AdminHost'
 import { BootLoading } from './boot'
 import { startLocale } from './i18n/start'
+import { BRAND, publicAuthScreen } from './PublicAuth'
 import { createAppRouter } from './router'
 import { SiteFormatGate } from './settings/SiteFormatGate'
 import { AdminToaster } from './toasts'
@@ -24,6 +25,9 @@ await startLocale()
 
 const queryClient = createAuthQueryClient()
 const router = createAppRouter()
+const publicScreen = publicAuthScreen(new URL(window.location.href), (path) => {
+	window.location.replace(path)
+})
 
 /**
  * Renders the message the auth gate shows when the session cannot be loaded.
@@ -37,21 +41,25 @@ createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
 			<AdminHost>
-				<AuthGate
-					loginScreen={(onLogin) => (
-						<LoginScreen brand="Gophenberg" onLogin={onLogin} />
-					)}
-					loading={<BootLoading />}
-					error={<BootError />}
-				>
-					<AdminGate>
-						<AdminToaster>
-							<SiteFormatGate loading={<BootLoading />}>
-								<RouterProvider router={router} />
-							</SiteFormatGate>
-						</AdminToaster>
-					</AdminGate>
-				</AuthGate>
+				{publicScreen === null ? (
+					<AuthGate
+						loginScreen={(onLogin) => (
+							<LoginScreen brand={BRAND} onLogin={onLogin} />
+						)}
+						loading={<BootLoading />}
+						error={<BootError />}
+					>
+						<AdminGate>
+							<AdminToaster>
+								<SiteFormatGate loading={<BootLoading />}>
+									<RouterProvider router={router} />
+								</SiteFormatGate>
+							</AdminToaster>
+						</AdminGate>
+					</AuthGate>
+				) : (
+					publicScreen
+				)}
 			</AdminHost>
 		</QueryClientProvider>
 	</StrictMode>,
