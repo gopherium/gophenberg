@@ -22,6 +22,7 @@ import (
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/framework/pluginkit/wire"
+	"github.com/gopherium/gouncer/authkit"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -54,6 +55,7 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	if err != nil {
 		return err
 	}
+	logMailRelay(logger, settings.mail)
 
 	composed := composeOf(settings, getenv)
 	composed.settings, composed.logger = index.settings, logger
@@ -104,6 +106,9 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 func started(getenv func(string) string, logger *slog.Logger) (runConfig, *updater.Guard, error) {
 	settings, err := loadRunConfig(getenv)
 	if err != nil {
+		return runConfig{}, nil, err
+	}
+	if settings.inviteSender, err = inviteSenderFrom(settings, logger); err != nil {
 		return runConfig{}, nil, err
 	}
 	named, _ := settingsEnv(getenv).RuntimeLimits()
@@ -216,6 +221,8 @@ func (b boot) serverConfig(plugins pluginStart) server.Config {
 		Updates:              b.updates(),
 		UpdatesCheckAge:      settings.updates.screenAge,
 		UpdatesScreen:        settings.updates.screen,
+		InviteSender:         settings.inviteSender,
+		InviteTTL:            settings.inviteTTL,
 	}
 	cfg.Web = webui.FS()
 	if settings.webDir != "" {
@@ -292,6 +299,10 @@ type runConfig struct {
 	install updater.Settings
 
 	backups backupSchedule
+
+	mail         mailSettings
+	inviteTTL    time.Duration
+	inviteSender authkit.InviteSender
 }
 
 // servingDefaults are the HTTP timeouts and shutdown graces a site runs under when its environment names none.
@@ -509,10 +520,6 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if err != nil {
 		return runConfig{}, err
 	}
-	publicURL, err := gonsole.Parse(env, "PUBLIC_URL", nil, server.ParsePublicURL)
-	if err != nil {
-		return runConfig{}, err
-	}
 	settings, err := timingsFrom(env)
 	if err != nil {
 		return runConfig{}, err
@@ -529,8 +536,20 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	settings.databaseURL = databaseURL
 	settings.siteTitle = env.Value("SITE_TITLE")
 	settings.trustedProxies = trustedProxies
-	settings.publicURL = publicURL
+	if err := publicAddressFrom(env, &settings); err != nil {
+		return runConfig{}, err
+	}
 	return settings, nil
+}
+
+// publicAddressFrom reads the public address and the invitation settings that hang off it into held.
+func publicAddressFrom(env gonsole.Env, held *runConfig) error {
+	publicURL, err := gonsole.Parse(env, "PUBLIC_URL", nil, server.ParsePublicURL)
+	if err != nil {
+		return err
+	}
+	held.publicURL = publicURL
+	return invitationsFrom(env, held)
 }
 
 // sectionsFrom reads the list, admin folder, cron, superuser, database wait, update, install and place settings.
