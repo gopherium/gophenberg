@@ -33,7 +33,7 @@ func assertCacheControl(t *testing.T, recorder *httptest.ResponseRecorder, wantS
 func TestTheRendererStaysCacheableWithNoThemeHeld(t *testing.T) {
 	t.Parallel()
 
-	handler := themedServer(t, themehost.NewHolder(), nil)
+	handler := themedServer(t, themehost.NewHolder())
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "")
 }
@@ -53,7 +53,7 @@ func TestTheRendererStandingInForADownThemeIsNotStored(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := themedServer(t, downTheme(), nil)
+			handler := themedServer(t, downTheme())
 
 			assertCacheControl(t, doRequest(t, handler, http.MethodGet, tc.path, ""), tc.status, "no-store")
 		})
@@ -78,7 +78,7 @@ func hangingUpTheme(t *testing.T) string {
 func TestTheRendererCatchingAThemeThatHangsUpIsNotStored(t *testing.T) {
 	t.Parallel()
 
-	handler := themedServer(t, stubTheme{target: hangingUpTheme(t), healthy: true}, nil)
+	handler := themedServer(t, stubTheme{target: hangingUpTheme(t), healthy: true})
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "no-store")
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world/page/2", ""), http.StatusMovedPermanently,
@@ -100,7 +100,7 @@ func (u unheldTheme) Target() string { return u.target }
 func TestTheRendererCatchingAThemeThatHangsUpWithNoThemeHeldStaysCacheable(t *testing.T) {
 	t.Parallel()
 
-	handler := themedServer(t, unheldTheme{target: hangingUpTheme(t)}, nil)
+	handler := themedServer(t, unheldTheme{target: hangingUpTheme(t)})
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "")
 }
