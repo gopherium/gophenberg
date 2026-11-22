@@ -33,6 +33,20 @@ Feature: A role decides which routes an account reaches
     When the account asks for the theme list
     Then the request is refused with the code "capability_missing"
 
+  Scenario: An editor cannot send an invitation
+    Given a signed in editor
+    When the account invites "maria@example.com" as "Maria Perez" with the role "member"
+    Then the request is refused with the code "role_insufficient"
+
+  Scenario: An editor cannot resend an invitation
+    Given a signed in editor
+    When the account resends the invitation to "maria@example.com"
+    Then the request is refused with the code "role_insufficient"
+
+  Scenario: The activation link route answers without a session
+    When a visitor opens a dead link
+    Then the request is refused with the code "token_invalid"
+
   Scenario: An administrator reaches the account list
     Given a signed in administrator
     When the account asks for the user list

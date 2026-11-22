@@ -122,18 +122,24 @@ func (s *limitsScenario) errorSays(text string) error {
 	return nil
 }
 
-func TestRuntimeLimits(t *testing.T) {
-	t.Parallel()
-
+// runBinaryFeature runs the feature at path against the built binary, each scenario in a folder of its own.
+func runBinaryFeature(t *testing.T, path string, initialize func(*godog.ScenarioContext, *limitsScenario)) {
+	t.Helper()
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	env = slices.DeleteFunc(env, func(entry string) bool { return strings.HasPrefix(entry, "GOMEMLIMIT=") })
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(sc *godog.ScenarioContext) {
-			initializeRuntimeLimits(sc, &limitsScenario{binary: binary, env: env, dir: t.TempDir()})
+			initialize(sc, &limitsScenario{binary: binary, env: env, dir: t.TempDir()})
 		},
-		Options: &godog.Options{Format: "pretty", Paths: []string{runtimeLimitsFeature}, Strict: true, TestingT: t},
+		Options: &godog.Options{Format: "pretty", Paths: []string{path}, Strict: true, TestingT: t},
 	}
 	if suite.Run() != 0 {
 		t.Error("the feature did not pass")
 	}
+}
+
+func TestRuntimeLimits(t *testing.T) {
+	t.Parallel()
+
+	runBinaryFeature(t, runtimeLimitsFeature, initializeRuntimeLimits)
 }

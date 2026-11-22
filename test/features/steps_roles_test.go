@@ -215,6 +215,7 @@ func theAccountDisables(ctx context.Context, email string) error {
 // initializeRouteGate binds the steps the route gate feature uses.
 func initializeRouteGate(sc *godog.ScenarioContext) {
 	registerSharedSteps(sc)
+	registerInvitationRequests(sc)
 	sc.Given(`^a signed in editor$`, aSignedInEditor)
 	sc.Given(`^a signed in author$`, aSignedInAuthor)
 	sc.Given(`^the plugin "([^"]*)" declaring the role "([^"]*)" with the capability "([^"]*)"$`,
