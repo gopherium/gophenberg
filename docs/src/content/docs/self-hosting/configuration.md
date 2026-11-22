@@ -432,9 +432,11 @@ only a failed program leaves it stopped, so keep it unset there.
 ## A SQLite database
 
 Gophenberg can also keep its data in one SQLite file instead of a
-PostgreSQL server. Only part of Gophenberg runs on SQLite so far:
-`check`, `migrate`, `seed`, `database:backup` and the account
-commands work, but the site cannot serve from the file yet.
+PostgreSQL server. Only part of Gophenberg runs on SQLite so far: the
+site cannot serve from the file yet, and `database:create-owner` and
+`update:apply` stop too.
+[On a SQLite database](/self-hosting/commands/#on-a-sqlite-database)
+lists the commands that work.
 
 ### The address
 
