@@ -762,6 +762,18 @@ account carries it. Leave `session` out and the test asks the server
 for the account at `/api/auth/session`, so serve that address with
 `http` and `server` from the same entry.
 
+A plugin keeps its styles in a stylesheet in its own `frontend`
+folder, as `plugins/hello/frontend/hello.css`. The screens that need
+it import it, and the plugin's entry does not, so the admin carries
+the styles only while one of those screens is open. Name every class
+after the plugin, as `hello-screen`, so that it cannot collide with
+the admin's own classes or another plugin's. A plugin never edits the
+admin's own stylesheet, `frontend/src/index.css`.
+
+`pnpm run lint:css` in `frontend/` reads `src/**/*.css` and
+`../plugins/*/frontend/*.css`, so a plugin's stylesheet gets the same
+design-system rules as the admin's.
+
 **To move** a plugin written for Gophenberg v0.19.0 or earlier:
 
 1. Replace the type `NavItem` with `MenuItem` from
