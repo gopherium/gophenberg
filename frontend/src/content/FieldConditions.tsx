@@ -107,7 +107,7 @@ function ConditionRow(props: {
 	}))
 	const values = valuesOf(held)
 	return (
-		<Stack direction="row" gap="sm" align="end">
+		<Stack direction="row" gap="sm" align="end" wrap="wrap">
 			<SelectControl
 				label={__('Source', 'gophenberg')}
 				items={sources}
