@@ -10,7 +10,7 @@ import { useId } from 'react'
 import type { ReactNode } from 'react'
 
 import { GroupDetails, SaveNotices, useGroupDetails } from './GroupDetails'
-import { GroupFields } from './GroupFieldsDialog'
+import { GroupFields } from './GroupFields'
 import { shadowings, shadowingSentence } from './GroupsScreen'
 import { groupsQueryKey, listGroups } from './groups'
 import { groupsMenuItem, typesQueryKey } from './nav'
