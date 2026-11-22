@@ -1,136 +1,218 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, ValidatedInputControl } from '@gophenberg/frontend-sdk'
-import { Page, PageBreadcrumb, PageBreadcrumbs, useToaster } from '@gopherium/godmin'
+import { Button, InputControl, Text, ValidatedInputControl } from '@gophenberg/frontend-sdk'
+import { Page, PageBreadcrumb, PageBreadcrumbs, useRejectedField, useToaster } from '@gopherium/godmin'
+import type { RejectedField } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
-import { createUser, fieldError, usersQueryKey } from '@gopherium/react-auth/admin'
-import type { UserField } from '@gopherium/react-auth/admin'
-import { PasswordField, usePasswordField, usersMenuItem } from '@gopherium/react-auth/wpds'
-import type { PasswordFieldState } from '@gopherium/react-auth/wpds'
+import { ValidationError, fieldError, invite, usersQueryKey } from '@gopherium/react-auth/admin'
+import type { Invitation, NewInvite } from '@gopherium/react-auth/admin'
+import { usersMenuItem } from '@gopherium/react-auth/wpds'
 import { RoleSelect, addUserErrorMessageOf } from '@gopherium/react-auth/wpds/users'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { __, _x } from '@wordpress/i18n'
-import { useEffect, useRef, useState } from 'react'
-import type { ComponentProps } from 'react'
+import { __, _x, sprintf } from '@wordpress/i18n'
+import { useEffect, useId, useRef, useState } from 'react'
+import type { ComponentProps, RefObject } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
 import { accountErrorMessages } from './errorMessages'
 import { roleLabels, startingRole } from './roles'
 
-/** The length of every password Add User generates. */
-const GENERATED_PASSWORD_LENGTH = 24
-
-/** What the reader typed in each field, as one send carries it. */
-type Typed = Record<UserField, string>
-
-/** The message under one field, shown while the field holds the value it is about. */
-interface FieldMessage {
-	field: UserField
-	message: string
-	value: string
-}
+/** The fields of the form a server's rejection can stand under. */
+type InviteField = 'email' | 'name'
 
 /** What a field the form needs filled takes beside the props of the WPDS field. */
 type RequiredFieldProps = Omit<
 	ComponentProps<typeof ValidatedInputControl>,
-	'value' | 'required' | 'customValidity'
+	'value' | 'required' | 'customValidity' | 'ref'
 > & {
 	/** The value the field holds. */
 	value: string
-	/** The server's message about the value the field holds, if any. */
-	refused?: string
+	/** The server's rejection of the value the field holds, if any, and the ref that ties it to the field. */
+	rejected: RejectedField
 	/** The words the field shows under it while empty. */
 	empty: string
 }
 
 /**
- * Returns a message in the shape the WPDS fields take it.
- * @param message - The message about the field, if any.
- * @returns The invalid state holding the form back, none without a message.
- */
-function invalidWith(message: string | undefined) {
-	return message === undefined ? undefined : { type: 'invalid' as const, message }
-}
-
-/**
  * Renders a field the form needs filled, its message under it once the reader leaves it or sends the form.
- * @param props - The value, the server's message about it, the words for an empty field and the field's own props.
+ * @param props - The value, the server's rejection of it, the words for an empty field and the field's own props.
  * @returns The field.
  */
-function RequiredField({ refused, empty, ...field }: RequiredFieldProps) {
-	const message = refused ?? (field.value.trim() === '' ? empty : undefined)
-	return <ValidatedInputControl {...field} required customValidity={invalidWith(message)} />
+function RequiredField({ rejected: { ref, validity }, empty, ...field }: RequiredFieldProps) {
+	const blank = field.value.trim() === '' ? { type: 'invalid' as const, message: empty } : undefined
+	return <ValidatedInputControl {...field} ref={ref} required customValidity={validity ?? blank} />
 }
 
 /**
- * Returns the words under the password the form itself holds back: an empty one, or a weak one Add User was pressed on.
- * @param pressed - The weak password Add User was last pressed on, if any.
- * @param password - The password the field holds and what the meter knows of it.
- * @returns The words, none once the password changed or its use is confirmed.
+ * Returns the words a failed invitation reads as, the server's own only for a rejection it named no code for.
+ * @param error - The mutation error.
+ * @returns The words, empty when the failure has none worth showing.
  */
-function heldBackMessage(pressed: string | undefined, password: PasswordFieldState): string | undefined {
-	if (password.value.trim() === '') {
-		return __('Please enter a password.', 'gophenberg')
+function failureWords(error: unknown): string {
+	const about = fieldError(error)
+	if (about !== undefined) {
+		return about.message
 	}
-	return pressed === password.value && !password.ready
-		? __('Please confirm the use of a weak password.', 'gophenberg')
-		: undefined
+	const unnamed = error instanceof ValidationError && error.code === undefined ? error.message : ''
+	return addUserErrorMessageOf(error, accountErrorMessages(), unnamed)
 }
 
 /**
- * Renders the account creation screen.
- * @returns The new user screen element.
+ * Returns the field of the form a failed invitation is about.
+ * @param error - The mutation error.
+ * @returns The field, none when the failure is about no field the form holds.
  */
-export function NewUserScreen() {
+function rejectedField(error: unknown): InviteField | undefined {
+	const field = fieldError(error)?.field
+	return field === 'email' || field === 'name' ? field : undefined
+}
+
+/**
+ * Returns the toast of a failed invitation.
+ * @param words - What the failure reads as, empty when it has no words worth showing.
+ * @returns The toast, the words after the failure itself.
+ */
+function failureToast(words: string): string {
+	return words === ''
+		? __('Could not send the invitation.', 'gophenberg')
+		: sprintf(__('Could not send the invitation. %s', 'gophenberg'), words)
+}
+
+/**
+ * Returns the toast of an invitation that came back once the reader had left the form.
+ * @param invitation - What the server answered.
+ * @returns The toast, where to get an activation link when no mail server delivered it.
+ */
+function leftToast(invitation: Invitation): string {
+	return invitation.delivered
+		? __('Invitation sent.', 'gophenberg')
+		: __('No mail server is configured. Use Resend invitation in Users to get an activation link.', 'gophenberg')
+}
+
+/**
+ * Returns whether the component calling it left the page, set once it unmounts.
+ * @returns The ref, true once the component left.
+ */
+function useLeft(): RefObject<boolean> {
+	const left = useRef(false)
+	useEffect(() => {
+		left.current = false
+		return () => {
+			left.current = true
+		}
+	}, [])
+	return left
+}
+
+/**
+ * Renders the invitation form.
+ * @param props - What runs with the activation link when no mail server delivered the invitation.
+ * @returns The form.
+ */
+function InvitationForm({ onUndelivered }: { onUndelivered: (link: string) => void }) {
 	const client = useQueryClient()
 	const navigate = useNavigate()
 	const toaster = useToaster()
+	const left = useLeft()
 	const grantable = useSession().data?.grantable ?? []
 	const defaultRole = useListSettings().data?.default_role
 	const [email, setEmail] = useState('')
 	const [name, setName] = useState('')
 	const [picked, setPicked] = useState<string>()
-	const [refusal, setRefusal] = useState<FieldMessage>()
-	const [pressedWeak, setPressedWeak] = useState<string>()
-	const form = useRef<HTMLFormElement>(null)
-	useEffect(() => {
-		if (refusal !== undefined || pressedWeak !== undefined) {
-			form.current?.reportValidity()
-		}
-	}, [refusal, pressedWeak])
-	const password = usePasswordField({ length: GENERATED_PASSWORD_LENGTH, userInputs: [name, email] })
+	const rejected: Record<InviteField, RejectedField> = { email: useRejectedField(email), name: useRejectedField(name) }
 	const role = picked ?? startingRole(grantable, defaultRole)
-	const typed: Typed = { email, name, password: password.value }
-	const messageOf = (field: UserField) =>
-		refusal?.field === field && refusal.value === typed[field] ? refusal.message : undefined
-	const create = useMutation({
-		mutationFn: (sent: Typed) =>
-			createUser({ email: sent.email, name: sent.name.trim(), password: sent.password, role }),
-		onSuccess: async () => {
+	const send = useMutation({
+		mutationFn: (sent: NewInvite) => invite({ ...sent, email: sent.email.trim(), name: sent.name.trim() }),
+		onSuccess: async (invitation) => {
 			await client.invalidateQueries({ queryKey: usersQueryKey })
-			await navigate({ to: '/users' })
-			toaster.show(__('New user created.', 'gophenberg'))
-		},
-		onError: (error, sent) => {
-			const about = fieldError(error)
-			if (about === undefined) {
-				toaster.show(
-					addUserErrorMessageOf(error, accountErrorMessages(), __('The user could not be created.', 'gophenberg')),
-				)
+			if (left.current) {
+				toaster.show(leftToast(invitation))
 				return
 			}
-			setRefusal({ ...about, value: sent[about.field] })
+			if (!invitation.delivered) {
+				onUndelivered(invitation.activation_link)
+				return
+			}
+			await navigate({ to: '/users' })
+			toaster.show(__('Invitation sent.', 'gophenberg'))
+		},
+		onError: (error, sent) => {
+			const field = rejectedField(error)
+			const words = failureWords(error)
+			if (field === undefined || !rejected[field].reject(words, sent[field])) {
+				toaster.show(failureToast(words))
+			}
 		},
 	})
-	const submit = () => {
-		if (password.ready) {
-			password.mask(true)
-			create.mutate(typed)
-		} else {
-			setPressedWeak(password.value)
-		}
-	}
+	return (
+		<form
+			className="godmin-form"
+			onSubmit={(event) => {
+				event.preventDefault()
+				send.mutate({ email, name, role })
+			}}
+		>
+			<RequiredField
+				label={__('Email', 'gophenberg')}
+				type="email"
+				autoComplete="off"
+				value={email}
+				onValueChange={setEmail}
+				rejected={rejected.email}
+				empty={__('Please enter an email address.', 'gophenberg')}
+			/>
+			<RequiredField
+				label={_x('Name', 'person', 'gophenberg')}
+				autoComplete="off"
+				value={name}
+				onValueChange={setName}
+				rejected={rejected.name}
+				empty={__('Please provide a name.', 'gophenberg')}
+			/>
+			<RoleSelect grantable={grantable} value={role} onChange={setPicked} roleLabels={roleLabels()} />
+			<Button type="submit" loading={send.isPending}>
+				{__('Send invitation', 'gophenberg')}
+			</Button>
+		</form>
+	)
+}
+
+/**
+ * Renders the activation link to deliver by hand in place of the form, the focus on its field.
+ * @param props - The link the invitation answered.
+ * @returns The link and the way back to the list.
+ */
+function ActivationLink({ link }: { link: string }) {
+	const navigate = useNavigate()
+	const field = useRef<HTMLInputElement>(null)
+	const words = useId()
+	useEffect(() => {
+		field.current?.focus()
+	}, [])
+	return (
+		<div className="godmin-form">
+			<Text id={words} role="status">
+				{__('No mail server is configured. Deliver the activation link by hand.', 'gophenberg')}
+			</Text>
+			<InputControl
+				ref={field}
+				label={__('Activation link', 'gophenberg')}
+				aria-describedby={words}
+				readOnly
+				value={link}
+			/>
+			<Button onClick={() => navigate({ to: '/users' })}>{__('Done', 'gophenberg')}</Button>
+		</div>
+	)
+}
+
+/**
+ * Renders the account creation screen, the form giving way to the activation link when no mail server delivered it.
+ * @returns The new user screen element.
+ */
+export function NewUserScreen() {
+	const [link, setLink] = useState<string>()
 	return (
 		<Page
 			title={__('Add User', 'gophenberg')}
@@ -144,43 +226,7 @@ export function NewUserScreen() {
 				</PageBreadcrumbs>
 			}
 		>
-			<form
-				ref={form}
-				className="godmin-form"
-				onSubmit={(event) => {
-					event.preventDefault()
-					submit()
-				}}
-			>
-				<RequiredField
-					label={__('Email', 'gophenberg')}
-					type="email"
-					autoComplete="off"
-					value={email}
-					onValueChange={setEmail}
-					refused={messageOf('email')}
-					empty={__('Please enter an email address.', 'gophenberg')}
-				/>
-				<RequiredField
-					label={_x('Name', 'person', 'gophenberg')}
-					autoComplete="off"
-					value={name}
-					onValueChange={setName}
-					refused={messageOf('name')}
-					empty={__('Please provide a name.', 'gophenberg')}
-				/>
-				<PasswordField
-					password={password}
-					generateFirst
-					labelPosition="top"
-					readOnly={create.isPending}
-					customValidity={invalidWith(messageOf('password') ?? heldBackMessage(pressedWeak, password))}
-				/>
-				<RoleSelect grantable={grantable} value={role} onChange={setPicked} roleLabels={roleLabels()} />
-				<Button type="submit" loading={create.isPending}>
-					{__('Add User', 'gophenberg')}
-				</Button>
-			</form>
+			{link === undefined ? <InvitationForm onUndelivered={setLink} /> : <ActivationLink link={link} />}
 		</Page>
 	)
 }

@@ -2,7 +2,7 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { DOMAIN as AUTH_DOMAIN, catalogFor as authCatalogFor } from '@gopherium/react-auth'
-import { accountWithRole } from '@gopherium/react-auth/testing'
+import { accountWithRole, inviteDelivered, inviteFailure, inviteUndelivered } from '@gopherium/react-auth/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -11,7 +11,9 @@ import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 import { adminBasepath } from '../basepath'
 import { catalogFor } from '../i18n/catalog'
 import { startingRole } from '../users/roles'
-import { adminUser, renderAt } from './render'
+import { listenAt } from './announcements'
+import { gate } from './gate'
+import { adminUser, renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
 import {
 	REQUEST_CROSS_ORIGIN,
@@ -23,38 +25,73 @@ import {
 	warmUsersScreen,
 } from './usersFixtures'
 
-/** The account a send creates, as the server answers it. */
-const CREATED = accountWithRole('editor')
+/** The account an invitation leaves waiting for its activation, as the list answers it. */
+const INVITED = accountWithRole('editor', { confirmed: false })
 
-/** The refusal of an email another account already holds. */
-const EMAIL_TAKEN = { error: 'email already in use', code: 'email_taken' }
+/** The link an invitation answers when no mail server delivered it. */
+const ACTIVATION_LINK = 'https://example.com/admin/activate?token=t-4'
 
-/** The refusal of an email the server cannot read as one. */
+/** The words above the activation link while no mail server delivers invitations. */
+const NO_MAIL = 'No mail server is configured. Deliver the activation link by hand.'
+
+/** The words of the toast an undelivered invitation raises once the reader left Add User. */
+const LINK_WAITS = 'No mail server is configured. Use Resend invitation in Users to get an activation link.'
+
+/** The words every toast of a failed invitation starts with. */
+const FAILED = 'Could not send the invitation.'
+
+/** The rejection of an email the server cannot read as one. */
 const EMAIL_INVALID = { error: 'invalid email address', code: 'email_invalid' }
 
-/** The refusal of a name longer than the server keeps. */
+/** The words under an email the server cannot read as one. */
+const EMAIL_INVALID_WORDS = 'The email address is not correct.'
+
+/** The rejection of a name longer than the server keeps. */
 const NAME_TOO_LONG = { error: 'name too long', code: 'name_too_long', meta: { max: 256 } }
+
+/** The words under a name longer than the server keeps. */
+const NAME_TOO_LONG_WORDS = 'This name is too long.'
 
 /** What a test types in each field it fills one by one, keyed by the field's label. */
 const TYPED_IN: Record<string, string> = { 'Email (Required)': 'maria@example.com', 'Name (Required)': 'Maria Perez' }
 
-/** A word no dictionary holds, which the meter rates as strong on its own. */
-const UNLISTED_WORD = 'qvzkjwplmxrt'
-
-/** The words under a weak password Add User was pressed on before its use was confirmed. */
-const CONFIRM_WEAK = 'Please confirm the use of a weak password.'
-
-/** The error for a password shorter than the server keeps. */
-const PASSWORD_TOO_SHORT = { error: 'password refused', code: 'password_too_short', meta: { min: 12 } }
-
-/** The words under a password the server found too short. */
-const TOO_SHORT_WORDS = 'Hint: The password should be at least 12 characters long.'
-
-/** The refusal of a role the reader may not give. */
+/** The rejection of a role the reader may not give. */
 const ROLE_NOT_GRANTABLE = { error: 'role not grantable', code: 'role_not_grantable' }
 
-/** The refusal of a role nothing declares. */
+/** The rejection of a role nothing declares. */
 const ROLE_UNKNOWN = { error: 'unknown role', code: 'role_unknown', meta: { field: 'role' } }
+
+/** The rejection of a reader who may not create accounts at all. */
+const ROLE_INSUFFICIENT = { error: 'role insufficient', code: 'role_insufficient' }
+
+/** The words of each language for the invitation and its activation link, as the reader sees them. */
+const INVITATION_WORDS = [
+	{
+		locale: 'es-ES',
+		send: 'Enviar invitación',
+		sent: 'Invitación enviada.',
+		noMail: 'No hay servidor de correo configurado. Entrega el enlace de activación a mano.',
+		link: 'Enlace de activación',
+		done: 'Hecho',
+		waits:
+			'No hay servidor de correo configurado. Usa Reenviar invitación en Usuarios para obtener un enlace de activación.',
+		failed: 'No se ha podido enviar la invitación.',
+		mayNotCreate: 'No se ha podido enviar la invitación. Lo siento, no tienes permisos para crear usuarios.',
+	},
+	{
+		locale: 'fr-FR',
+		send: 'Envoyer l’invitation',
+		sent: 'Invitation envoyée.',
+		noMail: 'Aucun serveur de messagerie n’est configuré. Transmettez le lien d’activation vous-même.',
+		link: 'Lien d’activation',
+		done: 'Terminé',
+		waits:
+			'Aucun serveur de messagerie n’est configuré. ' +
+			'Utilisez Renvoyer l’invitation dans Comptes pour obtenir un lien d’activation.',
+		failed: 'Impossible d’envoyer l’invitation.',
+		mayNotCreate: 'Impossible d’envoyer l’invitation. Désolé, vous n’avez pas l’autorisation de créer des comptes.',
+	},
+]
 
 warmUsersScreen()
 
@@ -73,27 +110,69 @@ function serveDefaultRole(role: string) {
 }
 
 /**
- * Records every account sent and answers each with the account created.
+ * Records every invitation sent and leaves its answer to the handler given.
+ * @param answer - The handler answering each invitation, a delivered one unless a test names another.
  * @returns The bodies sent.
  */
-function recordCreates(): unknown[] {
+function recordInvites(answer = inviteDelivered()): unknown[] {
 	const sent: unknown[] = []
 	server.use(
-		http.post('/api/users', async ({ request }) => {
-			sent.push(await request.json())
-			return HttpResponse.json(CREATED, { status: 201 })
+		http.post('/api/users/invite', async ({ request }) => {
+			sent.push(await request.clone().json())
 		}),
+		answer,
 	)
 	return sent
 }
 
 /**
- * Answers every account sent with a refusal.
- * @param status - The status of the refusal.
- * @param body - The refusal the server sends.
+ * Records every invitation sent and never answers it.
+ * @returns The bodies sent.
  */
-function refuseCreates(status: number, body: object) {
-	server.use(http.post('/api/users', () => HttpResponse.json(body, { status })))
+function recordUnanswered(): unknown[] {
+	return recordInvites(http.post('/api/users/invite', () => new Promise<Response>(() => {})))
+}
+
+/**
+ * Answers every invitation with a rejection.
+ * @param status - The status of the rejection.
+ * @param body - The rejection the server sends.
+ */
+function rejectInvites(status: number, body: object) {
+	server.use(http.post('/api/users/invite', () => HttpResponse.json(body, { status })))
+}
+
+/**
+ * Holds every invitation until the test opens the gate, then leaves it to the handler given.
+ * @param answer - The handler answering each invitation once the gate opens.
+ * @returns The opener of the gate.
+ */
+function holdInvites(answer: ReturnType<typeof http.post>): () => void {
+	const opened = gate()
+	server.use(
+		http.post('/api/users/invite', async () => {
+			await opened.held
+		}),
+		answer,
+	)
+	return opened.release
+}
+
+/**
+ * Holds every invitation until the test opens the gate, then answers it with a rejection.
+ * @param status - The status of the rejection.
+ * @param body - The rejection the server sends.
+ * @returns The opener of the gate.
+ */
+function holdRejection(status: number, body: object): () => void {
+	return holdInvites(http.post('/api/users/invite', () => HttpResponse.json(body, { status })))
+}
+
+/** Leaves Add User for the Settings screen through the admin's menu. */
+async function leaveForSettings() {
+	const menu = screen.getByRole('region', { name: 'Navigation' })
+	await userEvent.click(within(menu).getByRole('link', { name: 'Settings' }))
+	await screen.findByRole('heading', { level: 2, name: 'Settings' })
 }
 
 /**
@@ -107,59 +186,65 @@ async function fillIn(email = 'maria@example.com', name = 'Maria Perez') {
 	await userEvent.type(screen.getByLabelText('Name (Required)'), name)
 }
 
-/** Presses Add User at the foot of the form. */
+/**
+ * Opens Add User and types an email and a name, whatever language the labels read in.
+ * @returns The router behind the admin.
+ */
+async function fillInAnyLanguage() {
+	const { router } = renderRoutedAt('/users/new')
+	const [email, name] = await screen.findAllByRole('textbox')
+	await userEvent.type(email, 'maria@example.com')
+	await userEvent.type(name, 'Maria Perez')
+	return router
+}
+
+/** Presses Send invitation at the foot of the form. */
 async function send() {
-	await userEvent.click(screen.getByRole('button', { name: 'Add User' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Send invitation' }))
 }
 
 /**
- * Returns the password field.
- * @returns The field.
+ * Returns the toast showing the words right now, null while none does.
+ * @param text - The words of the toast.
+ * @returns The toast.
  */
-function passwordField() {
-	return screen.getByLabelText<HTMLInputElement>('Password')
+function toastNow(text: string): HTMLElement | null {
+	return screen.queryByText(text, { selector: '.godmin-toast' })
 }
 
 /**
- * Types over the password the field holds, the focus left in the field.
- * @param typed - The password to type, none to leave the field empty.
+ * Notes the second level heading of the page as the first toast appears.
+ * @returns The headings noted, none until a toast appears.
  */
-async function typePassword(typed = '') {
-	await userEvent.clear(passwordField())
-	if (typed !== '') {
-		await userEvent.type(passwordField(), typed)
-	}
+function headingAtFirstToast(): string[] {
+	const noted: string[] = []
+	const watch = new MutationObserver(() => {
+		if (noted.length === 0 && document.querySelector('.godmin-toast') !== null) {
+			noted.push(document.querySelector('main h2')?.textContent ?? '')
+		}
+	})
+	watch.observe(document.body, { childList: true, subtree: true })
+	onTestFinished(() => watch.disconnect())
+	return noted
 }
-
-/**
- * Expects the words under the password as its field error the browser holds the form back on, never as its help line.
- * @param words - The words of the message.
- */
-async function expectPasswordError(words: string) {
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining(words)))
-	expect(passwordField()).toHaveAttribute('aria-invalid', 'true')
-	expect(passwordField().validationMessage).toContain(words)
-	expect(document.querySelector('.gopherium-setup__help')).toBeNull()
-}
-
-/** Each message the password field holds, and how a test brings the field to it with the focus left in it. */
-const PASSWORD_MESSAGES = [
-	{ about: 'an empty password', words: 'Please enter a password.', reach: () => typePassword() },
-	{ about: 'a weak password not yet confirmed', words: CONFIRM_WEAK, reach: () => typePassword('abc') },
-	{
-		about: 'a password the server refused',
-		words: TOO_SHORT_WORDS,
-		reach: async () => {
-			refuseCreates(422, PASSWORD_TOO_SHORT)
-			await userEvent.click(passwordField())
-		},
-	},
-]
 
 /** Loads the Spanish catalogue of the account screens until the test ends. */
 async function readAccountWordsInSpanish() {
 	setLocaleData(await authCatalogFor('es-ES'), AUTH_DOMAIN)
 	onTestFinished(() => resetLocaleData({}, AUTH_DOMAIN))
+}
+
+/**
+ * Loads the catalogues of the admin and of the account screens in a language until the test ends.
+ * @param locale - The language, such as es-ES.
+ */
+async function readIn(locale: string) {
+	setLocaleData(await catalogFor(locale), 'gophenberg')
+	setLocaleData(await authCatalogFor(locale), AUTH_DOMAIN)
+	onTestFinished(() => {
+		resetLocaleData({}, 'gophenberg')
+		resetLocaleData({}, AUTH_DOMAIN)
+	})
 }
 
 test('names the add user screen with its only second level heading and WordPress s line under it', async () => {
@@ -209,35 +294,28 @@ test('marks Email and Name as required in their labels', async () => {
 test('shows no words under Email and Name before the reader leaves them or sends the form', async () => {
 	renderAt('/users/new')
 
-	await screen.findByRole('button', { name: 'Generate password' })
+	await screen.findByRole('button', { name: 'Send invitation' })
 
 	expect(screen.getByLabelText('Email (Required)')).toHaveAccessibleDescription('')
 	expect(screen.getByLabelText('Name (Required)')).toHaveAccessibleDescription('')
 })
 
-test('leaves Add User on before anything is typed', async () => {
+test('asks for no password, since the invited person chooses one from the link', async () => {
 	renderAt('/users/new')
 
-	expect(await screen.findByRole('button', { name: 'Add User' })).toBeEnabled()
+	await screen.findByRole('button', { name: 'Send invitation' })
+
+	expect(screen.queryByLabelText('Password')).toBeNull()
+	expect(screen.queryByRole('button', { name: 'Generate password' })).toBeNull()
 })
 
-test('starts the password on a shown generated one of 24 characters, Generate password before it', async () => {
+test('leaves Send invitation on before anything is typed', async () => {
 	renderAt('/users/new')
 
-	const generate = await screen.findByRole('button', { name: 'Generate password' })
-	const field = passwordField()
+	const button = await screen.findByRole('button', { name: 'Send invitation' })
 
-	expect(field.value).toHaveLength(24)
-	expect(field).toHaveAttribute('type', 'text')
-	expect(generate.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-})
-
-test('stacks the password label above its field as the other labels of the form', async () => {
-	renderAt('/users/new')
-
-	await screen.findByRole('button', { name: 'Generate password' })
-
-	expect(passwordField().closest('.gopherium-setup__row')).toBeNull()
+	expect(button).toBeEnabled()
+	expect(button).not.toHaveAttribute('aria-disabled', 'true')
 })
 
 test('starts a new account on the role the settings name', async () => {
@@ -286,19 +364,18 @@ test('starts on no role when the reader may give none', () => {
 	expect(startingRole([], 'member')).toBe('')
 })
 
-test('sends the email and the name without the spaces around them, the password shown and the role', async () => {
-	const sent = recordCreates()
+test('sends the email and the name without the spaces around them, and the role, with no password', async () => {
+	const sent = recordInvites()
 	await fillIn('  maria@example.com ', '  Maria Perez ')
-	const password = passwordField().value
 
 	await send()
 
 	await waitFor(() => expect(sent).toHaveLength(1))
-	expect(sent[0]).toEqual({ email: 'maria@example.com', name: 'Maria Perez', password, role: 'member' })
+	expect(sent[0]).toEqual({ email: 'maria@example.com', name: 'Maria Perez', role: 'member' })
 })
 
 test('sends the role the reader picks', async () => {
-	const sent = recordCreates()
+	const sent = recordInvites()
 	await fillIn()
 	await userEvent.click(screen.getByRole('combobox', { name: 'Role' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Editor' }))
@@ -309,29 +386,33 @@ test('sends the role the reader picks', async () => {
 	expect(sent[0]).toMatchObject({ role: 'editor' })
 })
 
-test('reads the list again once the account exists and goes back to it with a toast', async () => {
-	recordCreates()
+test('reads the list again once the invitation went out and goes back to it', async () => {
+	recordInvites()
 	renderAt('/users')
 	await rowOf(SIGNED_IN.name)
 	await userEvent.click(within(screen.getByRole('main')).getByRole('link', { name: 'Add User' }))
-	await userEvent.type(await screen.findByLabelText('Email (Required)'), CREATED.email)
-	await userEvent.type(screen.getByLabelText('Name (Required)'), CREATED.name)
-	serveAccounts(SIGNED_IN, CREATED)
+	await userEvent.type(await screen.findByLabelText('Email (Required)'), INVITED.email)
+	await userEvent.type(screen.getByLabelText('Name (Required)'), INVITED.name)
+	serveAccounts(SIGNED_IN, INVITED)
 
 	await send()
 
-	expect(await toast('New user created.')).toBeInTheDocument()
-	expect(await rowOf(CREATED.name)).toBeDefined()
+	expect(await rowOf(INVITED.name)).toBeDefined()
 })
 
-test('sends the account once while the first send is on its way', async () => {
-	const sent: unknown[] = []
-	server.use(
-		http.post('/api/users', async ({ request }) => {
-			sent.push(await request.json())
-			return new Promise<Response>(() => {})
-		}),
-	)
+test('moves to the list first, then says in a toast that the invitation went out', async () => {
+	server.use(inviteDelivered())
+	const noted = headingAtFirstToast()
+	await fillIn()
+
+	await send()
+
+	expect(await toast('Invitation sent.')).toBeInTheDocument()
+	expect(noted).toEqual(['Users'])
+})
+
+test('sends the invitation once while the first send is on its way', async () => {
+	const sent = recordUnanswered()
 	await fillIn()
 
 	await send()
@@ -339,23 +420,35 @@ test('sends the account once while the first send is on its way', async () => {
 	await send()
 
 	expect(sent).toHaveLength(1)
-	expect(passwordField()).toHaveAttribute('readonly')
 })
 
-test('hides the password once the form is sent', async () => {
-	refuseCreates(500, { error: 'boom' })
+test('sends the invitation once when Enter is pressed again while the first send is on its way', async () => {
+	const sent = recordUnanswered()
 	await fillIn()
 
-	await send()
+	await userEvent.keyboard('{Enter}')
+	await waitFor(() => expect(sent).toHaveLength(1))
+	await userEvent.keyboard('{Enter}')
 
-	await waitFor(() => expect(passwordField()).toHaveAttribute('type', 'password'))
+	expect(sent).toHaveLength(1)
+})
+
+test('shows Send invitation busy with its spinner while the invitation is on its way', async () => {
+	recordUnanswered()
+	await fillIn()
+	const button = screen.getByRole('button', { name: 'Send invitation' })
+
+	await userEvent.click(button)
+
+	await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
+	expect(button.className).toMatch(/__is-loading\b/)
 })
 
 test('shows WordPress s words under an empty Email and Name and sends nothing', async () => {
-	const sent = recordCreates()
+	const sent = recordInvites()
 	renderAt('/users/new')
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Add User' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Send invitation' }))
 
 	await waitFor(() =>
 		expect(screen.getByLabelText('Email (Required)')).toHaveAccessibleDescription('Please enter an email address.'),
@@ -365,7 +458,7 @@ test('shows WordPress s words under an empty Email and Name and sends nothing', 
 })
 
 test('takes a name of spaces only for an empty one', async () => {
-	const sent = recordCreates()
+	const sent = recordInvites()
 	await fillIn('maria@example.com', '   ')
 
 	await send()
@@ -376,190 +469,92 @@ test('takes a name of spaces only for an empty one', async () => {
 	expect(sent).toEqual([])
 })
 
-test.each(['{Backspace}', '   '])(
-	'shows WordPress s words under a password emptied with %j and sends nothing',
-	async (keys) => {
-		const sent = recordCreates()
-		await fillIn()
-		await userEvent.clear(passwordField())
-		await userEvent.type(passwordField(), keys)
-
-		await send()
-
-		await waitFor(() =>
-			expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining('Please enter a password.')),
-		)
-		expect(sent).toEqual([])
-	},
-)
-
-test('drops the words under the password once the reader types one', async () => {
+test('shows the activation link in place of the form when no mail server delivered the invitation', async () => {
+	server.use(inviteUndelivered(ACTIVATION_LINK))
 	await fillIn()
-	await userEvent.clear(passwordField())
+
 	await send()
-	await waitFor(() =>
-		expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining('Please enter a password.')),
-	)
 
-	await userEvent.type(passwordField(), 'x')
-
-	expect(passwordField()).not.toHaveAccessibleDescription(expect.stringContaining('Please enter a password.'))
+	const link = await screen.findByLabelText('Activation link')
+	expect(link).toHaveValue(ACTIVATION_LINK)
+	expect(link).toHaveAttribute('readonly')
+	expect(link).toHaveAccessibleDescription(NO_MAIL)
+	expect(screen.getByText(NO_MAIL)).toHaveAttribute('role', 'status')
+	expect(screen.queryByLabelText('Email (Required)')).toBeNull()
+	expect(screen.queryByRole('button', { name: 'Send invitation' })).toBeNull()
+	expect(toastNow('Invitation sent.')).toBeNull()
 })
 
-test('sends a weak password only once its use is confirmed', async () => {
-	const sent = recordCreates()
+test('keeps the title, the line under it and the breadcrumb beside the activation link', async () => {
+	server.use(inviteUndelivered(ACTIVATION_LINK))
 	await fillIn()
-	await userEvent.clear(passwordField())
-	await userEvent.type(passwordField(), 'abc')
-	await send()
 
-	await userEvent.click(await screen.findByRole('checkbox', { name: 'Confirm use of weak password' }))
 	await send()
+	await screen.findByLabelText('Activation link')
 
-	expect(await toast('New user created.')).toBeInTheDocument()
-	expect(sent).toEqual([{ email: 'maria@example.com', name: 'Maria Perez', password: 'abc', role: 'member' }])
+	const main = within(screen.getByRole('main'))
+	expect(main.getByRole('heading', { level: 2 })).toHaveTextContent('Add User')
+	expect(main.getByText('Create a brand new user and add them to this site.')).toBeInTheDocument()
+	const breadcrumbs = screen.getByRole('navigation', { name: 'Breadcrumbs' })
+	expect(within(breadcrumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', `${adminBasepath}/users`)
 })
 
-test('asks under a weak password to confirm its use when Add User is pressed first, sending nothing', async () => {
-	const sent = recordCreates()
+test('puts the focus on the activation link once it replaces the form', async () => {
+	server.use(inviteUndelivered(ACTIVATION_LINK))
 	await fillIn()
-	await userEvent.clear(passwordField())
-	await userEvent.type(passwordField(), 'abc')
 
 	await send()
 
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining(CONFIRM_WEAK)))
-	expect(sent).toEqual([])
+	const link = await screen.findByLabelText('Activation link')
+	await waitFor(() => expect(link).toHaveFocus())
 })
 
-test('drops the words under a weak password once its use is confirmed', async () => {
-	await fillIn()
-	await userEvent.clear(passwordField())
-	await userEvent.type(passwordField(), 'abc')
+test('goes back to the list with Done, the invited account listed and no toast', async () => {
+	server.use(inviteUndelivered(ACTIVATION_LINK))
+	renderAt('/users')
+	await rowOf(SIGNED_IN.name)
+	await userEvent.click(within(screen.getByRole('main')).getByRole('link', { name: 'Add User' }))
+	await userEvent.type(await screen.findByLabelText('Email (Required)'), INVITED.email)
+	await userEvent.type(screen.getByLabelText('Name (Required)'), INVITED.name)
+	serveAccounts(SIGNED_IN, INVITED)
 	await send()
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining(CONFIRM_WEAK)))
+	await screen.findByLabelText('Activation link')
 
-	await userEvent.click(screen.getByRole('checkbox', { name: 'Confirm use of weak password' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Done' }))
 
-	expect(passwordField()).not.toHaveAccessibleDescription(expect.stringContaining(CONFIRM_WEAK))
-	expect(passwordField()).not.toHaveAttribute('aria-invalid')
-})
-
-test('leaves the password unmarked as required, as WordPress s Add User does', async () => {
-	renderAt('/users/new')
-
-	await screen.findByRole('button', { name: 'Generate password' })
-
-	expect(passwordField()).not.toBeRequired()
-})
-
-test.each(PASSWORD_MESSAGES)('shows $about as the field error of the password when Add User is pressed', async ({
-	reach,
-	words,
-}) => {
-	await fillIn()
-	await reach()
-
-	await send()
-
-	await expectPasswordError(words)
-})
-
-test.each(PASSWORD_MESSAGES)('shows $about at once when the form is sent with Enter from the password', async ({
-	reach,
-	words,
-}) => {
-	await fillIn()
-	await reach()
-
-	await userEvent.keyboard('{Enter}')
-
-	await expectPasswordError(words)
-})
-
-test.each(PASSWORD_MESSAGES)('sends the form once the reader changes $about', async ({ reach, words }) => {
-	await fillIn()
-	await reach()
-	await send()
-	await expectPasswordError(words)
-	const sent = recordCreates()
-
-	await userEvent.click(screen.getByRole('button', { name: 'Generate password' }))
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining('Strong')))
-	const generated = passwordField().value
-
-	expect(passwordField()).not.toHaveAttribute('aria-invalid')
-	await send()
-	await waitFor(() => expect(sent).toEqual([expect.objectContaining({ password: generated })]))
-})
-
-test('shows the words under an empty password once the reader leaves it, as under Email and Name', async () => {
-	await fillIn()
-	await typePassword()
-
-	await userEvent.click(screen.getByLabelText('Email (Required)'))
-
-	await expectPasswordError('Please enter a password.')
-})
-
-test('shows the words under an empty password together with those under Email and Name', async () => {
-	renderAt('/users/new')
-	await screen.findByRole('button', { name: 'Generate password' })
-	await typePassword()
-
-	await send()
-
-	await expectPasswordError('Please enter a password.')
-	expect(screen.getByLabelText('Email (Required)')).toHaveAccessibleDescription('Please enter an email address.')
-	expect(screen.getByLabelText('Name (Required)')).toHaveAccessibleDescription('Please provide a name.')
-})
-
-test('rates as very weak a password repeating a word of the email typed beside it, as WordPress does', async () => {
-	await fillIn(`${UNLISTED_WORD}@example.com`)
-	await userEvent.clear(passwordField())
-
-	await userEvent.type(passwordField(), UNLISTED_WORD)
-
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining('Very weak')))
-	expect(screen.getByRole('checkbox', { name: 'Confirm use of weak password' })).toBeInTheDocument()
+	expect(await rowOf(INVITED.name)).toBeDefined()
+	expect(screen.getByRole('heading', { level: 2, name: 'Users' })).toBeInTheDocument()
+	expect(toastNow('Invitation sent.')).toBeNull()
 })
 
 test.each([
-	['Email (Required)', 409, EMAIL_TAKEN, 'This email is already registered. Please choose another one.'],
-	['Email (Required)', 422, EMAIL_INVALID, 'The email address is not correct.'],
-	['Name (Required)', 422, NAME_TOO_LONG, 'This name is too long.'],
-])('shows under %s why the server answered %i', async (label, status, body, words) => {
-	refuseCreates(status, body)
+	['Email (Required)', EMAIL_INVALID, EMAIL_INVALID_WORDS],
+	['Name (Required)', NAME_TOO_LONG, NAME_TOO_LONG_WORDS],
+])('shows under %s why the server rejected the invitation, the focus on that field and no toast', async (
+	label,
+	body,
+	words,
+) => {
+	rejectInvites(422, body)
 	await fillIn()
 
 	await send()
 
 	await waitFor(() => expect(screen.getByLabelText(label)).toHaveAccessibleDescription(words))
+	expect(screen.getByLabelText(label)).toHaveFocus()
+	expect(toastNow(`${FAILED} ${words}`)).toBeNull()
 })
 
 test.each([
-	{
-		field: 'Name (Required)',
-		first: 'Email (Required)',
-		status: 422,
-		body: NAME_TOO_LONG,
-		words: 'This name is too long.',
-	},
-	{
-		field: 'Email (Required)',
-		first: 'Name (Required)',
-		status: 409,
-		body: EMAIL_TAKEN,
-		words: 'This email is already registered. Please choose another one.',
-	},
-])('shows under $field why the server answered $status when the form is sent with Enter from that field', async ({
+	{ field: 'Name (Required)', first: 'Email (Required)', body: NAME_TOO_LONG, words: NAME_TOO_LONG_WORDS },
+	{ field: 'Email (Required)', first: 'Name (Required)', body: EMAIL_INVALID, words: EMAIL_INVALID_WORDS },
+])('shows under $field why the server rejected the invitation sent with Enter from that field', async ({
 	field,
 	first,
-	status,
 	body,
 	words,
 }) => {
-	refuseCreates(status, body)
+	rejectInvites(422, body)
 	renderAt('/users/new')
 	await userEvent.type(await screen.findByLabelText(first), TYPED_IN[first])
 	await userEvent.type(screen.getByLabelText(field), TYPED_IN[field])
@@ -569,59 +564,126 @@ test.each([
 	await waitFor(() => expect(screen.getByLabelText(field)).toHaveAccessibleDescription(words))
 })
 
-test.each([
-	['password_too_short', { min: 12 }, 'Hint: The password should be at least 12 characters long.'],
-	['password_too_long', { max: 1024 }, 'This password is too long.'],
-])('shows under the password why the server answered %s', async (code, meta, words) => {
-	refuseCreates(422, { error: 'password refused', code, meta })
+test('speaks at once the words the server put under a field', async () => {
+	const assertive = listenAt('assertive')
+	rejectInvites(422, NAME_TOO_LONG)
 	await fillIn()
 
 	await send()
 
-	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining(words)))
+	await waitFor(() => expect(assertive()).toContain(NAME_TOO_LONG_WORDS))
 })
 
-test('lets the form go again once the reader changes the email the server refused', async () => {
-	refuseCreates(409, EMAIL_TAKEN)
+test('drops the words under Email at the first edit, never again shown for the same address typed back', async () => {
+	rejectInvites(422, EMAIL_INVALID)
 	await fillIn()
 	await send()
 	const email = screen.getByLabelText('Email (Required)')
-	await waitFor(() =>
-		expect(email).toHaveAccessibleDescription('This email is already registered. Please choose another one.'),
-	)
-	const sent = recordCreates()
+	await waitFor(() => expect(email).toHaveAccessibleDescription(EMAIL_INVALID_WORDS))
+
+	await userEvent.type(email, 'x')
+	await waitFor(() => expect(email).toHaveAccessibleDescription(''))
+	await userEvent.type(email, '{Backspace}')
+
+	expect(email).toHaveValue('maria@example.com')
+	expect(email).toHaveAccessibleDescription('')
+	expect(email).toBeValid()
+})
+
+test('lets the form go again once the reader changes the email the server rejected', async () => {
+	rejectInvites(422, EMAIL_INVALID)
+	await fillIn()
+	await send()
+	const email = screen.getByLabelText('Email (Required)')
+	await waitFor(() => expect(email).toHaveAccessibleDescription(EMAIL_INVALID_WORDS))
+	const sent = recordInvites()
 
 	await userEvent.clear(email)
 	await userEvent.type(email, 'maria.perez@example.com')
 
 	expect(email).toHaveAccessibleDescription('')
 	await send()
-	await waitFor(() => expect(sent).toHaveLength(1))
+	await waitFor(() => expect(sent).toEqual([expect.objectContaining({ email: 'maria.perez@example.com' })]))
 })
 
-test('shows in the reader s language why the server refused the email', async () => {
+test('says in a toast why the server rejected the email the reader changed while it was on its way', async () => {
+	const release = holdRejection(422, EMAIL_INVALID)
+	await fillIn()
+	await send()
+	const email = screen.getByLabelText('Email (Required)')
+
+	await userEvent.type(email, 'x')
+	release()
+
+	expect(await toast(`${FAILED} ${EMAIL_INVALID_WORDS}`)).toBeInTheDocument()
+	expect(email).toHaveAccessibleDescription('')
+})
+
+test('says in a toast why the server rejected the name once the reader left the form for the list', async () => {
+	const release = holdRejection(422, NAME_TOO_LONG)
+	await fillIn()
+	await send()
+	const breadcrumbs = screen.getByRole('navigation', { name: 'Breadcrumbs' })
+
+	await userEvent.click(within(breadcrumbs).getByRole('link', { name: 'Users' }))
+	await screen.findByRole('heading', { level: 2, name: 'Users' })
+	release()
+
+	expect(await toast(`${FAILED} ${NAME_TOO_LONG_WORDS}`)).toBeInTheDocument()
+})
+
+test('says in a toast that the invitation went out after the reader left, keeping the reader there', async () => {
+	const release = holdInvites(inviteDelivered())
+	await fillIn()
+	await send()
+
+	await leaveForSettings()
+	release()
+
+	expect(await toast('Invitation sent.')).toBeInTheDocument()
+	expect(screen.getByRole('heading', { level: 2, name: 'Settings' })).toBeInTheDocument()
+})
+
+test('says in a toast where to get an activation link once the reader left before the answer came', async () => {
+	const release = holdInvites(inviteUndelivered(ACTIVATION_LINK))
+	await fillIn()
+	await send()
+
+	await leaveForSettings()
+	release()
+
+	expect(await toast(LINK_WAITS)).toBeInTheDocument()
+	expect(screen.getByRole('heading', { level: 2, name: 'Settings' })).toBeInTheDocument()
+})
+
+test('shows in the reader s language why the server rejected the email', async () => {
 	await readAccountWordsInSpanish()
-	refuseCreates(409, EMAIL_TAKEN)
+	rejectInvites(422, EMAIL_INVALID)
 	await fillIn()
 
 	await send()
 
 	await waitFor(() =>
 		expect(screen.getByLabelText('Email (Required)')).toHaveAccessibleDescription(
-			'Este correo electrónico ya está registrado. Por favor, elige otro.',
+			'La dirección de correo electrónico no es correcta.',
 		),
 	)
 })
 
 test.each([
-	[403, ROLE_NOT_GRANTABLE, 'Sorry, you are not allowed to give users that role.'],
-	[422, ROLE_UNKNOWN, 'Sorry, you are not allowed to give users that role.'],
-	[403, REQUEST_CROSS_ORIGIN, REQUEST_CROSS_ORIGIN_WORDS],
-	[403, { error: 'role insufficient', code: 'role_insufficient' }, 'Sorry, you are not allowed to create users.'],
-	[422, { error: 'role is required', code: 'body_field_required' }, 'The user could not be created.'],
-	[500, { error: 'boom' }, 'The user could not be created.'],
-])('says in a toast why the server answered %i, the form kept as typed', async (status, body, words) => {
-	refuseCreates(status, body)
+	{ status: 403, body: ROLE_NOT_GRANTABLE, words: `${FAILED} Sorry, you are not allowed to give users that role.` },
+	{ status: 422, body: ROLE_UNKNOWN, words: `${FAILED} Sorry, you are not allowed to give users that role.` },
+	{ status: 403, body: REQUEST_CROSS_ORIGIN, words: `${FAILED} ${REQUEST_CROSS_ORIGIN_WORDS}` },
+	{ status: 403, body: ROLE_INSUFFICIENT, words: `${FAILED} Sorry, you are not allowed to create users.` },
+	{ status: 422, body: { error: 'that name is too long' }, words: `${FAILED} that name is too long` },
+	{ status: 422, body: { error: 'role is required', code: 'body_field_required' }, words: FAILED },
+	{ status: 502, body: { error: 'delivery failed', code: 'delivery_failed' }, words: FAILED },
+])('says in a toast why the server answered $status $body.code, the form kept as typed', async ({
+	status,
+	body,
+	words,
+}) => {
+	rejectInvites(status, body)
 	await fillIn()
 
 	await send()
@@ -629,14 +691,98 @@ test.each([
 	expect(await toast(words)).toBeInTheDocument()
 	expect(screen.getByLabelText('Email (Required)')).toHaveValue('maria@example.com')
 	expect(screen.getByLabelText('Name (Required)')).toHaveValue('Maria Perez')
+	expect(screen.getByLabelText('Name (Required)')).toBeValid()
 })
 
-test('says in a toast in the reader s language that the reader may not give the role', async () => {
-	await readAccountWordsInSpanish()
-	refuseCreates(403, ROLE_NOT_GRANTABLE)
+test('says in a toast only that the invitation was not sent when the server failed, the button on again', async () => {
+	server.use(inviteFailure())
 	await fillIn()
 
 	await send()
 
-	expect(await toast('Lo siento, no tienes permisos para dar ese rol a los usuarios.')).toBeInTheDocument()
+	expect(await toast(FAILED)).toBeInTheDocument()
+	expect(screen.queryByText(/internal error/)).toBeNull()
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Send invitation' })).not.toHaveAttribute('aria-disabled', 'true'),
+	)
+	expect(screen.getByLabelText('Email (Required)')).toHaveValue('maria@example.com')
+})
+
+test('says in a toast in the reader s language that the reader may not give the role', async () => {
+	await readIn('es-ES')
+	rejectInvites(403, ROLE_NOT_GRANTABLE)
+	await fillInAnyLanguage()
+
+	await userEvent.click(screen.getByRole('button', { name: 'Enviar invitación' }))
+
+	expect(
+		await toast('No se ha podido enviar la invitación. Lo siento, no tienes permisos para dar ese rol a los usuarios.'),
+	).toBeInTheDocument()
+})
+
+test.each(INVITATION_WORDS)('reads Send invitation and the toast of a delivered invitation in $locale', async ({
+	locale,
+	send: sendWords,
+	sent,
+}) => {
+	await readIn(locale)
+	server.use(inviteDelivered())
+	await fillInAnyLanguage()
+
+	await userEvent.click(screen.getByRole('button', { name: sendWords }))
+
+	expect(await toast(sent)).toBeInTheDocument()
+})
+
+test.each(INVITATION_WORDS)('reads the activation link page in $locale', async ({
+	locale,
+	send: sendWords,
+	...words
+}) => {
+	await readIn(locale)
+	server.use(inviteUndelivered(ACTIVATION_LINK))
+	await fillInAnyLanguage()
+
+	await userEvent.click(screen.getByRole('button', { name: sendWords }))
+
+	expect(await screen.findByLabelText(words.link)).toHaveValue(ACTIVATION_LINK)
+	expect(screen.getByText(words.noMail)).toHaveAttribute('role', 'status')
+	expect(screen.getByRole('button', { name: words.done })).toBeInTheDocument()
+})
+
+test.each(INVITATION_WORDS)('reads where to get an activation link once the reader left in $locale', async ({
+	locale,
+	send: sendWords,
+	waits,
+}) => {
+	await readIn(locale)
+	const release = holdInvites(inviteUndelivered(ACTIVATION_LINK))
+	const router = await fillInAnyLanguage()
+	await userEvent.click(screen.getByRole('button', { name: sendWords }))
+
+	await router.navigate({ to: '/settings' })
+	await waitFor(() => expect(screen.queryByRole('button', { name: sendWords })).toBeNull())
+	release()
+
+	expect(await toast(waits)).toBeInTheDocument()
+})
+
+test.each(INVITATION_WORDS)('reads the toasts of a failed invitation in $locale', async ({
+	locale,
+	send: sendWords,
+	failed,
+	mayNotCreate,
+}) => {
+	await readIn(locale)
+	server.use(inviteFailure())
+	await fillInAnyLanguage()
+	const button = screen.getByRole('button', { name: sendWords })
+
+	await userEvent.click(button)
+	expect(await toast(failed)).toBeInTheDocument()
+	rejectInvites(403, ROLE_INSUFFICIENT)
+	await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'))
+	await userEvent.click(button)
+
+	expect(await toast(mayNotCreate)).toBeInTheDocument()
 })
