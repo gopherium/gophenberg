@@ -413,7 +413,7 @@ func (s *server) typeAsked(r *http.Request, key string) (content.Type, error) {
 	}
 	asked, err := s.types.Active(r.Context(), key)
 	if errors.Is(err, content.ErrTypeNotFound) {
-		return content.Type{}, content.ErrInvalidType
+		return content.Type{}, content.UnknownType(key)
 	}
 	return asked, err
 }

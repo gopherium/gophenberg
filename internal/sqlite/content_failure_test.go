@@ -33,6 +33,10 @@ var contentFaults = []contentFault{
 		func(t *testing.T, store *sqlite.ContentStore, item content.Content) error {
 			return ignoreValue(store.Create(t.Context(), item))
 		}},
+	{"LockTypeRouteWord from Create", db.LockTypeRouteWord, "sqlite: create content: ", unstoredPost,
+		func(t *testing.T, store *sqlite.ContentStore, item content.Content) error {
+			return ignoreValue(store.Create(t.Context(), item))
+		}},
 	{"GetContent from ByID", db.GetContent, "sqlite: get content: ", unstoredPost,
 		func(t *testing.T, store *sqlite.ContentStore, item content.Content) error {
 			return ignoreValue(store.ByID(t.Context(), item.ID))

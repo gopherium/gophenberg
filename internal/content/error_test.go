@@ -88,3 +88,26 @@ func TestCodeOfReportsAPlainError(t *testing.T) {
 		t.Errorf("CodeOf() ok = true, want a plain sentinel to name none")
 	}
 }
+
+func TestAddressOutsideRouteWordNamesTheTypeTheWordTheCountAndTheFirstAddress(t *testing.T) {
+	t.Parallel()
+
+	err := content.AddressOutsideRouteWord("car", "vehicles", 4, "cars-sport/coupe")
+
+	if !errors.Is(err, content.ErrAddressOutsideRouteWord) {
+		t.Errorf("error = %v, want it to carry %v", err, content.ErrAddressOutsideRouteWord)
+	}
+	if code, _ := content.CodeOf(err); code != "address_outside_route_word" {
+		t.Errorf("code = %q, want address_outside_route_word", code)
+	}
+	held, _ := content.DetailsOf(err)
+	if held["type"] != "car" || held["word"] != "vehicles" || held["items"] != 4 ||
+		held["path"] != "cars-sport/coupe" {
+		t.Errorf("details = %v, want the type, its word, the four items and the first address named", held)
+	}
+	want := "content: an address of the type sits outside its route word: " +
+		`car under "vehicles", 4 outside, first "cars-sport/coupe"`
+	if got := err.Error(); got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+}

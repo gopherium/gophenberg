@@ -116,6 +116,12 @@ func (q typeQueries) RetypeContentPaths(ctx context.Context, t typestore.TypeRow
 	})
 }
 
+// CountContentOutsideRouteWord returns how many addresses of the type do not start with the word, and the first.
+func (q typeQueries) CountContentOutsideRouteWord(ctx context.Context, key, was string) (typestore.OutsideRow, error) {
+	row, err := q.queries.CountContentOutsideRouteWord(ctx, db.CountContentOutsideRouteWordParams{Key: key, Was: was})
+	return typestore.OutsideRow{Items: row.Items, First: row.FirstPath}, err
+}
+
 // CountNestedContent returns how many items of the type sit inside another.
 func (q typeQueries) CountNestedContent(ctx context.Context, key string) (int64, error) {
 	return q.queries.CountNestedContent(ctx, key)

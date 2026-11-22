@@ -154,6 +154,11 @@ func (q contentQueries) LockTypeForMove(ctx context.Context, typeKey string) (bo
 	return marked(q.queries.LockTypeForMove(ctx, typeKey))
 }
 
+// LockTypeRouteWord returns the route word the type answers under, held as it stands by the one writer.
+func (q contentQueries) LockTypeRouteWord(ctx context.Context, typeKey string) (string, error) {
+	return marked(q.queries.LockTypeRouteWord(ctx, typeKey))
+}
+
 // LockAncestors sends nothing, leaving the item and every item above it held by the one writer.
 func (contentQueries) LockAncestors(context.Context, uuid.UUID) error {
 	return nil

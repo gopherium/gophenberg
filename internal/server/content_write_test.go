@@ -86,6 +86,28 @@ func TestPostCreateRejectsUnknownTypesAndMalformedBodies(t *testing.T) {
 	}
 }
 
+func TestPostCreateNamesTheUnknownTypeItWasAskedFor(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _ := authedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hi","type":"ghost"}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	answered := decodeBody[struct {
+		Code string         `json:"code"`
+		Meta map[string]any `json:"meta"`
+	}](t, recorder)
+	if answered.Code != "type_unknown" {
+		t.Errorf("code = %q, want type_unknown", answered.Code)
+	}
+	if answered.Meta["value"] != "ghost" {
+		t.Errorf("meta = %v, want the value ghost, the type the request named", answered.Meta)
+	}
+}
+
 func TestPostCreateReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 

@@ -377,11 +377,11 @@ func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uu
 // Create stores a new content item, suffixing its slug until its address is free.
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
 	defer s.lockedAfterTypes()()
-	prefix, err := s.fileable(c, content.AddressPrefix(c.Path, c.Slug))
+	prefix, err := s.fileable(c)
 	if err != nil {
 		return content.Content{}, err
 	}
-	if err := offPagination(content.AddressUnder(prefix, c.Slug)); err != nil {
+	if err := reservedFiling("", content.AddressUnder(prefix, c.Slug)); err != nil {
 		return content.Content{}, err
 	}
 	if err := s.valuesDeclared(c); err != nil {
@@ -416,35 +416,44 @@ func (s *memoryContent) created(c content.Content, prefix, slug string) (content
 
 // nestable returns the reason the item's type no longer takes it under a parent.
 func (s *memoryContent) nestable(c content.Content) error {
-	if c.ParentID == nil || s.types.nests(c.Type) {
+	if s.types.nests(c.Type) {
 		return nil
 	}
 	return content.ErrNotHierarchical
 }
 
-// fileable returns the address prefix a new item takes, or the reason its parent cannot hold it.
-func (s *memoryContent) fileable(c content.Content, prefix string) (string, error) {
+// fileable returns the prefix a new item takes, its type's route word at the top, or why it may not be filed.
+func (s *memoryContent) fileable(c content.Content) (string, error) {
+	if c.ParentID == nil {
+		return s.routeWordOf(c.Type)
+	}
 	if err := s.nestable(c); err != nil {
 		return "", err
-	}
-	if c.ParentID == nil {
-		return prefix, nil
 	}
 	return s.parentHolds(*c.ParentID, c.ID)
 }
 
-// movable returns the address prefix an edit files the stored item under, or the reason it may not move there.
-func (s *memoryContent) movable(c, stored content.Content, prefix string) (string, error) {
+// movable returns the prefix an edit files the item under, its type's route word at the top, or why it may not move.
+func (s *memoryContent) movable(c, stored content.Content) (string, error) {
 	if c.ParentID == nil {
-		return prefix, nil
+		return s.routeWordOf(stored.Type)
 	}
 	if err := s.nestable(c); err != nil {
 		return "", err
 	}
 	if sameParent(stored.ParentID, c.ParentID) {
-		return prefix, nil
+		return content.AddressPrefix(c.Path, c.Slug), nil
 	}
 	return s.parentHolds(*c.ParentID, c.ID)
+}
+
+// routeWordOf returns the stored type's route word, or the error naming a type it lacks, the caller holding the lock.
+func (s *memoryContent) routeWordOf(key string) (string, error) {
+	held, found := s.types.typeHeld(key)
+	if !found {
+		return "", content.UnknownType(key)
+	}
+	return held.RouteWord, nil
 }
 
 // parentHolds returns the parent's address, refusing one gone, in the trash, or under the item.
@@ -524,6 +533,17 @@ func offPagination(path string) error {
 	return content.ReservedAddress(path)
 }
 
+// reservedFiling returns the error naming a reserved address the item would newly take, a root page or a kept word.
+func reservedFiling(was, path string) error {
+	if path == was {
+		return nil
+	}
+	if content.RootPagination(path) || content.ReservedRoot(content.FirstSegment(path)) {
+		return content.ReservedAddress(path)
+	}
+	return nil
+}
+
 // movedOffPagination returns the refusal naming the first moved address the root listing keeps, if there is one.
 func movedOffPagination(moved map[uuid.UUID]content.Content) error {
 	for _, next := range moved {
@@ -559,7 +579,7 @@ type typeCarry struct {
 	at            time.Time
 }
 
-// carryTypes moves and stamps every item of each type whose route word changed, or moves none and reports a clash.
+// carryTypes moves and stamps every item of each type whose route word changed, or moves none and reports why.
 func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -567,6 +587,9 @@ func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	for _, carry := range carries {
 		if carry.was == carry.now {
 			continue
+		}
+		if err := s.outsideRouteWord(carry); err != nil {
+			return err
 		}
 		for id, stored := range s.items {
 			if stored.Type != carry.key {
@@ -585,6 +608,23 @@ func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	}
 	maps.Copy(s.items, moved)
 	return nil
+}
+
+// outsideRouteWord returns the error naming the carried type's items whose address does not start with its old word.
+func (s *memoryContent) outsideRouteWord(carry typeCarry) error {
+	if carry.was == "" {
+		return nil
+	}
+	var outside []string
+	for _, stored := range s.items {
+		if stored.Type == carry.key && !strings.HasPrefix(stored.Path, carry.was+"/") {
+			outside = append(outside, stored.Path)
+		}
+	}
+	if len(outside) == 0 {
+		return nil
+	}
+	return content.AddressOutsideRouteWord(carry.key, carry.was, len(outside), slices.Min(outside))
 }
 
 // addressesClash reports whether a moved item would answer at an address another item answers at once all have moved.
@@ -852,7 +892,7 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
-	prefix, err := s.movable(c, stored, content.AddressPrefix(c.Path, c.Slug))
+	prefix, err := s.movable(c, stored)
 	if err != nil {
 		return content.Content{}, err
 	}
@@ -870,8 +910,8 @@ func (s *memoryContent) Update(
 	if s.addressHeld(settled.Path, c.ID) {
 		return content.Content{}, content.ErrSlugTaken
 	}
-	if settled.Path != stored.Path && content.RootPagination(settled.Path) {
-		return content.Content{}, content.ReservedAddress(settled.Path)
+	if err := reservedFiling(stored.Path, settled.Path); err != nil {
+		return content.Content{}, err
 	}
 	carried, err := s.carriedUnder(settled, stored.Path)
 	if err != nil {

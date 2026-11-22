@@ -59,6 +59,14 @@ func authorsIn(handle *sql.DB) func(t *testing.T, name string) uuid.UUID {
 	}
 }
 
+// pathsIn returns the hook that sets an item's address in the file behind handle past the store's own checks.
+func pathsIn(handle *sql.DB) func(t *testing.T, id uuid.UUID, path string) {
+	return func(t *testing.T, id uuid.UUID, path string) {
+		t.Helper()
+		mustExec(t, handle, "UPDATE core_content SET path = ?2 WHERE id = ?1", id, path)
+	}
+}
+
 // sqliteStores returns fresh site and user setting stores over a migrated copy of their own.
 func sqliteStores(t *testing.T) contenttest.Stores {
 	t.Helper()
@@ -80,6 +88,7 @@ func sqliteSiteStores(t *testing.T) contenttest.Stores {
 		SiteSettings: sqlite.NewSettingStore(handle),
 		UserSettings: sqlite.NewUserSettingStore(handle),
 		AddAuthor:    authorsIn(handle),
+		PlantPath:    pathsIn(handle),
 	}
 }
 

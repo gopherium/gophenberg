@@ -420,6 +420,7 @@ var typeUpdateMeanings = map[Constraint]error{
 // typeUpdatePasses lists what a type update passes unchanged.
 var typeUpdatePasses = []error{
 	content.ErrTypeNotFound, content.ErrRouteWordReserved, content.ErrInvalidRouteWord, content.ErrNestingInUse,
+	content.ErrAddressOutsideRouteWord,
 }
 
 // movePasses lists what a field move passes unchanged.
@@ -435,7 +436,7 @@ var fieldDeletePasses = []error{content.ErrGroupNotFound, content.ErrFieldNotFou
 var everySentinel = []error{
 	content.ErrGroupNotFound, content.ErrFieldNotFound, content.ErrFieldTaken, content.ErrFieldInsideItself,
 	content.ErrFieldTooDeep, content.ErrFieldShape, content.ErrTypeNotFound, content.ErrRouteWordReserved,
-	content.ErrInvalidRouteWord, content.ErrNestingInUse,
+	content.ErrInvalidRouteWord, content.ErrNestingInUse, content.ErrAddressOutsideRouteWord,
 }
 
 // tailCase is one step's last word on an error: the rules it maps, what it passes and the text it wraps the rest in.

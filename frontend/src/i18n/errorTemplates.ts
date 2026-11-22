@@ -576,6 +576,10 @@ export function typeTemplates(): Record<string, string> {
 			'%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again.',
 			DOMAIN,
 		),
+		address_outside_route_word: __(
+			'%(type)s keeps the route word /%(word)s while %(items)s of its items sit outside it, such as /%(path)s, the ones in the trash included. Change and save each one, restoring it from the trash first if needed, or delete it permanently. Then try again.',
+			DOMAIN,
+		),
 	}
 }
 

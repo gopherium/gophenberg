@@ -199,23 +199,6 @@ func TestPaginationEditReportsAMissingStoredItem(t *testing.T) {
 	}
 }
 
-func TestFlatStoreCreateRefusesAPaginationAddress(t *testing.T) {
-	t.Parallel()
-
-	store, author := newContentStore(t)
-	built := mustPost(t, "2", author).Place("page", "2")
-	_, err := store.Create(t.Context(), built)
-	if !errors.Is(err, content.ErrReservedAddress) {
-		t.Fatalf("Create() error = %v, want a reserved address refused without fields or a parent", err)
-	}
-	if code, _ := content.CodeOf(err); code != "address_reserved" {
-		t.Errorf("code = %q, want address_reserved", code)
-	}
-	if _, err := store.ByID(t.Context(), built.ID); !errors.Is(err, content.ErrNotFound) {
-		t.Errorf("ByID() error = %v, want the refused item absent", err)
-	}
-}
-
 func TestRootHandOverRefusesPageDerivedFromTheOldRootLabel(t *testing.T) {
 	t.Parallel()
 

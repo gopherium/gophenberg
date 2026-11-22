@@ -171,6 +171,7 @@ type shelf struct {
 	groups    []typestore.GroupRow
 	fields    []typestore.FieldRow
 	nesting   map[string]bool
+	words     map[string]string
 	taken     map[string]bool
 	gone      map[uuid.UUID]bool
 	listed    []ListedRow
@@ -547,6 +548,12 @@ func (q fakeQueries) LockTypeNesting(_ context.Context, typeKey string) (bool, e
 func (q fakeQueries) LockTypeForMove(_ context.Context, typeKey string) (bool, error) {
 	nests, held := q.fake.shelf.nesting[typeKey]
 	return answer(q, "LockTypeForMove", keyed{typeKey}, nests, missingUnless(held))
+}
+
+// LockTypeRouteWord answers the route word the type answers under, or no row for a type the shelf does not hold.
+func (q fakeQueries) LockTypeRouteWord(_ context.Context, typeKey string) (string, error) {
+	word, held := q.fake.shelf.words[typeKey]
+	return answer(q, "LockTypeRouteWord", keyed{typeKey}, word, missingUnless(held))
 }
 
 // missingUnless returns no row unless the row is held.

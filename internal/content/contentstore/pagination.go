@@ -8,12 +8,15 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// checkPaginationEdit refuses a reserved address unless the stored item already occupies it.
-func checkPaginationEdit(was, path string) error {
-	if path == was || !content.RootPagination(path) {
+// reservedFiling returns the error naming a reserved address the item would newly take, a root page or a kept word.
+func reservedFiling(was, path string) error {
+	if path == was {
 		return nil
 	}
-	return content.ReservedAddress(path)
+	if content.RootPagination(path) || content.ReservedRoot(content.FirstSegment(path)) {
+		return content.ReservedAddress(path)
+	}
+	return nil
 }
 
 // moveDescendants locks the descendants and carries them to the new address when it changed, refusing a reserved one.

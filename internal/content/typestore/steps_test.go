@@ -183,6 +183,19 @@ var typeArms = map[string]arm{
 			Active: true, Origin: "library", CreatedAt: shelvedAt, UpdatedAt: editedAt,
 		},
 	},
+	"Update moving its route word over addresses outside it answers how many and rolls back": {
+		stocked: libraryWith(func(stocked *shelf) {
+			stocked.outside = map[string]OutsideRow{"book": {Items: 2, First: "tomes/dune"}}
+		}),
+		run: func(ctx context.Context, s *Store) (any, error) {
+			return valued(s.Update(ctx, novelUnder("novels")))
+		},
+		log: []step{
+			begun, sent("LockContentType", keyed{"book"}), sent("UpdateContentType", novelRow("novels")),
+			countedOutsideBooks, rolledBack,
+		},
+		ends: content.AddressOutsideRouteWord("book", "books", 2, "tomes/dune"),
+	},
 	"Update taking the root no type holds answers the type at the root": {
 		stocked: rootless,
 		run: func(ctx context.Context, s *Store) (any, error) {
@@ -190,7 +203,7 @@ var typeArms = map[string]arm{
 		},
 		log: []step{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot, lockedRoot,
-			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(true)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
 		},
@@ -207,7 +220,7 @@ var typeArms = map[string]arm{
 		},
 		log: []step{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot, lockedRoot,
-			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("UpdateContentType", rootBookRow(true)), countedOutsideBooks, deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			rolledBack,
 		},

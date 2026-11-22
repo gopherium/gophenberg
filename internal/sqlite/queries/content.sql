@@ -215,6 +215,9 @@ SELECT t.hierarchical FROM core_content_types t WHERE t.key = @key;
 -- name: LockTypeForMove :one
 SELECT t.hierarchical FROM core_content_types t WHERE t.key = @key;
 
+-- name: LockTypeRouteWord :one
+SELECT t.route_word FROM core_content_types t WHERE t.key = @key;
+
 -- name: SiblingSlugTaken :one
 SELECT EXISTS (
     SELECT 1 FROM core_content p

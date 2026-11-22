@@ -453,6 +453,35 @@ func TestTypePatchKeepsATypeNestingWhileItsItemsNest(t *testing.T) {
 	}
 }
 
+func TestTypePatchNamesTheItemsOutsideTheRouteWordItKeeps(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	addAda(t, users)
+	types := newFakeTypeStore()
+	types.register(pageType())
+	types.updateErr = content.AddressOutsideRouteWord("page", "pages", 2, "cars/roadster")
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: newFakePostStore(), Types: types})
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/page", `{"route_word":"guides"}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s",
+			recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	answered := decodeBody[struct {
+		Code string         `json:"code"`
+		Meta map[string]any `json:"meta"`
+	}](t, recorder)
+	if answered.Code != "address_outside_route_word" {
+		t.Errorf("code = %q, want address_outside_route_word", answered.Code)
+	}
+	if answered.Meta["type"] != "page" || answered.Meta["word"] != "pages" || answered.Meta["items"] != float64(2) ||
+		answered.Meta["path"] != "cars/roadster" {
+		t.Errorf("meta = %v, want the type, its word, the two items and the first address named", answered.Meta)
+	}
+}
+
 func TestTypePatchTakesAnArchivePageKind(t *testing.T) {
 	t.Parallel()
 

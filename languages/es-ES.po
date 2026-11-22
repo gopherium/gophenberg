@@ -1694,6 +1694,10 @@ msgid "%(type)s keeps nesting, because some of its items sit inside another."
 msgstr "%(type)s sigue anidando, porque algunos de sus elementos están dentro de otro."
 
 #, fuzzy
+msgid "%(type)s keeps the route word /%(word)s while %(items)s of its items sit outside it, such as /%(path)s, the ones in the trash included. Change and save each one, restoring it from the trash first if needed, or delete it permanently. Then try again."
+msgstr "%(type)s conserva la palabra de ruta de URL /%(word)s mientras %(items)s de sus elementos están fuera de ella, como /%(path)s, incluidos los de la papelera. Cambia y guarda cada uno, restaurándolo antes desde la papelera si hace falta, o bórralo permanentemente. Después vuelve a intentarlo."
+
+#, fuzzy
 msgid "Destination"
 msgstr "Destino"
 

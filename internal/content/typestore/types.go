@@ -117,8 +117,11 @@ func updateParams(t content.Type) TypeRow {
 	}
 }
 
-// carryContent moves every address of the type from the route word it answered under, rejecting a root page address.
+// carryContent moves the type's addresses off the old word unless one sits outside it, rejecting a root page address.
 func carryContent(ctx context.Context, queries Queries, t content.Type, was string) error {
+	if err := addressesInside(ctx, queries, t.Key, was); err != nil {
+		return err
+	}
 	if err := queries.DeferAddressCheck(ctx); err != nil {
 		return err
 	}
@@ -131,6 +134,21 @@ func carryContent(ctx context.Context, queries Queries, t content.Type, was stri
 		return err
 	}
 	return content.CheckPaginationPaths(paths)
+}
+
+// addressesInside returns the reason the type's addresses may not move while any does not start with the word.
+func addressesInside(ctx context.Context, queries Queries, key, was string) error {
+	if was == "" {
+		return nil
+	}
+	outside, err := queries.CountContentOutsideRouteWord(ctx, key, was)
+	if err != nil {
+		return err
+	}
+	if outside.Items == 0 {
+		return nil
+	}
+	return content.AddressOutsideRouteWord(key, was, int(outside.Items), outside.First)
 }
 
 // writeType stores the edited type through the queries, handing the root over when the edit asks for it.
@@ -193,7 +211,7 @@ func flattenable(ctx context.Context, queries Queries, key string) error {
 func (s *Store) updateTypeFailure(err error) error {
 	for _, carried := range []error{
 		content.ErrTypeNotFound, content.ErrRouteWordReserved, content.ErrReservedAddress,
-		content.ErrInvalidRouteWord, content.ErrNestingInUse,
+		content.ErrInvalidRouteWord, content.ErrNestingInUse, content.ErrAddressOutsideRouteWord,
 	} {
 		if errors.Is(err, carried) {
 			return err

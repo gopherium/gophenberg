@@ -53,6 +53,7 @@ type LockQueries interface {
 	LockContent(ctx context.Context, id uuid.UUID) (ContentRow, error)
 	LockTypeNesting(ctx context.Context, typeKey string) (bool, error)
 	LockTypeForMove(ctx context.Context, typeKey string) (bool, error)
+	LockTypeRouteWord(ctx context.Context, typeKey string) (string, error)
 	LockAncestors(ctx context.Context, id uuid.UUID) error
 	LockParent(ctx context.Context, id, child uuid.UUID) (ParentRow, error)
 	LockDescendants(ctx context.Context, id uuid.UUID) error

@@ -1051,6 +1051,17 @@ func (q *Queries) LockTypeNesting(ctx context.Context, key string) (bool, error)
 	return hierarchical, err
 }
 
+const lockTypeRouteWord = `-- name: LockTypeRouteWord :one
+SELECT t.route_word FROM core.content_types t WHERE t.key = $1 FOR KEY SHARE
+`
+
+func (q *Queries) LockTypeRouteWord(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRow(ctx, lockTypeRouteWord, key)
+	var route_word string
+	err := row.Scan(&route_word)
+	return route_word, err
+}
+
 const moveDescendants = `-- name: MoveDescendants :many
 WITH RECURSIVE moved AS (
     SELECT c.id, $1::text AS path, c.path AS previous_path

@@ -19,6 +19,11 @@ import (
 // ErrInvalidType reports that a content type is not registered.
 var ErrInvalidType = errors.New("content: invalid type")
 
+// UnknownType returns the error naming a content type the site does not hold.
+func UnknownType(key string) error {
+	return Refuse(ErrInvalidType, "type_unknown", fmt.Sprintf("%s: %s", ErrInvalidType, key), Details{"value": key})
+}
+
 // ErrInvalidAuthor reports that a content item carries no author.
 var ErrInvalidAuthor = errors.New("content: invalid author")
 

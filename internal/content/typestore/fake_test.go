@@ -65,6 +65,9 @@ type retyped struct {
 	UpdatedAt           time.Time
 }
 
+// outsideOf holds what counting the addresses of a type that do not start with a route word binds.
+type outsideOf struct{ Key, Was string }
+
 // groupColumns holds the columns a group write binds, its location as text, and the stamp an edit expects.
 type groupColumns struct {
 	ID                             int
@@ -112,13 +115,14 @@ type relating struct {
 // checked holds what the caller's check was handed: the path of every group and field, and the type keys.
 type checked struct{ Paths, Types []string }
 
-// shelf holds what the fake serves: the stored types, groups and fields, the nesting counts and the retyped addresses.
+// shelf holds what the fake serves: the types, groups and fields, nesting and outside counts and retyped addresses.
 type shelf struct {
 	types   []TypeRow
 	groups  []GroupRow
 	fields  []FieldRow
 	nested  map[string]int64
 	carried map[string][]string
+	outside map[string]OutsideRow
 }
 
 // fakeBackend serves a shelf through the statements and the transactions a store sends, logging each entry.
@@ -424,6 +428,11 @@ func (q fakeQueries) DeferAddressCheck(context.Context) error {
 func (q fakeQueries) RetypeContentPaths(_ context.Context, t TypeRow, was string) ([]string, error) {
 	bound := retyped{Key: t.Key, RouteWord: t.RouteWord, Was: was, UpdatedAt: q.fake.stamp(t.UpdatedAt)}
 	return answer(q, "RetypeContentPaths", bound, copied(q.fake.shelf.carried[t.Key]), nil)
+}
+
+// CountContentOutsideRouteWord answers with how many addresses of the type the shelf says sit outside the word.
+func (q fakeQueries) CountContentOutsideRouteWord(_ context.Context, key, was string) (OutsideRow, error) {
+	return answer(q, "CountContentOutsideRouteWord", outsideOf{Key: key, Was: was}, q.fake.shelf.outside[key], nil)
 }
 
 // CountNestedContent answers with how many items of the type the shelf says nest.

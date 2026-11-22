@@ -151,6 +151,16 @@ func authorsIn(pool *pgxpool.Pool) func(t *testing.T, name string) uuid.UUID {
 	}
 }
 
+// pathsIn returns the hook that sets an item's address in the database behind the pool past the store's own checks.
+func pathsIn(pool *pgxpool.Pool) func(t *testing.T, id uuid.UUID, path string) {
+	return func(t *testing.T, id uuid.UUID, path string) {
+		t.Helper()
+		if _, err := pool.Exec(t.Context(), "UPDATE core.content SET path = $2 WHERE id = $1", id, path); err != nil {
+			t.Fatalf("setting the address %q: %v", path, err)
+		}
+	}
+}
+
 // postgresStores returns fresh stores over a migrated database of their own.
 func postgresStores(t *testing.T) contenttest.Stores {
 	t.Helper()
@@ -161,6 +171,7 @@ func postgresStores(t *testing.T) contenttest.Stores {
 		SiteSettings: postgres.NewSettingStore(pool),
 		UserSettings: postgres.NewUserSettingStore(pool),
 		AddAuthor:    authorsIn(pool),
+		PlantPath:    pathsIn(pool),
 	}
 }
 

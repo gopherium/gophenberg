@@ -196,6 +196,9 @@ msgstr ""
 msgid "%(type)s keeps nesting, because some of its items sit inside another."
 msgstr ""
 
+msgid "%(type)s keeps the route word /%(word)s while %(items)s of its items sit outside it, such as /%(path)s, the ones in the trash included. Change and save each one, restoring it from the trash first if needed, or delete it permanently. Then try again."
+msgstr ""
+
 msgid "%(type)s will answer at the root."
 msgstr ""
 
