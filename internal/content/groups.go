@@ -29,10 +29,12 @@ func ValidGroupKey(key string) error {
 }
 
 // GroupKeyFrom returns the key a group title mints, shaped like every other key.
+// Accented letters are written as plain ones first, as slugs are, so "Cafés"
+// gives "cafes" rather than "caf-s".
 func GroupKeyFrom(title string) string {
 	var b strings.Builder
 	separated := false
-	for _, r := range strings.ToLower(title) {
+	for _, r := range FoldAccents(title) {
 		switch {
 		case r == '\'' || r == '’':
 			continue

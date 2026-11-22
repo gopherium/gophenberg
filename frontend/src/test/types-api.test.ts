@@ -19,6 +19,9 @@ import {
 test('reduces a label to the key it declares', () => {
 	expect(slugifyKey('Sold On')).toBe('sold-on')
 	expect(slugifyKey('  Colour!  ')).toBe('colour')
+	expect(slugifyKey('Cafés')).toBe('cafes')
+	expect(slugifyKey('Café Ærø Straße')).toBe('cafe-aero-strasse')
+	expect(slugifyKey('Łódź Œuvre')).toBe('lodz-oeuvre')
 })
 
 test('names a field kind the admin has no word for by the kind itself', () => {
