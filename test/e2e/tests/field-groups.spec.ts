@@ -62,7 +62,13 @@ async function textFieldIn(page: Page, group: number, label: string) {
 	expect(answer.status()).toBe(201)
 }
 
-/** Declares an optional text field in a group through the API, shown only while its source field reads Two hours. */
+/**
+ * Declares an optional text field in a group, shown only while its source field reads Two hours.
+ * @param page - The page whose session declares it.
+ * @param group - The id of the group that holds it.
+ * @param label - The name of the field, its key made from it.
+ * @param source - The key of the field whose value shows it.
+ */
 async function fieldShownBy(page: Page, group: number, label: string, source: string) {
 	const answer = await page.request.post(`/api/groups/${group}/fields`, {
 		data: {
@@ -77,14 +83,21 @@ async function fieldShownBy(page: Page, group: number, label: string, source: st
 	expect(answer.status()).toBe(201)
 }
 
-/** Waits until every animation inside an element has finished or been cancelled. */
+/**
+ * Waits until every animation inside an element has finished or been cancelled.
+ * @param element - The element whose animations it waits on.
+ */
 async function settled(element: Locator) {
 	await element.evaluate((node) =>
 		Promise.allSettled(node.getAnimations({ subtree: true }).map((run) => run.finished)),
 	)
 }
 
-/** Returns whether a row of controls wraps and stays inside its holder, and how far a box up to it runs sideways. */
+/**
+ * Returns whether a row of controls wraps and stays inside its holder, and how far a box up to it runs sideways.
+ * @param row - The row of controls.
+ * @returns Whether it takes more than one line, whether every control sits inside the holder, and the widest overrun.
+ */
 async function fitOf(row: Locator) {
 	return row.evaluate((node) => {
 		const holder = node.closest('[role="region"], [role="dialog"]') as HTMLElement
