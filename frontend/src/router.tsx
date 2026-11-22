@@ -29,7 +29,21 @@ import { useDefaultType } from './content/nav'
 import { statusSearch } from './content/StatusTabs'
 import { pluginStatusSearch } from './pluginsscreen/nav'
 
-const rootRoute = createRootRoute()
+const { defaultNotFoundComponent: RouteNotFound } = routerDefaults()
+
+/**
+ * Renders the screen of an address no route serves inside the admin frame, so the menu stays in reach.
+ * @returns The layout element framing the not found screen.
+ */
+function FramedNotFound() {
+	return (
+		<Layout>
+			<RouteNotFound />
+		</Layout>
+	)
+}
+
+const rootRoute = createRootRoute({ notFoundComponent: FramedNotFound })
 
 const framedRoute = createRoute({
 	getParentRoute: () => rootRoute,
