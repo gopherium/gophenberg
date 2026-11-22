@@ -320,7 +320,7 @@ test('fits the users table to its card at 1280 beside a long name, every default
 	}
 })
 
-test('lays Add User out in one column on a phone, each field as wide as the form and Add User under them', async ({
+test('lays Add User out in one column on a phone, each field as wide as the form and Send invitation under them', async ({
 	page,
 }) => {
 	await page.goto('/admin/users/new')
@@ -334,7 +334,6 @@ test('lays Add User out in one column on a phone, each field as wide as the form
 	const rows = [
 		{ label: 'Email', starts: email, ends: email },
 		{ label: 'Name', starts: name, ends: name },
-		{ label: 'Password', starts: page.getByLabel('Password', { exact: true }), ends: page.getByLabel('Hide password') },
 		{ label: 'Role', starts: role, ends: role },
 	]
 	for (const { label, starts, ends } of rows) {
@@ -344,7 +343,7 @@ test('lays Add User out in one column on a phone, each field as wide as the form
 		expect(Math.abs(right), `${label} ends at the right of the form`).toBeLessThanOrEqual(1)
 	}
 	const roleBox = await role.boundingBox()
-	const submit = await page.getByRole('button', { name: 'Add User', exact: true }).boundingBox()
+	const submit = await page.getByRole('button', { name: 'Send invitation', exact: true }).boundingBox()
 	expect(submit?.y ?? 0).toBeGreaterThanOrEqual((roleBox?.y ?? 0) + (roleBox?.height ?? 0))
 })
 
