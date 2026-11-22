@@ -24,6 +24,8 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 | --- | --- |
 | `id` | Required. Lowercase letters, digits, and hyphens, starting with a letter. Must equal the directory name and what the plugin's `ID()` returns. The id of a plugin with settings must not hold two hyphens in a row or end with one |
 | `name` | Required. The human readable name |
+| `description` | One short sentence saying what the plugin does, such as `Serves your published posts as an RSS feed.` The [Plugins screen](/guides/plugins/) shows it on one line, so keep it short |
+| `version` | The plugin's version as text, such as `0.0.1`. The Plugins screen shows it as written |
 | `backend` | The Go import path of the plugin package |
 | `frontend` | The package name of an admin screen, if any |
 | `hooks` | The [hooks](/extending/the-plugin-sdk/#hooks) the plugin joins, each one a method it has. `serve` pauses a plugin whose list does not match its methods |
@@ -31,13 +33,28 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 
 At least one of `backend` and `frontend` is required.
 
+For a plugin that ships inside Gophenberg, the `name`, the
+`description` and each setting's `label` and `help` reach the
+translators. Run `make pot` after you change one, as
+[Add a translatable string](/contributing/add-a-translatable-string/#what-the-gates-check)
+says.
+
+Spell each key exactly as listed here, in lower case, and only once,
+or `make generate` stops with an error such as:
+
+```text
+pluginwire: plugins/hello/plugin.json: the key "Version" must be spelled "version"
+```
+
 A plugin that reads settings lists them under `settings`. The feed
-lists its two:
+lists its two, after its description and its version:
 
 ```json
 {
   "id": "feed",
   "name": "Feed",
+  "description": "Serves your published posts as an RSS feed.",
+  "version": "0.0.1",
   "backend": "github.com/gopherium/gophenberg/plugins/feed",
   "hooks": ["public.head-tags"],
   "settings": [
