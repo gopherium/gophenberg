@@ -112,7 +112,7 @@ func TestAHealthyThemeKeepsItsOwnCacheControl(t *testing.T) {
 		w.Header().Set("Cache-Control", "public, max-age=60")
 		_, _ = w.Write([]byte("themed"))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK,
 		"public, max-age=60")
