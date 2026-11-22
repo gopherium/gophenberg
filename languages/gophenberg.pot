@@ -392,6 +392,9 @@ msgstr ""
 msgid "Activate %(theme)s"
 msgstr ""
 
+msgid "Activation link"
+msgstr ""
+
 msgid "Add"
 msgstr ""
 
@@ -679,6 +682,12 @@ msgstr ""
 msgid "Could not save your language. %s"
 msgstr ""
 
+msgid "Could not send the invitation."
+msgstr ""
+
+msgid "Could not send the invitation. %s"
+msgstr ""
+
 msgid "Create"
 msgstr ""
 
@@ -792,6 +801,9 @@ msgid "Document"
 msgstr ""
 
 msgid "Documents"
+msgstr ""
+
+msgid "Done"
 msgstr ""
 
 msgid "Done. The site now holds what the file describes."
@@ -993,6 +1005,9 @@ msgid "Installed"
 msgstr ""
 
 msgid "Instructions"
+msgstr ""
+
+msgid "Invitation sent."
 msgstr ""
 
 msgid "It failed while it declared its content types. Error message: %s"
@@ -1229,9 +1244,6 @@ msgstr ""
 msgid "Nests"
 msgstr ""
 
-msgid "New user created."
-msgstr ""
-
 msgid "Newer posts"
 msgstr ""
 
@@ -1251,6 +1263,12 @@ msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
 msgid "No items yet"
+msgstr ""
+
+msgid "No mail server is configured. Deliver the activation link by hand."
+msgstr ""
+
+msgid "No mail server is configured. Use Resend invitation in Users to get an activation link."
 msgstr ""
 
 msgid "No media chosen"
@@ -1386,12 +1404,6 @@ msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gop
 msgstr ""
 
 msgid "Placeholder"
-msgstr ""
-
-msgid "Please confirm the use of a weak password."
-msgstr ""
-
-msgid "Please enter a password."
 msgstr ""
 
 msgid "Please enter an email address."
@@ -1546,6 +1558,9 @@ msgid "Select"
 msgstr ""
 
 msgid "Select Media"
+msgstr ""
+
+msgid "Send invitation"
 msgstr ""
 
 msgid "September"
@@ -1913,9 +1928,6 @@ msgid "The update to Gophenberg %(version)s failed to complete. <retry>Please at
 msgstr ""
 
 msgid "The updates could not be read, so nothing can be updated here yet."
-msgstr ""
-
-msgid "The user could not be created."
 msgstr ""
 
 msgid "The values stored under it do not follow."
