@@ -36,6 +36,7 @@ export default defineConfig({
 						{ slug: 'guides/editor' },
 						{ slug: 'guides/media' },
 						{ slug: 'guides/publishing' },
+						{ slug: 'guides/plugins' },
 						{ slug: 'guides/content-types' },
 						{ slug: 'guides/fields' },
 						{ slug: 'guides/users' },
