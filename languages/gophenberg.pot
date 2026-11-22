@@ -142,10 +142,16 @@ msgstr ""
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
+msgid "%(name)s (%(type)s) would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
+msgstr ""
+
 msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Change its plural name and try again."
 msgstr ""
 
 msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Pick a different route word."
+msgstr ""
+
+msgid "%(name)s (%(type)s) would use /%(word)s, which no address can spell. Change its plural name and try again."
 msgstr ""
 
 msgid "%(name)s belongs to the site now."
@@ -158,9 +164,6 @@ msgid "%(name)s cannot be used as a theme name. Name the zip file after the them
 msgstr ""
 
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
-msgstr ""
-
-msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
 msgstr ""
 
 msgid "%(source)s is %(value)s"
