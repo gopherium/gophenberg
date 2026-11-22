@@ -268,7 +268,7 @@ export function GroupsScreen() {
 				<>
 					<ExportDefinitions />
 					<ImportDefinitions />
-					<AddGroup types={types.data ?? []} onCreated={opened} />
+					<AddGroup types={types.data} lost={types.isError && types.data === undefined} onCreated={opened} />
 				</>
 			}
 		>
@@ -536,13 +536,14 @@ function ExportDefinitions() {
 
 /** What the control storing a new field group takes. */
 interface AddGroupProps {
-	types: ContentType[]
+	types: ContentType[] | undefined
+	lost: boolean
 	onCreated: (created: FieldGroup, said: string) => void
 }
 
 /**
  * Renders the control storing a new field group and, while it asks, its form.
- * @param props - The registered types and what opens the group created.
+ * @param props - The registered types once read, whether their first read failed, and what opens the group created.
  * @returns The control and its form.
  */
 function AddGroup(props: AddGroupProps) {
@@ -559,12 +560,12 @@ function AddGroup(props: AddGroupProps) {
 
 /**
  * Renders the form storing a new field group, its title empty on each ask and kept after a failure.
- * @param props - The registered types, what opens the group created and what takes the form away.
- * @returns The form dialog.
+ * @param props - The types once read, whether their first read failed, what opens the new group and what closes it.
+ * @returns The form dialog, which may be sent once the types are read.
  */
 function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
 	const [title, setTitle] = useState('')
-	const firstType = props.types.at(0)
+	const firstType = props.types?.at(0)
 	const seeded = firstType?.key ?? ''
 	const add = useMutation({
 		mutationFn: (signal: AbortSignal) =>
@@ -587,17 +588,25 @@ function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
 			)}
 			submitLabel={__('Create', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
+			canSubmit={firstType !== undefined}
 			onSubmit={create}
 			onClose={props.onClose}
 		>
 			{(busy) => (
-				<InputControl
-					label={__('Title', 'gophenberg')}
-					autoComplete="off"
-					value={title}
-					readOnly={busy}
-					onValueChange={setTitle}
-				/>
+				<>
+					<InputControl
+						label={__('Title', 'gophenberg')}
+						autoComplete="off"
+						value={title}
+						readOnly={busy}
+						onValueChange={setTitle}
+					/>
+					{props.lost && (
+						<ErrorNotice>
+							{__('The content types could not be loaded, so the group has no content type to start on.', 'gophenberg')}
+						</ErrorNotice>
+					)}
+				</>
 			)}
 		</FormDialog>
 	)
