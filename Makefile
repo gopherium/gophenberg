@@ -1,7 +1,7 @@
 .PHONY: peers dev seed test test-race cover cover-sqlite cover-html mutate lint fmt generate outdated db-up db-down pot catalogs \
 	translations \
 	translations-push translations-retire \
-	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit sdk-compat \
+	e2e e2e-build e2e-theme e2e-serve e2e-serve-mail e2e-db-reset e2e-seed e2e-reset bump bump-kit sdk-compat \
 	brick-link brick-sync brick-pack brick-unlink keygen build-release release-archives
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/sqlite -e /internal/testdb -e /internal/content/contenttest -e /internal/media/mediatest -e /internal/cron/crontest)
@@ -265,6 +265,10 @@ E2E_STALE_THEME ?= millpond
 E2E_STALE_KIT ?= 0.1.0
 E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
 E2E_DEFAULT_ROLE ?= editor
+E2E_MAIL_ADDR ?= localhost:8082
+E2E_MAIL_URL ?= http://$(E2E_MAIL_ADDR)
+E2E_SMTP_PORT ?= 4793
+E2E_SMTP_FROM ?= gophenberg@example.com
 
 e2e-build: build-release
 	pnpm --filter @gophenberg/theme-starter build
@@ -305,6 +309,31 @@ e2e-serve: db-up e2e-theme e2e-media
 		GOPHENBERG_SUPERUSER_POLICY=warn \
 		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
 		GOPHENBERG_MEDIA_DIR="$(E2E_MEDIA_DIR)" \
+		GOPHENBERG_DEFAULT_ROLE="$(E2E_DEFAULT_ROLE)" \
+		GOPHENBERG_UPDATE_CHECKS=false \
+		GOPHENBERG_PUBLIC_URL= \
+		GOPHENBERG_SMTP_HOST= \
+		GOPHENBERG_SMTP_PORT= \
+		GOPHENBERG_SMTP_USERNAME= \
+		GOPHENBERG_SMTP_PASSWORD= \
+		GOPHENBERG_SMTP_FROM= \
+		GOPHENBERG_SMTP_TLS= \
+		GOPHENBERG_MAIL_TEMPLATE_DIR= \
+		./gophenberg serve
+
+e2e-serve-mail: db-up
+	test -x ./gophenberg || { echo "./gophenberg is missing, run make e2e-build first" >&2; exit 1; }
+	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
+		GOPHENBERG_ADDR="$(E2E_MAIL_ADDR)" \
+		GOPHENBERG_PUBLIC_URL="$(E2E_MAIL_URL)" \
+		GOPHENBERG_SMTP_HOST=127.0.0.1 \
+		GOPHENBERG_SMTP_PORT="$(E2E_SMTP_PORT)" \
+		GOPHENBERG_SMTP_USERNAME= \
+		GOPHENBERG_SMTP_PASSWORD= \
+		GOPHENBERG_SMTP_FROM="$(E2E_SMTP_FROM)" \
+		GOPHENBERG_SMTP_TLS=none \
+		GOPHENBERG_MAIL_TEMPLATE_DIR= \
+		GOPHENBERG_SUPERUSER_POLICY=warn \
 		GOPHENBERG_DEFAULT_ROLE="$(E2E_DEFAULT_ROLE)" \
 		GOPHENBERG_UPDATE_CHECKS=false \
 		./gophenberg serve
