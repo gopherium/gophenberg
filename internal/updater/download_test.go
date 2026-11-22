@@ -331,10 +331,6 @@ func TestFetchRefusesASiteThatAnswersTooLate(t *testing.T) {
 	t.Parallel()
 
 	k := newKeys(t)
-	// done stays open until the test ends, so the stub never answers before the client gives up: waiting on the
-	// request context instead let the handler return once the client timed out, and a handler that returns
-	// without writing answers 200 with an empty body. The cleanup runs before the server closes, since it is
-	// registered after startSite.
 	done := make(chan struct{})
 	site := startSite(t, false, func(http.ResponseWriter, *http.Request) {
 		<-done
