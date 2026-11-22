@@ -160,7 +160,7 @@ func (s *Store) writeType(ctx context.Context, queries Queries, t content.Type) 
 	if err != nil {
 		return content.Type{}, err
 	}
-	t, err = readied(ctx, queries, t, was)
+	t, err = readied(ctx, s, queries, t, was)
 	if err != nil {
 		return content.Type{}, err
 	}
@@ -176,7 +176,7 @@ func (s *Store) writeType(ctx context.Context, queries Queries, t content.Type) 
 
 // readied returns the edit ready to write over the locked row, refusing what the site's content keeps.
 func readied(
-	ctx context.Context, queries Queries, t content.Type, was TypeRow,
+	ctx context.Context, s *Store, queries Queries, t content.Type, was TypeRow,
 ) (content.Type, error) {
 	if err := t.ValidateChange(toType(was)); err != nil {
 		return content.Type{}, err
@@ -187,7 +187,7 @@ func readied(
 		}
 	}
 	if t.Default && !was.IsDefault {
-		if err := handRootOver(ctx, queries, t.UpdatedAt); err != nil {
+		if err := s.handRootOver(ctx, queries, t.UpdatedAt); err != nil {
 			return content.Type{}, err
 		}
 		t.RouteWord = ""
@@ -211,7 +211,8 @@ func flattenable(ctx context.Context, queries Queries, key string) error {
 func (s *Store) updateTypeFailure(err error) error {
 	for _, carried := range []error{
 		content.ErrTypeNotFound, content.ErrRouteWordReserved, content.ErrReservedAddress,
-		content.ErrInvalidRouteWord, content.ErrNestingInUse, content.ErrAddressOutsideRouteWord,
+		content.ErrInvalidRouteWord, content.ErrNestingInUse, content.ErrRouteWordTaken,
+		content.ErrAddressOutsideRouteWord,
 	} {
 		if errors.Is(err, carried) {
 			return err
@@ -233,7 +234,7 @@ func rootHolder(ctx context.Context, queries Queries) (TypeRow, error) {
 }
 
 // handRootOver moves the type holding the root under a word of its own.
-func handRootOver(ctx context.Context, queries Queries, at time.Time) error {
+func (s *Store) handRootOver(ctx context.Context, queries Queries, at time.Time) error {
 	row, err := rootHolder(ctx, queries)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -248,17 +249,27 @@ func handRootOver(ctx context.Context, queries Queries, at time.Time) error {
 		return handOverFailure(demoted, err)
 	}
 	if _, err := queries.UpdateContentType(ctx, updateParams(demoted)); err != nil {
+		if taken := s.errorFor(typeUpdateErrors, err); taken != nil {
+			return handOverFailure(demoted, taken)
+		}
 		return err
 	}
 	return carryContent(ctx, queries, demoted, row.RouteWord)
 }
 
-// handOverFailure returns the error the hand over carries, naming the type and its word when the CMS keeps that word.
+// handOverFailure returns the error the hand over carries, naming the type, its plural name and
+// its word when the derived word is one the CMS keeps, one another type holds, or one no address can spell.
 func handOverFailure(demoted content.Type, err error) error {
-	if !errors.Is(err, content.ErrRouteWordReserved) {
+	switch {
+	case errors.Is(err, content.ErrRouteWordReserved):
+		return content.DerivedRouteWordReserved(demoted)
+	case errors.Is(err, content.ErrRouteWordTaken):
+		return content.DerivedRouteWordTaken(demoted)
+	case errors.Is(err, content.ErrInvalidRouteWord):
+		return content.DerivedRouteWordMalformed(demoted)
+	default:
 		return err
 	}
-	return content.DerivedRouteWordReserved(demoted)
 }
 
 // Delete removes the type, or reports it missing or still in use.

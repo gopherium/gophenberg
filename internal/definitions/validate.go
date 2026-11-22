@@ -118,7 +118,8 @@ func importedAs(d TypeDefinition, found bool) content.Type {
 	return beside(wanted, content.Type{}, ActionCreate)
 }
 
-// importFailure returns the error the import carries, naming the type and the derived word the CMS or a type holds.
+// importFailure returns the error the import carries, naming the type and the derived word the CMS keeps,
+// a type holds, or no address can spell.
 func importFailure(d TypeDefinition, found bool, err error) error {
 	if found || !d.Default {
 		return err
@@ -129,6 +130,8 @@ func importFailure(d TypeDefinition, found bool, err error) error {
 		return content.DerivedRouteWordReserved(wanted)
 	case errors.Is(err, content.ErrRouteWordTaken):
 		return content.DerivedRouteWordTaken(wanted)
+	case errors.Is(err, content.ErrInvalidRouteWord):
+		return content.DerivedRouteWordMalformed(wanted)
 	default:
 		return err
 	}

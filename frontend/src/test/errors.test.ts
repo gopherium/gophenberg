@@ -128,7 +128,19 @@ test('names the type and the route word a hand over would give it', () => {
 	})
 
 	expect(held).toBe(
-		'Page would move to /page, which Gophenberg keeps for itself. Change its plural name and try again.',
+		'Page (post) would move to /page, which Gophenberg keeps for itself. Change its plural name and try again.',
+	)
+})
+
+test('names the type and the word no address can spell', () => {
+	const held = errorText({
+		error: 'content: invalid route word: "3D Pages" would answer under "3d-pages"',
+		code: 'derived_route_word_malformed',
+		meta: { type: 'post', name: '3D Pages', word: '3d-pages' },
+	})
+
+	expect(held).toBe(
+		'3D Pages (post) would use /3d-pages, which no address can spell. Change its plural name and try again.',
 	)
 })
 

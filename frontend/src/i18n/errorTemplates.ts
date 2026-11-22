@@ -573,11 +573,15 @@ export function typeTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		derived_route_word_reserved: __(
-			'%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again.',
+			'%(name)s (%(type)s) would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again.',
 			DOMAIN,
 		),
 		address_outside_route_word: __(
 			'%(type)s keeps the route word /%(word)s while %(items)s of its items sit outside it, such as /%(path)s, the ones in the trash included. Change and save each one, restoring it from the trash first if needed, or delete it permanently. Then try again.',
+			DOMAIN,
+		),
+		derived_route_word_malformed: __(
+			'%(name)s (%(type)s) would use /%(word)s, which no address can spell. Change its plural name and try again.',
 			DOMAIN,
 		),
 	}

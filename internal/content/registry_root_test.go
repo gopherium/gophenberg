@@ -70,6 +70,26 @@ func TestStatedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
 	}
 }
 
+func TestDerivedRouteWordMalformedNamesTheTypeAndTheWord(t *testing.T) {
+	t.Parallel()
+
+	err := content.DerivedRouteWordMalformed(content.Type{Key: "page", PluralLabel: "3D Pages", RouteWord: "3d-pages"})
+
+	if !errors.Is(err, content.ErrInvalidRouteWord) {
+		t.Errorf("error = %v, want it to carry %v", err, content.ErrInvalidRouteWord)
+	}
+	if code, _ := content.CodeOf(err); code != "derived_route_word_malformed" {
+		t.Errorf("code = %q, want derived_route_word_malformed", code)
+	}
+	held, _ := content.DetailsOf(err)
+	if held["type"] != "page" || held["name"] != "3D Pages" || held["word"] != "3d-pages" {
+		t.Errorf("details = %v, want the type page, the name 3D Pages and the word 3d-pages named", held)
+	}
+	if want := `content: invalid route word: "3D Pages" would answer under "3d-pages"`; err.Error() != want {
+		t.Errorf("message = %q, want %q", err.Error(), want)
+	}
+}
+
 func TestRegistryRefusesANewTypeClaimingTheRoot(t *testing.T) {
 	t.Parallel()
 

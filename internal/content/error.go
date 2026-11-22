@@ -54,6 +54,13 @@ func DerivedRouteWordReserved(t Type) error {
 		Details{"type": t.Key, "name": t.PluralLabel, "word": t.RouteWord})
 }
 
+// DerivedRouteWordMalformed returns the error naming the type and the derived route word no address can spell.
+func DerivedRouteWordMalformed(t Type) error {
+	return Refuse(ErrInvalidRouteWord, "derived_route_word_malformed",
+		fmt.Sprintf("%s: %q would answer under %q", ErrInvalidRouteWord, t.PluralLabel, t.RouteWord),
+		Details{"type": t.Key, "name": t.PluralLabel, "word": t.RouteWord})
+}
+
 // CodeOf returns the condition code an error names, reporting false when it names none.
 func CodeOf(err error) (string, bool) {
 	var named *Error
