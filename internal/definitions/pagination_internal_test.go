@@ -77,6 +77,27 @@ func TestImportNamesTheTypeWhoseLabelGivesAReservedWord(t *testing.T) {
 	}
 }
 
+func TestImportNamesTheTypeWhoseLabelGivesAMalformedWord(t *testing.T) {
+	t.Parallel()
+
+	declaration := TypeDefinition{
+		Key: "page", SingularLabel: "3D Page", PluralLabel: "3D Pages",
+		PageKind: "single", Default: true, Active: true,
+	}
+	err := validateTypes([]TypeDefinition{declaration}, nil)
+
+	if !errors.Is(err, content.ErrInvalidRouteWord) {
+		t.Fatalf("validateTypes() error = %v, want %v", err, content.ErrInvalidRouteWord)
+	}
+	if code, _ := content.CodeOf(err); code != "derived_route_word_malformed" {
+		t.Errorf("code = %q, want derived_route_word_malformed", code)
+	}
+	held, _ := content.DetailsOf(err)
+	if held["type"] != "page" || held["name"] != "3D Pages" || held["word"] != "3d-pages" {
+		t.Errorf("details = %v, want the type page named %q and the word %q", held, "3D Pages", "3d-pages")
+	}
+}
+
 func TestImportKeepsTheGenericErrorUnlessItDerivedTheWord(t *testing.T) {
 	t.Parallel()
 

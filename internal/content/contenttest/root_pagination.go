@@ -50,6 +50,28 @@ func derivedWordReserved(t *testing.T, err error, key, name, word string) {
 	}
 }
 
+// derivedWordTaken fails the case unless the error carries derived_route_word_taken, the type and the word.
+func derivedWordTaken(t *testing.T, err error, key, name, word string) {
+	t.Helper()
+	if code, _ := content.CodeOf(err); code != "derived_route_word_taken" {
+		t.Errorf("code = %q, want derived_route_word_taken", code)
+	}
+	if held, _ := content.DetailsOf(err); held["type"] != key || held["name"] != name || held["word"] != word {
+		t.Errorf("details = %v, want the type %s named %q and the word %q", held, key, name, word)
+	}
+}
+
+// derivedWordMalformed fails the case unless the error carries derived_route_word_malformed, the type and the word.
+func derivedWordMalformed(t *testing.T, err error, key, name, word string) {
+	t.Helper()
+	if code, _ := content.CodeOf(err); code != "derived_route_word_malformed" {
+		t.Errorf("code = %q, want derived_route_word_malformed", code)
+	}
+	if held, _ := content.DetailsOf(err); held["type"] != key || held["name"] != name || held["word"] != word {
+		t.Errorf("details = %v, want the type %s named %q and the word %q", held, key, name, word)
+	}
+}
+
 // carriedOnto fails the case unless the error carries address_reserved and names the path.
 func carriedOnto(t *testing.T, err error, path string) {
 	t.Helper()

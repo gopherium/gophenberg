@@ -106,6 +106,7 @@ func updateRefusesToHandTheRootOntoATakenKey(t *testing.T, s Stores) {
 	if !errors.Is(err, content.ErrRouteWordTaken) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrRouteWordTaken)
 	}
+	derivedWordTaken(t, err, content.TypePost, "3D Models", content.TypePost)
 	if held, err := s.Types.ByKey(t.Context(), content.TypePost); err != nil || !held.Default || held.RouteWord != "" {
 		t.Errorf("post = %+v, %v, want it still holding the root", held, err)
 	}
@@ -139,6 +140,7 @@ func updateKeepsAPageKeyedRootOffThePageWord(t *testing.T, s Stores) {
 	if !errors.Is(err, content.ErrInvalidRouteWord) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrInvalidRouteWord)
 	}
+	derivedWordMalformed(t, err, "page", "3D Pages", "3d-pages")
 	if held, err := s.Types.ByKey(t.Context(), "page"); err != nil || !held.Default || held.RouteWord != "" {
 		t.Errorf("page = %+v, %v, want it still holding the root", held, err)
 	}
