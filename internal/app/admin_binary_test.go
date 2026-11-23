@@ -43,6 +43,7 @@ func initializeAdminInTheBinary(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Given(`^the settings name an admin folder that holds no index\.html$`, s.nameEmptyFolder)
 		sc.Given(`^the settings name an admin folder holding the script "([^"]*)"$`, s.nameFolderHolding)
 		sc.Given(`^the settings keep the hashed admin files for "([^"]*)"$`, s.keepFor)
+		sc.Given(`^the settings give dialogs a write limit of "([^"]*)"$`, s.limitDialogWrites)
 		sc.When(`^the site serves$`, s.serve)
 		sc.When(`^the operator runs "([^"]*)"$`, s.runCommand)
 		sc.Then(`^"([^"]*)" answers the admin page built into this binary$`, s.answersTheBuiltInPage)
@@ -50,6 +51,7 @@ func initializeAdminInTheBinary(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^the command fails, naming the folder and the admin built into this binary$`, s.failsNamingTheFolder)
 		sc.Then(`^"([^"]*)" may be kept for (\d+) seconds and never changes$`, s.mayBeKeptFor)
 		sc.Then(`^"([^"]*)" is checked again on every load$`, s.isCheckedOnEveryLoad)
+		sc.Then(`^"([^"]*)" carries a dialog write limit of (\d+) milliseconds$`, s.carriesDialogLimit)
 		sc.After(s.stopServing)
 	}
 }
@@ -93,6 +95,11 @@ func (s *adminScenario) nameFolderHolding(name string) error {
 // keepFor names how long a client may keep a hashed admin file.
 func (s *adminScenario) keepFor(window string) {
 	s.env["GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE"] = window
+}
+
+// limitDialogWrites sets the dialog write limit the settings give.
+func (s *adminScenario) limitDialogWrites(limit string) {
+	s.env["GOPHENBERG_DIALOG_WRITE_TIMEOUT"] = limit
 }
 
 // serve starts the site over a fresh database and waits until it answers.
@@ -139,8 +146,7 @@ func (s *adminScenario) get(path string) (http.Header, string, error) {
 // builtInDialogWriteLimit is the dialog write limit the admin page carries when the setting is left unset.
 const builtInDialogWriteLimit = `<meta name="gophenberg-dialog-write-timeout" content="60000">`
 
-// answersTheBuiltInPage fails unless path answers the admin page built into this binary, with the dialog
-// write limit written into it.
+// answersTheBuiltInPage fails unless path answers the built-in admin page with the dialog write limit written in.
 func (s *adminScenario) answersTheBuiltInPage(path string) error {
 	builtIn, err := fs.ReadFile(webui.FS(), "index.html")
 	if err != nil {
@@ -166,6 +172,16 @@ func (s *adminScenario) answersAPageSaying(path, text string) error {
 	_, body, err := s.get(path)
 	if err != nil || !strings.Contains(body, text) {
 		return fmt.Errorf("GET %s = %q (%v), want a page saying %q", path, body, err, text)
+	}
+	return nil
+}
+
+// carriesDialogLimit fails unless path answers a page carrying a dialog write limit of millis milliseconds.
+func (s *adminScenario) carriesDialogLimit(path string, millis int) error {
+	_, body, err := s.get(path)
+	want := fmt.Sprintf(`<meta name="gophenberg-dialog-write-timeout" content="%d">`, millis)
+	if err != nil || !strings.Contains(body, want) {
+		return fmt.Errorf("GET %s = %q (%v), want a page carrying %s", path, body, err, want)
 	}
 	return nil
 }
