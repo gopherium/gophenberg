@@ -923,8 +923,16 @@ msgid "A type that still holds items, even in the trash, is not deleted."
 msgstr "Un tipo que aún tenga elementos, incluso en la papelera, no se borrará."
 
 #, fuzzy
+msgid "API name"
+msgstr "Nombre de API"
+
+#, fuzzy
 msgid "Add a field"
 msgstr "Añadir un campo"
+
+#, fuzzy
+msgid "Add a field to store more about the items this group shows on."
+msgstr "Añade un campo para guardar más datos de los elementos en los que aparece este grupo."
 
 #, fuzzy
 msgid "Add choice"
@@ -1111,6 +1119,10 @@ msgid "Move the field"
 msgstr "Mover el campo"
 
 #, fuzzy
+msgid "No fields yet"
+msgstr "Todavía no hay campos"
+
+#, fuzzy
 msgid "Not %(type)s"
 msgstr "Excepto %(type)s"
 
@@ -1249,10 +1261,6 @@ msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparacio
 #, fuzzy
 msgid "This field group does not exist, and it may have been deleted. Go back to the list to see what is there."
 msgstr "Este grupo de campos no existe, y puede que se haya borrado. Vuelve a la lista para ver qué hay."
-
-#, fuzzy
-msgid "This group holds no fields yet."
-msgstr "Este grupo todavía no tiene campos."
 
 #, fuzzy
 msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."

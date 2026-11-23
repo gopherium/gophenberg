@@ -383,6 +383,9 @@ msgstr ""
 msgid "A type that still holds items, even in the trash, is not deleted."
 msgstr ""
 
+msgid "API name"
+msgstr ""
+
 msgid "Actions"
 msgstr ""
 
@@ -429,6 +432,9 @@ msgid "Add User"
 msgstr ""
 
 msgid "Add a field"
+msgstr ""
+
+msgid "Add a field to store more about the items this group shows on."
 msgstr ""
 
 msgid "Add block"
@@ -1259,6 +1265,9 @@ msgstr ""
 msgid "No drafts"
 msgstr ""
 
+msgid "No fields yet"
+msgstr ""
+
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
@@ -2018,9 +2027,6 @@ msgid "This file says it was written in format %(declared)s, which is not a vers
 msgstr ""
 
 msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
-msgstr ""
-
-msgid "This group holds no fields yet."
 msgstr ""
 
 msgid "This install of Gophenberg has no install root, so it updates by hand."
