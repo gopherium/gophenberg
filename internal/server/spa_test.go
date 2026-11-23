@@ -459,7 +459,7 @@ func TestAdminPageWithoutAHeadCarriesTheDialogWriteLimitFirst(t *testing.T) {
 	}
 }
 
-func TestAdminPageHeadCarriesNoBody(t *testing.T) {
+func TestAdminPageHeadRequestCarriesNoBody(t *testing.T) {
 	t.Parallel()
 
 	handler := server.NewServer(server.Config{
@@ -503,12 +503,12 @@ func TestAdminIndexRedirectsToTheDirectory(t *testing.T) {
 // unreadPage is an admin folder whose files cannot be read.
 type unreadPage struct{}
 
-// Open refuses every file.
+// Open answers every name with a permission error.
 func (unreadPage) Open(string) (fs.File, error) {
 	return nil, fs.ErrPermission
 }
 
-func TestAdminPageThatCannotBeReadIsRefused(t *testing.T) {
+func TestAdminPageThatCannotBeReadIsForbidden(t *testing.T) {
 	t.Parallel()
 
 	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Web: unreadPage{}})
