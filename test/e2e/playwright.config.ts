@@ -2,7 +2,15 @@
 
 import { defineConfig, devices } from '@playwright/test'
 
-import { authFile, baseURL, proofAuthFile, repoRoot } from './env'
+import { authFile, baseURL, mailURL, proofAuthFile, repoRoot, smtpPort } from './env'
+
+/** How each server under test starts, waits for its first answer and stops. */
+const served = {
+	cwd: repoRoot,
+	reuseExistingServer: !process.env.CI,
+	timeout: 180_000,
+	gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+} as const
 
 export default defineConfig({
 	testDir: './tests',
@@ -34,12 +42,13 @@ export default defineConfig({
 			dependencies: ['proof-setup'],
 		},
 	],
-	webServer: {
-		command: 'make e2e-serve',
-		cwd: repoRoot,
-		url: baseURL,
-		reuseExistingServer: !process.env.CI,
-		timeout: 180_000,
-		gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
-	},
+	webServer: [
+		{ ...served, command: 'make e2e-serve', url: baseURL },
+		{
+			...served,
+			command: 'make e2e-serve-mail',
+			url: mailURL,
+			env: { E2E_MAIL_ADDR: new URL(mailURL).host, E2E_MAIL_URL: mailURL, E2E_SMTP_PORT: String(smtpPort) },
+		},
+	],
 })

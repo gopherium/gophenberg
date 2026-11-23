@@ -307,7 +307,7 @@ test('links the post count of an account to the posts list narrowed to the posts
 	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeHidden()
 })
 
-test('adds a user from Add User, starting on the default role the settings name and not on the narrowest one', async ({
+test('invites a user from Add User, starting on the default role the settings name and not on the narrowest one', async ({
 	page,
 	request,
 }) => {
@@ -321,49 +321,29 @@ test('adds a user from Add User, starting on the default role the settings name 
 	await page.getByRole('main').getByRole('link', { name: 'Add User', exact: true }).click()
 	await expect(page).toHaveURL(/\/admin\/users\/new$/)
 	await expect(page.getByRole('combobox', { name: 'Role' })).toHaveText(ROLE_LABELS[defaultRole])
-	await expect(page.getByLabel('Password', { exact: true })).toHaveValue(/^.{24}$/)
 	await page.getByRole('textbox', { name: /^Email/ }).fill(email)
 	await page.getByRole('textbox', { name: /^Name/ }).fill(`Maria Perez added ${markOf()}`)
-	await page.getByRole('button', { name: 'Add User', exact: true }).click()
+	await page.getByRole('button', { name: 'Send invitation', exact: true }).click()
+	await expect(page.getByRole('textbox', { name: 'Activation link' })).toBeFocused()
+	await page.getByRole('button', { name: 'Done', exact: true }).click()
 
 	await expect(page).toHaveURL(/\/admin\/users$/)
-	await expect(toastOf(page, 'New user created.')).toBeVisible()
 	expect((await listedAs(request, email))?.role).toBe(defaultRole)
 })
 
-test('asks to confirm a weak password at once and moves the focus to it when Enter sends the form from Name', async ({
+test('shows at once why the server rejected a name and moves the focus to it when Enter sends the form from Name', async ({
 	page,
 }) => {
 	await page.goto('/admin/users/new')
-	const password = page.getByLabel('Password', { exact: true })
 	const name = page.getByRole('textbox', { name: /^Name/ })
-	await page.getByRole('textbox', { name: /^Email/ }).fill(`${markOf()}-weak@example.com`)
-	await password.fill('abc')
-	await name.fill(`Maria Perez weak ${markOf()}`)
+	await page.getByRole('textbox', { name: /^Email/ }).fill(`${markOf()}-long@example.com`)
+	await name.fill('Maria Perez '.repeat(22))
 
 	await name.press('Enter')
 
-	await expect(page.getByText('Please confirm the use of a weak password.')).toBeVisible()
-	await expect(password).toHaveAttribute('aria-invalid', 'true')
-	await expect(password).toBeFocused()
-})
-
-test('shows at once why the server refused a password and moves the focus to it when Enter sends the form from Name', async ({
-	page,
-}) => {
-	await page.goto('/admin/users/new')
-	const password = page.getByLabel('Password', { exact: true })
-	const name = page.getByRole('textbox', { name: /^Name/ })
-	await page.getByRole('textbox', { name: /^Email/ }).fill(`${markOf()}-short@example.com`)
-	await password.fill('abc')
-	await page.getByRole('checkbox', { name: 'Confirm use of weak password' }).check()
-	await name.fill(`Maria Perez short ${markOf()}`)
-
-	await name.press('Enter')
-
-	await expect(page.getByText(/^Hint: The password should be at least 12 characters long/)).toBeVisible()
-	await expect(password).toHaveAttribute('aria-invalid', 'true')
-	await expect(password).toBeFocused()
+	await expect(name).toHaveAccessibleDescription('This name is too long.')
+	await expect(name).toHaveJSProperty('validationMessage', 'This name is too long.')
+	await expect(name).toBeFocused()
 })
 
 test.describe('on a phone', () => {

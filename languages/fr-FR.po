@@ -760,9 +760,6 @@ msgstr "Le thème %(name)s sert votre site en ce moment, il ne peut donc pas êt
 msgid "The theme %(name)s is the one chosen, but it is not installed, so your site is served by the built-in renderer. Upload the theme again, or choose another one."
 msgstr "Le thème %(name)s est celui choisi, mais il n'est pas installé, votre site est donc servi par le moteur de rendu intégré. Téléversez de nouveau le thème, ou choisissez-en un autre."
 
-msgid "The user could not be created."
-msgstr "Le compte n'a pas pu être créé."
-
 #, fuzzy
 msgid "Theme"
 msgstr "Thème"
@@ -2824,12 +2821,31 @@ msgstr[0] "%s publication par cet auteur/autrice"
 msgstr[1] "%s de publications par cet auteur/autrice"
 msgstr[2] "%s publications par cet auteur/autrice"
 
+#, fuzzy
+msgid "Activation link"
+msgstr "Lien d’activation"
+
+#, fuzzy
+msgid "Could not send the invitation."
+msgstr "Impossible d’envoyer l’invitation."
+
+#, fuzzy
+msgid "Could not send the invitation. %s"
+msgstr "Impossible d’envoyer l’invitation. %s"
+
 msgid "Create a brand new user and add them to this site."
 msgstr "Créer un nouveau compte et l’ajouter à ce site."
 
 #, fuzzy
 msgid "Dismiss this notice"
 msgstr "Ignorer cette notification"
+
+msgid "Done"
+msgstr "Terminé"
+
+#, fuzzy
+msgid "Invitation sent."
+msgstr "Invitation envoyée."
 
 #, fuzzy
 msgid "Loading the settings."
@@ -2839,16 +2855,13 @@ msgstr "Chargement des réglages."
 msgid "Loading the updates."
 msgstr "Chargement des mises à jour."
 
-msgid "New user created."
-msgstr "Le nouveau compte a été créé."
+#, fuzzy
+msgid "No mail server is configured. Deliver the activation link by hand."
+msgstr "Aucun serveur de messagerie n’est configuré. Transmettez le lien d’activation vous-même."
 
 #, fuzzy
-msgid "Please confirm the use of a weak password."
-msgstr "Veuillez confirmer l’utilisation du mot de passe faible."
-
-#, fuzzy
-msgid "Please enter a password."
-msgstr "Veuillez saisir un mot de passe."
+msgid "No mail server is configured. Use Resend invitation in Users to get an activation link."
+msgstr "Aucun serveur de messagerie n’est configuré. Utilisez Renvoyer l’invitation dans Comptes pour obtenir un lien d’activation."
 
 #, fuzzy
 msgid "Please enter an email address."
@@ -2857,6 +2870,10 @@ msgstr "Veuillez saisir une adresse e-mail."
 #, fuzzy
 msgid "Please provide a name."
 msgstr "Veuillez indiquer un nom."
+
+#, fuzzy
+msgid "Send invitation"
+msgstr "Envoyer l’invitation"
 
 #, fuzzy
 msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Change its plural name and try again."

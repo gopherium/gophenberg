@@ -118,8 +118,7 @@ test.describe('the admin read in the proof locale', () => {
 		await expect(page.getByText('Crea un nuevo usuario y añádelo a este sitio.')).toBeVisible()
 		await expect(page.getByRole('textbox', { name: 'Correo electrónico (Obligatorio)' })).toBeVisible()
 		await expect(page.getByRole('textbox', { name: 'Nombre (Obligatorio)' })).toBeVisible()
-		await expect(page.getByRole('button', { name: 'Generar contraseña' })).toBeVisible()
-		await expect(page.getByRole('button', { name: 'Añadir usuario', exact: true })).toBeVisible()
+		await expect(page.getByRole('button', { name: 'Enviar invitación', exact: true })).toBeVisible()
 	})
 
 	test('names the language screen and reports the chosen language', async ({ page }) => {

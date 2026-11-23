@@ -20,10 +20,11 @@ require (
 	github.com/gopherium/framework/gonsole/auth v0.9.0
 	github.com/gopherium/framework/gonsole/auth/postgres v0.2.0
 	github.com/gopherium/framework/gonsole/auth/sqlite v0.2.0
+	github.com/gopherium/framework/mailkit v0.1.0
 	github.com/gopherium/framework/pluginkit v0.12.1-0.20261118235724-fb63afbc52cc
 	github.com/gopherium/gophenberg/sdk v0.5.0
 	github.com/gopherium/gouncer v0.5.0
-	github.com/gopherium/gouncer/authkit v0.24.0
+	github.com/gopherium/gouncer/authkit v0.24.1-0.20261109130229-9fbb73888ed8
 	github.com/gopherium/gouncer/authkit/postgres v0.15.1
 	github.com/gopherium/gouncer/authkit/ratelimit v0.3.1
 	github.com/gopherium/gouncer/authkit/sqlite v0.3.0
@@ -97,6 +98,7 @@ require (
 	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
+	github.com/wneessen/go-mail v0.8.1 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

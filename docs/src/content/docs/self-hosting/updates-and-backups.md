@@ -253,6 +253,18 @@ Some things work differently after this update:
   it, where it started on `author`. A member cannot enter the admin,
   so set it to `author` to keep the old start. See
   [managing accounts](/guides/users/#managing-accounts).
+- **Add User** now sends an invitation in place of asking for a
+  password. The person opens the activation link in it, chooses a
+  password and is signed in, and until then the Users list shows the
+  account as Invited, with **Resend invitation** in its menu. To mail
+  the invitations, name your mail server in `GOPHENBERG_SMTP_HOST`
+  and `GOPHENBERG_SMTP_FROM`, and set `GOPHENBERG_PUBLIC_URL`. Setting
+  it also rejects a write sent to any other address, so a script that
+  writes to the site at an internal address has to use the public
+  one. With no mail server, Add User shows you the link to pass on
+  yourself. Eight settings are new and none is required. See
+  [invitation mail](/self-hosting/configuration/#invitation-mail) and
+  [accepting an invitation](/guides/users/#accepting-an-invitation).
 - A JPEG that arrives sideways is now kept as you sent it, with its
   orientation tag and the details the camera wrote into it, such as
   where the photo was taken, as WordPress keeps it. Its full size is
@@ -411,10 +423,11 @@ While you run it:
   and listens on `GOPHENBERG_ADDR` or `localhost:8081`, whatever
   `PORT` says. Its PostgreSQL pool holds the larger of 4 and the
   number of CPUs.
-- **Add User** starts on `author` again, and the Users screen goes
-  back to its older form. The users API answers `role_beyond_reach`
-  again where this release answers `user_not_editable` or
-  `role_not_grantable`.
+- **Add User** starts on `author` again and asks for a password, and
+  the Users screen goes back to its older form. Activation links do
+  not work, so an invited account cannot sign in until you update
+  again. The users API answers `role_beyond_reach` again where this
+  release answers `user_not_editable` or `role_not_grantable`.
 - A confirmation message cuts a long name short again, at 45
   characters unless `GOPHENBERG_TOAST_NAME_LENGTH` says otherwise.
 - It refuses every GIF upload with `image_unreadable`. It turns a

@@ -153,6 +153,7 @@ type world struct {
 	file           *definitions.Import
 	roles          *goncierge.Registry
 	cron           *cronWorld
+	invites        *inviteWorld
 }
 
 // newMemoryStores returns one scenario's content, type and account stores, wired to each other.
@@ -313,6 +314,11 @@ func (w *world) serve(jar http.CookieJar) error {
 	}
 	w.logs = &logBook{}
 	cfg.Logger = slog.New(slog.NewTextHandler(w.logs, nil))
+	if w.invites != nil {
+		if err := w.invites.into(&cfg); err != nil {
+			return err
+		}
+	}
 	public, err := server.ParsePublicURL(w.publicURL)
 	if err != nil {
 		return fmt.Errorf("naming the public address: %w", err)

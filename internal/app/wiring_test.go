@@ -57,6 +57,25 @@ func timedConfig() runConfig {
 	}
 }
 
+// quietInvites is an invitation sender the wiring must hand over.
+type quietInvites struct{}
+
+// SendInvite delivers nothing.
+func (quietInvites) SendInvite(context.Context, string, string, string) error { return nil }
+
+func TestServerConfigCarriesTheInvitationSenderAndTheLinkLifetime(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+	settings.inviteSender, settings.inviteTTL = quietInvites{}, 48*time.Hour
+
+	held := configOver(settings, site{})
+
+	if held.InviteSender != (quietInvites{}) || held.InviteTTL != 48*time.Hour {
+		t.Errorf("InviteSender = %v and InviteTTL = %v, want the sender and 48h", held.InviteSender, held.InviteTTL)
+	}
+}
+
 func TestServerConfigCarriesTheUpdatesScreenSettingsTheEnvironmentNamed(t *testing.T) {
 	t.Parallel()
 

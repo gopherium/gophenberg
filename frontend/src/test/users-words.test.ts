@@ -34,7 +34,7 @@ const WORDPRESS = [
 		es: ['Crea un nuevo usuario y añádelo a este sitio.'],
 		fr: ['Créer un nouveau compte et l’ajouter à ce site.'],
 	},
-	{ key: 'New user created.', es: ['Nuevo usuario creado.'], fr: ['Le nouveau compte a été créé.'] },
+	{ key: 'Done', es: ['Hecho'], fr: ['Terminé'] },
 	{
 		key: '%s post by this author',
 		es: ['%s entrada de este autor', '%s de entradas de este autor', '%s entradas de este autor'],

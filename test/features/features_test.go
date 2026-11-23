@@ -166,6 +166,10 @@ func TestPublicAddress(t *testing.T) {
 	runFeature(t, "features/public-address.feature", initializeCrossOrigin)
 }
 
+func TestAccountInvitations(t *testing.T) {
+	runFeature(t, "features/account-invitations.feature", initializeAccountInvitations)
+}
+
 func TestCron(t *testing.T) {
 	runFeature(t, "features/cron.feature", initializeCron)
 }

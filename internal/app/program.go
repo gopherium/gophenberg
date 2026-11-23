@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
@@ -78,6 +79,9 @@ func validate(cfg accounts.Config) func(context.Context, gonsole.Call) error {
 	return func(_ context.Context, call gonsole.Call) error {
 		settings, err := loadRunConfig(call.Env.Getenv)
 		if err != nil {
+			return err
+		}
+		if _, err := inviteSenderFrom(settings, slog.New(slog.DiscardHandler)); err != nil {
 			return err
 		}
 		if onSQLite(settings.databaseURL) {

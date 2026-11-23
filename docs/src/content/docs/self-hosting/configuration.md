@@ -34,9 +34,9 @@ so it takes the default.
 | `GOPHENBERG_CLIENT_ADDR_HEADER` | With a socket | | The header the program in front of the socket names the visitor in |
 | `GOPHENBERG_IDLE_EXIT` | No | `0` | How long the site waits with nothing open before it exits with code 0. `0` keeps it serving |
 | `GOPHENBERG_WEB_DIR` | No | | A built admin folder to serve in place of the admin built into the binary. It must hold `index.html` |
-| `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
+| `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer and in the invitation mail |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
-| `GOPHENBERG_PUBLIC_URL` | No | | The address people reach the site at, such as `https://example.com`. When set, a write sent to any other address is refused |
+| `GOPHENBERG_PUBLIC_URL` | With a mail relay | | The address people reach the site at, such as `https://example.com`. When set, a write sent to any other address is rejected, and every activation link starts with it |
 | `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in, which uploads write to. The image sets `/themes` |
 | `GOPHENBERG_MEDIA_DIR` | No | `data/media` inside `GOPHENBERG_DATA_DIR` | The directory uploaded media is stored in and served from. The image sets `/media` |
 | `GOPHENBERG_DATA_DIR` | No | | A folder outside the app folder for `backups/`, `state/` and `data/`, an absolute path. See [a data folder outside the install root](/self-hosting/updates-and-backups/#a-data-folder-outside-the-install-root) |
@@ -68,6 +68,14 @@ so it takes the default.
 | `GOPHENBERG_DIALOG_WRITE_TIMEOUT` | No | `60s` | How long an admin dialog waits on the change it sent before it stops waiting and says the change failed, in whole milliseconds from `1ms` to `2147483647ms`. The server may still finish a change it already received. When the admin could not read the site's settings, a dialog waits with no limit |
 | `GOPHENBERG_FORMAT_LOCALE` | No | `es-ES` | The locale the admin writes dates, times and numbers in, whatever language its screens are in |
 | `GOPHENBERG_DEFAULT_ROLE` | No | `member` | The role the Add User screen starts on, as WordPress's New User Default Role does. It must be a role the core or a plugin declares, see [roles](/guides/users/#roles) |
+| `GOPHENBERG_SMTP_HOST` | No | | The mail relay invitations are sent through. Unset, adding a user shows you the activation link instead, see [invitation mail](#invitation-mail) |
+| `GOPHENBERG_SMTP_PORT` | No | `587` | The relay's port, from 1 to 65535 |
+| `GOPHENBERG_SMTP_USERNAME` | No | | The name the site signs in to the relay with. It goes with `GOPHENBERG_SMTP_PASSWORD` |
+| `GOPHENBERG_SMTP_PASSWORD` | No | | The password the site signs in to the relay with. It goes with `GOPHENBERG_SMTP_USERNAME`, and the two need `GOPHENBERG_SMTP_TLS` at `mandatory` |
+| `GOPHENBERG_SMTP_FROM` | With a relay | | The address invitations are sent from, such as `site@example.com` or `Example Site <site@example.com>` |
+| `GOPHENBERG_SMTP_TLS` | No | `mandatory` | How strictly the connection to the relay is encrypted: `mandatory`, `opportunistic` or `none` |
+| `GOPHENBERG_MAIL_TEMPLATE_DIR` | No | | A folder whose `invite.tmpl` replaces the built-in invitation mail, see [the words of the mail](#the-words-of-the-mail) |
+| `GOPHENBERG_INVITE_TTL` | No | `168h` | How long an activation link works, seven days unless set |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
 | `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times in a row a theme that will not start is started before it is given up on, from 1 to 1000 |
 | `GOPHENBERG_THEME_BACKOFF` | No | `500ms` | How long to wait before the first retry, doubling after each one |
@@ -122,8 +130,8 @@ Three rows deserve a warning:
   unset to serve both from the binary. Older images set it to
   `/web`, a folder the image no longer holds, so delete that line if
   your compose file copied it, or the server stops at start.
-- `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
-  theme names the site in its own source.
+- `GOPHENBERG_SITE_TITLE` only affects the built-in renderer and the
+  invitation mail. A theme names the site in its own source.
 - `GOPHENBERG_MEDIA_DIR` holds files no database backup carries.
   Leave it and `GOPHENBERG_DATA_DIR` unset and the media library
   refuses every upload. Point it at a volume that survives a restart,
@@ -840,9 +848,10 @@ address, and the headers naming the real visitor and the real
 only from addresses inside `GOPHENBERG_TRUSTED_PROXIES`.
 
 Leaving it unset behind a proxy causes three quiet problems: any
-absolute address a theme builds comes out as `http`, the login
-rate limiter sees all visitors as one client, so a few failed
-logins by anyone can lock out everyone, and a browser too old to
+absolute address a theme builds comes out as `http`, the login and
+activation rate limiters see all visitors as one client, so a few
+failed logins or dead activation links by anyone can lock out
+everyone, and a browser too old to
 say where a request came from is refused when it saves anything.
 Your proxy should also pass `X-Forwarded-Proto`, which Caddy and
 nginx both do, or those browsers are refused the same way. Naming
@@ -875,6 +884,137 @@ when the write was sent to another address, `origin` when its page
 stood at another address, `fetch-site` when the browser said the page
 was on another site, and `scheme` when a proxy did not say whether the
 visitor used `http` or `https`.
+
+The public address also starts every activation link, see
+[invitation mail](#invitation-mail).
+
+## Invitation mail
+
+Adding a user from the admin sends them an invitation, and they set
+their own password. The invitation holds an activation link. It
+opens a page where they choose a password, and then they are signed
+in. The link works once, and only for `GOPHENBERG_INVITE_TTL`, seven
+days unless set. **Resend invitation** in the list of users gives a
+new link and ends the old one.
+
+To mail the invitations, name the mail relay your mail provider
+gives for sending, often on its SMTP settings page:
+
+```sh
+GOPHENBERG_SMTP_HOST=smtp.example.com
+GOPHENBERG_SMTP_USERNAME=site@example.com
+GOPHENBERG_SMTP_PASSWORD=the-relay-password
+GOPHENBERG_SMTP_FROM=site@example.com
+GOPHENBERG_PUBLIC_URL=https://example.com
+```
+
+A relay needs `GOPHENBERG_SMTP_FROM`, the address the mail comes
+from, and `GOPHENBERG_PUBLIC_URL`, which the link in the mail starts
+with. The site greets the relay with the host of that address.
+Setting it also rejects a write sent to any other address, so a
+script that writes to the site at an internal address has to use the
+public one, see [the public address](#the-public-address). When it
+starts, `serve` logs `mail relay configured` with the host, the port
+and where the mail's words come from.
+
+The site encrypts the connection with STARTTLS, and
+`GOPHENBERG_SMTP_TLS` says how strictly:
+
+- `mandatory`, the default, sends nothing to a relay that cannot
+  encrypt.
+- `opportunistic` encrypts when the relay can, and sends in the clear
+  when it cannot.
+- `none` never encrypts. It suits a relay on the same machine.
+
+A username and a password go together, and only with `mandatory`, so
+a password never crosses the network in the clear. A relay that
+encrypts from the first byte, often on port 465, is not supported.
+Use the relay's port 587.
+
+When the relay rejects a mail or cannot be reached, Add User says
+*Could not send the invitation.* and **Resend invitation** says *The
+invitation could not be sent.* The server logs
+`invitation mail not delivered` at Error with the relay's answer,
+which names the address the mail was for. The account is still
+added, so send the invitation again with **Resend invitation** once
+the relay works.
+
+### Without a relay
+
+Leave `GOPHENBERG_SMTP_HOST` unset and the site sends no mail.
+`serve` logs `no mail relay configured, invitations answer their
+activation link`. Adding a user then shows you the activation link,
+to pass on yourself, and so does **Resend invitation**.
+
+The link starts with `GOPHENBERG_PUBLIC_URL`. Without that setting
+it is only the path, such as `/admin/activate?token=...`, and you put
+the site's address in front of it yourself. Set
+`GOPHENBERG_PUBLIC_URL` to get the whole link. The site never builds
+the link from the address your browser shows, since that can be one
+only you can open, such as `localhost`.
+
+### The words of the mail
+
+The first line of the mail is its subject, and the rest is its body,
+in plain text. The mail is in English, whatever language the admin
+is read in. The built-in mail reads:
+
+```text
+You have been invited to {{.Site}}
+Hello {{.Name}},
+
+Someone invited you to {{.Site}}. Choose your password here to activate
+your account:
+
+{{.Link}}
+
+The link works once. If you were not expecting this invitation, ignore
+this message and nothing will happen.
+```
+
+To word it your own way, or in another language, write a file named
+`invite.tmpl` in that shape, put it in a folder, and name the folder
+in `GOPHENBERG_MAIL_TEMPLATE_DIR`. The file is a
+[Go template](https://pkg.go.dev/text/template) that may use three
+values:
+
+- `{{.Name}}`, the name of the person invited.
+- `{{.Link}}`, their activation link.
+- `{{.Site}}`, `GOPHENBERG_SITE_TITLE`, or `Gophenberg` when it is
+  unset.
+
+The site reads the file each time it sends an invitation, so a change
+applies to the next one without a restart. A folder without
+`invite.tmpl` sends the built-in mail. A mistake in the file only
+shows when the next invitation fails to send, and the
+`invitation mail not delivered` line of the log names it, so invite
+yourself once after a change. The Gopherium mail brick reads the
+file, and
+[mail templates](https://docs.gopherium.org/mail/templates/) holds
+its rules.
+
+### The activation page
+
+An activation link opens `/admin/activate`, a page of the admin that
+needs no signing in, see
+[accepting an invitation](/guides/users/#accepting-an-invitation).
+A link that was already used, that expired, that a newer one
+replaced or whose account was disabled is a dead link. The site
+counts dead links for each visitor's network address. After 10
+within a minute, every try from that address reads *Too many
+attempts. Please wait a minute and try again.* for a minute or two,
+a good link included. The count lives in the server's memory, so a
+restart clears it.
+
+Behind a proxy, the site tells visitors apart only when
+`GOPHENBERG_TRUSTED_PROXIES` names the proxy, see
+[trusted proxies](#trusted-proxies). Without it, every visitor shares
+one count, and a few dead links by anyone turn everyone away.
+
+An account whose link expired before anyone used it is removed by
+the cron job
+[`core/session-sweep`](/self-hosting/cron/#the-job-that-ships),
+every `GOPHENBERG_SESSION_SWEEP_INTERVAL`, one hour unless set.
 
 ## Stopping the server
 
@@ -1115,6 +1255,17 @@ The server refuses to start, and says why, when:
   `GOPHENBERG_INSTALL_ROOT`, or names a folder the server cannot make.
 - `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
   only a host.
+- Another `GOPHENBERG_SMTP_` setting or `GOPHENBERG_MAIL_TEMPLATE_DIR`
+  is set while `GOPHENBERG_SMTP_HOST` is not, or
+  `GOPHENBERG_SMTP_HOST` is set without `GOPHENBERG_SMTP_FROM` or
+  without `GOPHENBERG_PUBLIC_URL`, see [invitation mail](#invitation-mail).
+- `GOPHENBERG_SMTP_FROM` is not a mail address.
+- `GOPHENBERG_SMTP_PORT` is not a whole number from 1 to 65535.
+- `GOPHENBERG_SMTP_TLS` is not `mandatory`, `opportunistic` or `none`.
+- Only one of `GOPHENBERG_SMTP_USERNAME` and `GOPHENBERG_SMTP_PASSWORD`
+  is set, or both are set while `GOPHENBERG_SMTP_TLS` is not
+  `mandatory`.
+- `GOPHENBERG_MAIL_TEMPLATE_DIR` names something that is not a folder.
 - `GOPHENBERG_WEB_DIR` names a folder that holds no `index.html`, or
   one whose `index.html` the server cannot read, such as a page only
   another user may read. The message names the reason and tells you
@@ -1139,7 +1290,7 @@ The server refuses to start, and says why, when:
   Write them as durations, `1h`, `90s`, `5m`. Part of a second is
   refused, because the header counts in whole seconds.
 - Any of the theme timings, HTTP timeouts, shutdown graces, cron job
-  timings, update timings, the upload timeout,
+  timings, update timings, the upload timeout, `GOPHENBERG_INVITE_TTL`,
   `GOPHENBERG_PLUGIN_START_BUDGET`, `GOPHENBERG_PLUGIN_HOOK_BUDGET`,
   `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` or
   `GOPHENBERG_DATABASE_WAIT_INTERVAL` is not a positive duration.
@@ -1439,7 +1590,8 @@ hook.
 | `/page/{n}`, `/{routeword}/page/{n}` | Older items behind the page word | No |
 | `/media/...` | Uploaded files and their derived sizes | No |
 | `/admin/` | The admin, built into the binary. Its hashed files are cached for a year unless set otherwise, and the page is checked on every load | The screens ask for one |
-| `/api/...` | The admin's JSON API | Yes, apart from signing in and out |
+| `/admin/activate` | The page an activation link opens, where an invited person chooses a password, see [the activation page](#the-activation-page) | No |
+| `/api/...` | The admin's JSON API | Yes, apart from signing in and out and `POST /api/auth/activate`, which sets the password of an activation link |
 | `/api/content/v1/...` | The [public content API](/reference/content-api/) | No |
 | `/api/cron` | Runs the [cron jobs](/self-hosting/cron/) for the host's cron, `POST` only, served only once a secret is set | The cron secret, in a header |
 | `/api/plugins/feed/rss.xml` | The [RSS feed](/reference/rss-feed/) | No |

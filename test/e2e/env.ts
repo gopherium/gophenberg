@@ -33,6 +33,10 @@ export const staleManifest = fileURLToPath(
 
 export const baseURL = process.env.GOPHENBERG_E2E_URL ?? 'http://localhost:8081'
 
+export const mailURL = process.env.GOPHENBERG_E2E_MAIL_URL ?? 'http://localhost:8082'
+
+export const smtpPort = Number(process.env.GOPHENBERG_E2E_SMTP_PORT ?? 4793)
+
 export const credentials = {
 	email: process.env.GOPHENBERG_E2E_EMAIL ?? 'e2e@example.com',
 	password: process.env.GOPHENBERG_E2E_PASSWORD ?? 'correct horse battery',

@@ -4,8 +4,10 @@ description: Accounts, the login screen, and adding, changing and disabling user
 ---
 
 Everyone who writes in Gophenberg, and every member of the site, has
-an account with an email and a password. An account holds one role,
-and the role decides what it may do. Accounts made before roles
+an account with an email. An account has a password, or it is
+invited: someone added it from the admin, and its person has not
+chosen a password yet. An account holds one role, and the role
+decides what it may do. Accounts made before roles
 existed are the one exception.
 They hold none until you give them one, and the last section covers
 that.
@@ -64,7 +66,8 @@ can sign in and what they can do.*
 **Reading the list.** Each row shows the account's name with its
 email under it, then its Status, its Role and how many posts it
 wrote. A long email stops at the edge of the column, and a tooltip
-shows the whole address. Status is a badge, Active or Disabled. An
+shows the whole address. Status is a badge, Active, Invited or
+Disabled. Invited means the account has no password yet. An
 account holding no role reads None. A role a plugin declares reads
 as its name with a capital first letter, such as Archivist for
 `archivist`.
@@ -111,10 +114,11 @@ pages them in your browser. On a site with very many accounts, it
 takes longer to open.
 
 **The actions on an account.** The actions menu of a row offers
-**Change role**, and **Enable** on a disabled account or
-**Disable** on an active one. Enable is the main action. While the
-pointer rests on the row of a disabled account, Enable also shows as
-a button at the end of the row. On a phone it shows beside the menu.
+**Change role**, **Resend invitation** on an invited account, and
+**Enable** on a disabled account or **Disable** on any other. Enable
+is the main action. While the pointer rests on the row of a disabled
+account, Enable also shows as a button at the end of the row. On a
+phone it shows beside the menu.
 
 A row you may not change shows no menu, and its name is plain text.
 That is your own row, and the row of any account whose role carries
@@ -122,8 +126,8 @@ a capability your role lacks. Enable shows only on an account whose
 role you may give.
 
 Tick several rows and the column titles turn into a bar offering the
-same actions, each for the ticked accounts it applies to. A phone list
-has no tick boxes.
+same actions but Resend invitation, each for the ticked accounts it
+applies to. A phone list has no tick boxes.
 
 Each finished action shows a short message at the bottom of the
 screen that names the account, such as `"Maria Perez" disabled.`,
@@ -162,25 +166,21 @@ the focus goes back to what opened it.
 **Disabling a user** blocks them from signing in and ends their
 existing sessions immediately, so they are signed out everywhere.
 You cannot disable your own account, which keeps the last account
-that manages users from locking everyone out. **Enable** lets a
-disabled account sign in again. An account whose role nothing
+that manages users from locking everyone out. An invited account
+you disable loses its activation link too. **Enable** lets a
+disabled account sign in again. Enable an invited one and send it a
+new link with **Resend invitation**. An account whose role nothing
 declares any more needs a new role from **Change role** before
 Enable shows.
 
 **Adding a user** starts from **Add User** at the top of the list.
 The page says *Create a brand new user and add them to this site.*
-and asks for an email, a name, a password and a role. Email and Name
-are marked *(Required)*.
-
-The password field starts with a generated password, 24 characters
-long, in plain sight. **Generate password** puts a new one in, and
-**Hide** hides it. A meter under the field rates the password as
-you type. A weak one asks you to tick **Confirm use of weak password**.
-Send the form before you tick it and the message *Please confirm the
-use of a weak password.* shows in red under the field and its meter,
-and the cursor moves to the field. Tick the box or change the
-password and the message goes. The password must be at least 12
-characters.
+and asks for an email, a name and a role. Email and Name are marked
+*(Required)*. There is no password field. Add User sends the person
+an invitation, and they choose their own password from the
+activation link in it, as
+[accepting an invitation](#accepting-an-invitation) shows. Until
+then the account reads Invited.
 
 The role menu offers the roles your own role reaches, the one with
 the fewest capabilities first. It starts on the site's default role,
@@ -189,13 +189,64 @@ the fewest capabilities first. It starts on the site's default role,
 unless set. When you may not give that role, it starts on the role
 with the fewest capabilities you may give.
 
-Press **Add User** or Enter to create the account. An empty field, a
-taken email or a password that is too short shows its message in red
-under that field, such as *This email is already registered. Please
-choose another one.* The form waits until you change that field. Any
-other failure shows a message at the bottom of the screen, and the
-form keeps what you typed. Once the account exists, the screen goes
-back to the list and says *New user created.*
+Press **Send invitation** or Enter to add the account. The button is
+on even while a field is empty. Press it then and nothing is sent:
+*Please enter an email address.* or *Please provide a name.* shows
+in red under each empty field, and the cursor moves to the first
+one. While the
+server works, the button spins, and pressing it again sends nothing
+more.
+
+When the site has a mail server, the screen goes back to the list
+and says *Invitation sent.* The mail goes to the address you typed.
+Its subject reads *You have been invited to* and the site's name,
+and it greets the person by name and holds the activation link.
+[Invitation mail](/self-hosting/configuration/#invitation-mail) in
+the configuration names the mail server and says how to word the
+mail your own way.
+
+When the site has no mail server, the form gives way to the words
+*No mail server is configured. Deliver the activation link by hand.*
+and the link itself, under **Activation link**, with the cursor on
+it. Copy it and send it to the person yourself. The link starts with
+the site's address only when `GOPHENBERG_PUBLIC_URL` is set.
+Without it, the link is only the path, such as
+`/admin/activate?token=...`, so put the site's address in front of
+it. **Done** goes back to the list, where the new account reads
+Invited.
+
+When the server finds the email or the name wrong, its reason shows
+in red under that field, such as *The email address is not correct.*
+or *This name is too long.*, and the cursor moves to the field. The
+form waits until you change that field. Any other failure shows a
+message at the bottom of the screen, such as *Could not send the
+invitation. Sorry, you are not allowed to give users that role.*,
+and the form keeps what you typed. When the mail server fails, the
+message reads *Could not send the invitation.* alone. The account is
+added all the same and reads Invited, so send it a new link with
+**Resend invitation** once the mail server works.
+
+An address that already belongs to an account is not turned down.
+The screen says *Invitation sent.* all the same. When the list shows
+that account as Invited and you may change it, it gets a new link
+and the link sent before stops working. It keeps the role it was
+invited with, whatever role you picked, and without a mail server
+the screen shows you the new link. Any other account gets no mail
+and does not change. Search the list for the address to see whether
+it is in use.
+
+**Resending an invitation** starts from **Resend invitation** in the
+menu of an invited account's row. A small dialog asks *Send a new
+invitation to "Maria Perez" (`maria@example.com`)? The link sent
+before stops working.* Press **Resend invitation** to send it. With a
+mail server, the dialog closes and the message at the bottom says
+*Invitation sent to "Maria Perez".* Without one, the dialog says *No
+mail server is configured. Deliver the activation link by hand.* and
+shows the new link under **Activation link**, with the cursor on it.
+**Done** closes it. As with **Change role**, the dialog stays open
+while the server works, and says why inside it when the resend
+fails, such as *The invitation could not be sent.* when the mail
+server fails.
 
 Changing a password is not something the admin offers.
 
@@ -221,6 +272,39 @@ Every change applied this way is kept on record, naming who ran it.
 `account:records` lists them, the newest first, and `account:list`
 shows every account with its role. Every flag is on
 [the commands page](/self-hosting/commands/).
+
+## Accepting an invitation
+
+The activation link opens a page at `/admin/activate`, which needs
+no signing in. It shows the name Gophenberg, a **Password** field
+and **Set password**, which stays off until something is typed. The
+password must be at least 12 characters. A shorter one shows *Hint:
+The password should be at least 12 characters long.* under the
+button, with advice on making it stronger.
+
+Once the password is set, the person is signed in. An account whose
+role carries `access_admin` lands in the admin. Any other account,
+such as a member, lands on the public site, signed in.
+
+A link works once, and for seven days unless
+`GOPHENBERG_INVITE_TTL` in the
+[configuration](/self-hosting/configuration/) says otherwise. A link
+that was already used, that expired, that a newer link replaced or
+whose account was disabled shows *This link is no longer valid. Ask
+the person who invited you for a new one.* After 10 such links within
+a minute from the same network address, every try from there reads
+*Too many attempts. Please wait a minute and try again.* for a minute
+or two, with a good link too.
+
+An invited account whose link expired before anyone used it is
+removed the next time
+[the sweep of expired sessions](/self-hosting/cron/#the-job-that-ships)
+runs, hourly unless set otherwise. Add the person again to send a new
+invitation.
+
+To try a link yourself, open it in a private window. The page shows
+in a browser that is signed in too, and setting the password there
+signs that browser in as the invited account.
 
 ## Upgrading a site that ran an earlier version
 

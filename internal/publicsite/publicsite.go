@@ -137,16 +137,20 @@ type site struct {
 	head      HeadSource
 }
 
+// TitleOf returns the site title configured, or the default one when it is empty.
+func TitleOf(configured string) string {
+	if configured == "" {
+		return defaultTitle
+	}
+	return configured
+}
+
 // New returns the handler serving the built-in public site.
 func New(cfg Config) http.Handler {
-	title := cfg.Title
-	if title == "" {
-		title = defaultTitle
-	}
 	return &site{
 		posts:     cfg.Content,
 		addresses: content.NewResolver(cfg.Content, cfg.Types),
-		title:     title,
+		title:     TitleOf(cfg.Title),
 		generator: version.Generator(cfg.Version),
 		locale:    cfg.Locale,
 		head:      cfg.Head,
