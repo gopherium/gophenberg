@@ -21,12 +21,12 @@ const SHORT_LIMIT = 20
 /** The longest time a browser timer holds. */
 const LONGEST_TIMER = 2 ** 31 - 1
 
-/** The element the server writes the dialog write limit into. */
-const DIALOG_WRITE_LIMIT = 'gophenberg-dialog-write-timeout'
+/** The name of the meta element the server writes the dialog write limit into. */
+const DIALOG_LIMIT_NAME = 'gophenberg-dialog-write-timeout'
 
 afterEach(() => {
 	vi.useRealTimers()
-	document.querySelectorAll(`meta[name="${DIALOG_WRITE_LIMIT}"]`).forEach((meta) => meta.remove())
+	document.querySelectorAll(`meta[name="${DIALOG_LIMIT_NAME}"]`).forEach((meta) => meta.remove())
 })
 
 /**
@@ -35,9 +35,20 @@ afterEach(() => {
  */
 function writeDialogLimit(content: string) {
 	const meta = document.createElement('meta')
-	meta.name = DIALOG_WRITE_LIMIT
+	meta.name = DIALOG_LIMIT_NAME
 	meta.content = content
 	document.head.append(meta)
+}
+
+/**
+ * Answers the site settings request as a busy database does.
+ */
+function settingsUnread() {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }),
+		),
+	)
 }
 
 /**
@@ -76,15 +87,22 @@ function HangingConfirm() {
 	)
 }
 
-test('gives up on a dialog write once the limit written into the page runs out', async () => {
-	writeDialogLimit(String(SHORT_LIMIT))
+/**
+ * Renders the hanging confirm behind the site settings gate and presses Delete once it shows.
+ */
+async function confirmBehindTheGate() {
 	renderHosted(
 		<SiteFormatGate loading={null}>
 			<HangingConfirm />
 		</SiteFormatGate>,
 	)
-
 	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+}
+
+test('gives up on a dialog write once the limit written into the page runs out', async () => {
+	writeDialogLimit(String(SHORT_LIMIT))
+
+	await confirmBehindTheGate()
 
 	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
 	expect(screen.getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-disabled', 'true')
@@ -101,18 +119,9 @@ test('stops a dialog write at the page limit before the settings have loaded', a
 
 test('opens the screens and stops a dialog write at the page limit when the settings cannot be read', async () => {
 	writeDialogLimit(String(SHORT_LIMIT))
-	server.use(
-		http.get('/api/settings', () =>
-			HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }),
-		),
-	)
-	renderHosted(
-		<SiteFormatGate loading={null}>
-			<HangingConfirm />
-		</SiteFormatGate>,
-	)
+	settingsUnread()
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+	await confirmBehindTheGate()
 
 	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
 	expect(screen.getByRole('alertdialog', { name: 'Delete the draft?' })).toBeVisible()
@@ -125,13 +134,8 @@ test('uses the settings limit for a dialog write when the page carries none', as
 			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
 		),
 	)
-	renderHosted(
-		<SiteFormatGate loading={null}>
-			<HangingConfirm />
-		</SiteFormatGate>,
-	)
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+	await confirmBehindTheGate()
 
 	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
 })
@@ -162,18 +166,9 @@ test('waits on a dialog write as long as it takes while the page and the setting
 
 test('opens the screens with no dialog limit when the page and the settings carry none', async () => {
 	vi.useFakeTimers({ shouldAdvanceTime: true })
-	server.use(
-		http.get('/api/settings', () =>
-			HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }),
-		),
-	)
-	renderHosted(
-		<SiteFormatGate loading={null}>
-			<HangingConfirm />
-		</SiteFormatGate>,
-	)
+	settingsUnread()
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+	await confirmBehindTheGate()
 	await vi.advanceTimersByTimeAsync(LONGEST_TIMER)
 
 	expect(screen.queryByText(NO_ANSWER)).toBeNull()
