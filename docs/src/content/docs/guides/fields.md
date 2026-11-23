@@ -48,12 +48,33 @@ A group with no rules at all appears nowhere, and the list says
 
 ## Declaring a field
 
-Press the group's title to open its page, then give the field a name
-and pick a kind. The name is what editors see, and Gophenberg derives
-the key from it, so a field named Sold On is stored under `sold-on`. The
-key and the entry you picked are fixed once the field exists, so an
-Email field stays an email box. **Rename** changes only the name,
-which is free and touches nothing stored.
+Press the group's title to open its page. Its fields are listed in a
+table, one row per field, in three columns:
+
+- **Label**, the name editors see.
+- **Kind**, the entry you picked when you added the field, so an
+  Email field reads Email.
+- **API name**, the key the field is stored under. A theme reads the
+  field's value by this key, and so does the
+  [content API](/reference/content-api/).
+
+A group with no fields yet says so where the table would be.
+
+To add a field, use **Add a field** under the table. Type a
+**Label**, pick a **Kind** and press **Add field**. Gophenberg makes
+the key from the label, so a field called Sold On is stored under
+`sold-on`. The key and the entry you picked are fixed once the field
+exists, so an Email field stays an email box. **Rename** changes only
+the label, which is free and touches nothing stored.
+
+A field's buttons sit under its label. **Move** comes first, then the
+ones its kind offers, such as **Require**, **Rules**, **Rename** and
+**Settings**. Badges such as **Required** come last.
+
+At the end of each row, the up and down arrows move the field one
+place, and the new order is stored at once. The trash icon beside
+them deletes the field, as [Deleting a field](#deleting-a-field)
+explains.
 
 Two fields cannot share a key on the same content. If another group
 reaching the same items already holds that key, the save is refused
@@ -74,7 +95,7 @@ says which before you confirm.
 ## The kinds
 
 The picker offers twenty one entries. Twenty of them store eleven
-kinds of value, so all four choice entries are listed as Choice.
+kinds of value, so several entries share a kind.
 
 | Stores | Pick |
 | --- | --- |
@@ -364,12 +385,16 @@ it. Point the Linked from field at another relation first, under
 
 ## Deleting a field
 
-**Delete** removes the field and everything stored under it, from
-every item and revision that holds it. The dialog says so before it
-happens. Where another active group serves a field at the same
-place, inside containers of the same names, its value stays.
-Everywhere else the value goes, even on content the group stopped
-reaching when its rules changed.
+The trash icon at the end of a field's row removes the field and
+everything stored under it, from every item and revision that holds
+it. A field inside a container has a **Delete** button for this.
+Either way, a dialog says so first. Nothing is deleted until you
+press its red **Delete the field** button.
+
+Where another active group serves a field at the same place, inside
+containers of the same names, its value stays. Everywhere else the
+value goes, even on content the group stopped reaching when its rules
+changed.
 
 Deleting a whole group takes its fields with it, and their stored
 values too. If you only want the group to stop appearing, deactivate
