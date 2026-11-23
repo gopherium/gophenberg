@@ -30,8 +30,18 @@ func (s stubTheme) Held() bool { return true }
 // Target returns the address the stub theme serves on.
 func (s stubTheme) Target() string { return s.target }
 
+// healthyThemeTimeout is the response-header timeout for healthy-theme tests.
+const healthyThemeTimeout = 10 * time.Second
+
 // themedServer returns a server serving the public position through the given theme.
-func themedServer(t *testing.T, theme server.Theme, trusted []string) http.Handler {
+func themedServer(t *testing.T, theme server.Theme) http.Handler {
+	t.Helper()
+
+	return themedServerTimeout(t, theme, nil, 150*time.Millisecond)
+}
+
+// themedServerTimeout returns a server serving the public position through the theme, with a caller-chosen timeout.
+func themedServerTimeout(t *testing.T, theme server.Theme, trusted []string, timeout time.Duration) http.Handler {
 	t.Helper()
 
 	posts := newFakePostStore()
@@ -43,7 +53,7 @@ func themedServer(t *testing.T, theme server.Theme, trusted []string) http.Handl
 		SiteTitle:      "A Test Site",
 		Version:        "1.2.3",
 		Theme:          theme,
-		ThemeTimeout:   150 * time.Millisecond,
+		ThemeTimeout:   timeout,
 		TrustedProxies: trusted,
 		Web: fstest.MapFS{
 			"index.html": {Data: []byte("<!doctype html><title>Admin</title>")},
@@ -68,7 +78,7 @@ func TestThemeServesThePublicPositionWhenItIsHealthy(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte("themed answer for " + r.URL.Path))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 
 	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
@@ -90,7 +100,7 @@ func TestThemedResponsesKeepTheirOwnLinkHeaders(t *testing.T) {
 		w.Header().Add("Link", `</style.css>; rel="preload"`)
 		_, _ = w.Write([]byte("themed"))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 
 	recorder := doRequest(t, handler, http.MethodGet, "/", "")
 
@@ -112,7 +122,7 @@ func TestThemeNeverSeesForwardedHeadersFromAnUntrustedPeer(t *testing.T) {
 		_, _ = w.Write([]byte("themed"))
 	})
 
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.Header.Set("X-Forwarded-Proto", "https")
 	request.RemoteAddr = "203.0.113.9:5000"
@@ -132,7 +142,8 @@ func TestThemeSeesForwardedHeadersFromATrustedProxy(t *testing.T) {
 		_, _ = w.Write([]byte("themed"))
 	})
 
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, []string{"10.0.0.0/8"})
+	handler := themedServerTimeout(t,
+		stubTheme{target: upstream.URL, healthy: true}, []string{"10.0.0.0/8"}, healthyThemeTimeout)
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.Header.Set("X-Forwarded-Proto", "https")
 	request.RemoteAddr = "10.1.2.3:5000"
@@ -149,7 +160,7 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("themed answer"))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 
 	cases := []struct {
 		path   string
@@ -211,7 +222,7 @@ func TestAddressesNearTheReservedOnesStillReachTheTheme(t *testing.T) {
 	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("themed answer"))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServerTimeout(t, stubTheme{target: upstream.URL, healthy: true}, nil, healthyThemeTimeout)
 
 	paths := []string{
 		"//hello-world",
@@ -250,7 +261,7 @@ func TestAddressesNearTheReservedOnesStillReachTheTheme(t *testing.T) {
 func TestTheRendererServesWhileTheThemeIsDown(t *testing.T) {
 	t.Parallel()
 
-	handler := themedServer(t, stubTheme{target: "", healthy: false}, nil)
+	handler := themedServer(t, stubTheme{target: "", healthy: false})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
@@ -268,7 +279,7 @@ func TestTheRendererServesWhenTheThemeRefusesTheConnection(t *testing.T) {
 	dead := httptest.NewServer(http.NotFoundHandler())
 	target := dead.URL
 	dead.Close()
-	handler := themedServer(t, stubTheme{target: target, healthy: true}, nil)
+	handler := themedServer(t, stubTheme{target: target, healthy: true})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
@@ -288,7 +299,7 @@ func TestTheRendererServesWhenTheThemeWithholdsItsHeaders(t *testing.T) {
 		<-release
 		_, _ = w.Write([]byte("too late"))
 	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 	close(release)
@@ -339,7 +350,7 @@ func TestPublicSiteKeepsAnsweringWhileAThemeStarts(t *testing.T) {
 		_, _ = w.Write([]byte("served by the theme"))
 	})
 	theme := &swappableTheme{}
-	handler := themedServer(t, theme, nil)
+	handler := themedServerTimeout(t, theme, nil, healthyThemeTimeout)
 
 	before := httptest.NewRecorder()
 	handler.ServeHTTP(before, httptest.NewRequest(http.MethodGet, "/", nil))
