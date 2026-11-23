@@ -59,7 +59,6 @@ type ListSettings struct {
 	// FormatLocale is the locale dates and numbers are written in, whatever the interface language.
 	FormatLocale string
 	// DialogWriteTimeout is how long a busy dialog waits on its write before it says the server gave no answer.
-	// The admin page carries it, so a dialog still stops when the settings cannot be read.
 	DialogWriteTimeout time.Duration
 }
 
