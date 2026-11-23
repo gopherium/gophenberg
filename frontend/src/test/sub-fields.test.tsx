@@ -10,6 +10,7 @@ import {
 	DETAILS,
 	EXTRAS,
 	FEATURES,
+	fieldRow,
 	HERO,
 	listing,
 	openFields,
@@ -66,7 +67,7 @@ test('declares a sub field inside the container it was opened from', async () =>
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Full name')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'full-name', label: 'Full name' }))
@@ -101,7 +102,7 @@ test('declares a field inside a container standing inside another', async () => 
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Address' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add field to Address' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Street')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Street')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
 
 	await waitFor(() => expect(where).toBe('/api/groups/3/fields/author.address'))
@@ -353,7 +354,7 @@ test('declares a layout inside the flexible content field it was opened from', a
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add layout to Features' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add layout to Features' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Hero')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Hero')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add layout' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'hero', label: 'Hero', kind: 'layout' }))
@@ -371,7 +372,7 @@ test('lists a flexible content field with the layouts and fields beneath it', as
 
 	const dialog = await openFields()
 
-	const flexible = within(dialog).getByRole('listitem', { name: 'Features' })
+	const flexible = await fieldRow(dialog, 'Features')
 	const layout = within(dialog).getByRole('listitem', { name: 'Hero' })
 	expect(within(flexible).getByText('Flexible content')).toBeInTheDocument()
 	expect(within(layout).getByText('Layout')).toBeInTheDocument()
@@ -392,7 +393,7 @@ test('declares a field inside a layout of a flexible content field', async () =>
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Hero' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add field to Hero' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Title')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Title')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
 
 	await waitFor(() => expect(where).toBe('/api/groups/3/fields/features.hero'))
@@ -416,13 +417,13 @@ test('says inside its own dialog why a field declared into a container was turne
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Full name')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
 
 	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
 	expect(await within(adding).findByText(said)).toBeInTheDocument()
 	expect(screen.getAllByText(said)).toHaveLength(1)
-	expect(within(adding).getByLabelText('Name')).toHaveValue('Full name')
+	expect(within(adding).getByLabelText('Label')).toHaveValue('Full name')
 })
 
 test('keeps the controls of a field declared into a container read only while it is declared', async () => {
@@ -445,7 +446,7 @@ test('keeps the controls of a field declared into a container read only while it
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
 	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
+	await userEvent.type(within(adding).getByLabelText('Label'), 'Full name')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
 	await waitBusy(adding, 'Add field')
 

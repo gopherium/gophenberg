@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
 import { gate } from './gate'
+import { fieldRow } from './groupFieldsFixtures'
 import { renderAt } from './render'
 import { expectReadOnly, waitBusy } from './typeFixtures'
 
@@ -69,7 +70,7 @@ async function openFields() {
  */
 async function openConditions(named: string) {
 	const fields = await openFields()
-	const row = within(fields).getByRole('listitem', { name: named })
+	const row = await fieldRow(fields, named)
 	await userEvent.click(within(row).getByRole('button', { name: `Rules showing ${named}` }))
 	return screen.findByRole('dialog', { name: `Rules showing ${named}` })
 }
@@ -113,7 +114,7 @@ test('offers no rules on a field whose siblings cannot be read', async () => {
 
 	const dialog = await openFields()
 
-	const row = within(dialog).getByRole('listitem', { name: 'Photo' })
+	const row = await fieldRow(dialog, 'Photo')
 	expect(within(row).queryByRole('button', { name: 'Rules showing Photo' })).not.toBeInTheDocument()
 })
 
@@ -571,7 +572,7 @@ test('puts a field in the admin list and takes it out again', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	const row = within(dialog).getByRole('listitem', { name: 'Sale note' })
+	const row = await fieldRow(dialog, 'Sale note')
 	await userEvent.click(within(row).getByRole('button', { name: 'Show Sale note in the list' }))
 
 	await waitFor(() =>
@@ -586,7 +587,7 @@ test('takes a field out of the admin list again', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	const row = within(dialog).getByRole('listitem', { name: 'Sale note' })
+	const row = await fieldRow(dialog, 'Sale note')
 	await userEvent.click(within(row).getByRole('button', { name: 'Keep Sale note out of the list' }))
 
 	await waitFor(() =>
@@ -611,6 +612,6 @@ test('offers no list flip on a kind the list cannot show', async () => {
 
 	const dialog = await openFields()
 
-	const row = within(dialog).getByRole('listitem', { name: 'Photo' })
+	const row = await fieldRow(dialog, 'Photo')
 	expect(within(row).queryByRole('button', { name: /in the list/ })).not.toBeInTheDocument()
 })

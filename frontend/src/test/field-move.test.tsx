@@ -6,7 +6,16 @@ import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
-import { DETAILS, EXTRAS, listing, openFields, READING_TIME, serveFieldGroups, SUBTITLE } from './groupFieldsFixtures'
+import {
+	DETAILS,
+	EXTRAS,
+	fieldsOf,
+	listing,
+	openFields,
+	READING_TIME,
+	serveFieldGroups,
+	SUBTITLE,
+} from './groupFieldsFixtures'
 import { renderAt } from './render'
 
 const NAME = { ...SUBTITLE, key: 'name', label: 'Name' }
@@ -68,7 +77,7 @@ test('carries a field to the first place still on offer once the container it wo
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete Author' }))
 	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Author"?' })
 	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
-	await waitFor(() => expect(within(dialog).queryByRole('listitem', { name: 'Author' })).not.toBeInTheDocument())
+	await waitFor(() => expect(within(fieldsOf(dialog)).queryByText('Author')).not.toBeInTheDocument())
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
 	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })

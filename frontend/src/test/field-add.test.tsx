@@ -14,7 +14,7 @@ import { waitBusy } from './typeFixtures'
 
 serveFieldGroups()
 
-test('declares a field into the group it was opened from', async () => {
+test('declares a field into the group it was opened from, its key made from the Label typed', async () => {
 	let sent: unknown
 	server.use(
 		http.post('/api/groups/3/fields', async ({ request }) => {
@@ -25,7 +25,7 @@ test('declares a field into the group it was opened from', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Summary')
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Summary')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
 
 	await waitFor(() =>
@@ -42,7 +42,7 @@ test('reports a refused field where the operator is looking', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Subtitle')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Subtitle')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
 
 	const notice = await within(dialog).findByRole('alert')
@@ -60,7 +60,7 @@ test('declares a relation field pointing at the type and holding what was picked
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Author')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Author')
 	await userEvent.click(within(dialog).getByLabelText('Kind'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
 	await userEvent.click(within(dialog).getByLabelText('Points at'))
@@ -107,7 +107,7 @@ test('declares a plain field while the content types are still out of reach', as
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Summary')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Summary')
 	await userEvent.click(within(dialog).getByLabelText('Kind'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
@@ -131,7 +131,7 @@ test('declares a radio group as the choice kind presented as radio', async () =>
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Style')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Style')
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Radio group' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
@@ -156,7 +156,7 @@ test('declares an email field as text checked as an email', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Contact')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Contact')
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Email' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
@@ -177,7 +177,7 @@ test('declares a gallery as a media field holding many', async () => {
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Gallery')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Gallery')
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Gallery' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
@@ -252,7 +252,7 @@ test('declares a linked from field reading a relation another group holds', asyn
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Linked from')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Linked from')
 	await pickLinkedFrom(dialog)
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
@@ -291,7 +291,7 @@ test('declares a linked from field optional whatever was picked before the kind 
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Linked from')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Linked from')
 	await userEvent.click(within(dialog).getByLabelText('Required'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
 	await pickLinkedFrom(dialog)
@@ -362,7 +362,7 @@ test('offers no linked from field inside a container', async () => {
 	expect(screen.queryByRole('option', { name: 'Linked from' })).not.toBeInTheDocument()
 })
 
-test('keeps the name and the kind of a new field read only while it is declared', async () => {
+test('keeps the label and the kind of a new field read only while it is declared', async () => {
 	const answer = gate()
 	server.use(
 		http.post('/api/groups/3/fields', async () => {
@@ -373,12 +373,12 @@ test('keeps the name and the kind of a new field read only while it is declared'
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Summary')
+	await userEvent.type(within(dialog).getByLabelText('Label'), 'Summary')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
 	await waitBusy(dialog, 'Add field')
 
-	expect(within(dialog).getByLabelText('Name')).toHaveAttribute('readonly')
+	expect(within(dialog).getByLabelText('Label')).toHaveAttribute('readonly')
 	expect(within(dialog).getByRole('combobox', { name: 'Kind' })).toHaveAttribute('aria-readonly', 'true')
 	answer.release()
-	await waitFor(() => expect(within(dialog).getByLabelText('Name')).not.toHaveAttribute('readonly'))
+	await waitFor(() => expect(within(dialog).getByLabelText('Label')).not.toHaveAttribute('readonly'))
 })

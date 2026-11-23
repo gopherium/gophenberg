@@ -12,6 +12,7 @@ import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { NO_FIELDS } from './groupFieldsFixtures'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
 import { declarations } from './stylesheet'
@@ -312,7 +313,7 @@ test('opens the page of a new group once it is created, read again with the grou
 	const main = screen.getByRole('main')
 	expect(await within(main).findByRole('heading', { level: 2, name: 'Extras' })).toBeInTheDocument()
 	expect(router.state.location.pathname).toBe('/field-groups/4')
-	expect(within(main).getByText('This group holds no fields yet.')).toBeInTheDocument()
+	expect(within(main).getByRole('heading', { name: NO_FIELDS })).toBeInTheDocument()
 	expect(await findToast('Extras created.')).toBeInTheDocument()
 })
 

@@ -119,6 +119,17 @@ async function fitOf(row: Locator) {
 }
 
 /**
+ * Returns the row of the fields table on a group page that shows a field's label.
+ * @param page - The group page.
+ * @param label - The label the row shows.
+ * @returns The row.
+ */
+function fieldRow(page: Page, label: string): Locator {
+	const fields = page.getByRole('main').getByRole('region', { name: 'Fields' })
+	return fields.getByRole('row').filter({ has: page.getByText(label, { exact: true }) })
+}
+
+/**
  * Returns the link back to the Field Groups list in the breadcrumbs of a group page.
  * @param main - The main work of the page.
  * @returns The breadcrumb link.
@@ -139,11 +150,11 @@ test('walks from the list to a group page by its title, adds a field there and c
 	await expect(page).toHaveURL(new RegExp(`/admin/field-groups/${group.id}$`))
 	const main = page.getByRole('main')
 	await expect(main.getByRole('heading', { level: 2, name: group.title })).toBeVisible()
-	await expect(main.getByText('This group holds no fields yet.')).toBeVisible()
-	await main.getByLabel('Name', { exact: true }).fill('Duration')
+	await expect(main.getByRole('heading', { name: 'No fields yet', exact: true })).toBeVisible()
+	await main.getByLabel('Label', { exact: true }).fill('Duration')
 	await main.getByRole('button', { name: 'Add field', exact: true }).click()
 	await expect(page.locator('.godmin-toast', { hasText: 'Duration declared.' })).toBeVisible()
-	await expect(main.getByRole('listitem', { name: 'Duration' })).toBeVisible()
+	await expect(fieldRow(page, 'Duration')).toBeVisible()
 
 	await backToList(main).click()
 
@@ -211,14 +222,48 @@ test('asks before a draft leaves by the breadcrumb, stays on Keep editing and la
 	await expect(list.getByRole('link', { name: group.title, exact: true })).toBeVisible()
 })
 
+test('moves a field at once and stores the newest order once the order on its way is answered', async ({ page }) => {
+	const group = await groupOfItsOwn(page, 'Seminar')
+	await textFieldIn(page, group.id, 'Duration')
+	await textFieldIn(page, group.id, 'Summary')
+	const sent: unknown[] = []
+	let release = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
+	await page.route(`**/api/groups/${group.id}/fields/order`, async (route) => {
+		sent.push(route.request().postDataJSON())
+		await held
+		await route.continue()
+	})
+	await page.goto(`/admin/field-groups/${group.id}`)
+	const trashes = page.getByRole('main').getByRole('region', { name: 'Fields' }).getByRole('button', { name: /^Delete / })
+	await expect(trashes).toHaveCount(2)
+
+	const down = fieldRow(page, 'Duration').getByRole('button', { name: 'Move Duration down' })
+	await down.focus()
+	await page.keyboard.press('Enter')
+	await expect(trashes.first()).toHaveAccessibleName('Delete Summary')
+	await expect(down).toBeFocused()
+	await fieldRow(page, 'Duration').getByRole('button', { name: 'Move Duration up' }).click()
+	await expect(trashes.first()).toHaveAccessibleName('Delete Duration')
+	await expect.poll(() => sent).toEqual([{ order: ['summary', 'duration'] }])
+	release()
+
+	await expect(page.locator('.godmin-toast', { hasText: 'Order stored.' })).toBeVisible()
+	await expect.poll(() => sent).toEqual([{ order: ['summary', 'duration'] }, { order: ['duration', 'summary'] }])
+	await page.reload()
+	await expect(trashes).toHaveCount(2)
+	await expect(trashes.first()).toHaveAccessibleName('Delete Duration')
+})
+
 test('wraps the actions of a field on a phone, each button whole on one line inside the row', async ({ page }) => {
 	const group = await groupOfItsOwn(page, 'Notice')
 	await textFieldIn(page, group.id, 'Duration')
 	await page.setViewportSize(PHONE)
 
 	await page.goto(`/admin/field-groups/${group.id}`)
-	const field = page.getByRole('main').getByRole('listitem', { name: 'Duration' })
-	const rename = field.getByRole('button', { name: 'Rename Duration' })
+	const rename = fieldRow(page, 'Duration').getByRole('button', { name: 'Rename Duration' })
 	await expect(rename).toBeVisible()
 
 	const actions = rename.locator('xpath=..')

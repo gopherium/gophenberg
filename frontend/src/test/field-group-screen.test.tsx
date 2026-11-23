@@ -11,7 +11,7 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { adminBasepath } from '../basepath'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { DETAILS, EXTRAS, listing, POST_TYPE, SUBTITLE } from './groupFieldsFixtures'
+import { DETAILS, EXTRAS, fieldRow, listing, NO_FIELDS, POST_TYPE, SUBTITLE } from './groupFieldsFixtures'
 import { renderAt, renderRoutedAt } from './render'
 import { findToast } from './typeFixtures'
 
@@ -81,7 +81,7 @@ function detailsOf(main: HTMLElement) {
 async function saveNotice(main: HTMLElement) {
 	const notice = await within(main).findByRole('alert')
 	expect(detailsOf(main)).not.toContainElement(notice)
-	const field = within(main).getByRole('listitem', { name: 'Subtitle' })
+	const field = await fieldRow(main, 'Subtitle')
 	expect(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 	return notice
 }
@@ -229,8 +229,8 @@ test('shows the fields of a site group in the main work with no dialog over them
 
 	const main = await pageTitled('Article details')
 
-	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
-	expect(within(main).getByRole('listitem', { name: 'Reading time' })).toBeInTheDocument()
+	expect(await fieldRow(main, 'Subtitle')).toBeInTheDocument()
+	expect(await fieldRow(main, 'Reading time')).toBeInTheDocument()
 	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
@@ -246,12 +246,12 @@ test('declares a field from the page, reports it in a toast and shows it once th
 	renderAt('/field-groups/3')
 	const main = await pageTitled('Article details')
 
-	await userEvent.type(within(main).getByLabelText('Name'), 'Summary')
+	await userEvent.type(within(main).getByLabelText('Label'), 'Summary')
 	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'summary', label: 'Summary' }))
 	expect(await findToast('Summary declared.')).toBeInTheDocument()
-	expect(await within(main).findByRole('listitem', { name: 'Summary' })).toBeInTheDocument()
+	expect(await fieldRow(main, 'Summary')).toBeInTheDocument()
 })
 
 test('wraps the actions of a field and of a sub field so their buttons keep their words whole', async () => {
@@ -275,7 +275,7 @@ test('lays the add field form out in one row with its button at its own width', 
 
 	const form = within(main).getByRole('button', { name: 'Add field' }).parentElement
 	expect(form).toHaveClass('godmin-form', 'godmin-form--inline')
-	expect(within(main).getByLabelText('Name').closest('.godmin-form__row')?.parentElement).toBe(form)
+	expect(within(main).getByLabelText('Label').closest('.godmin-form__row')?.parentElement).toBe(form)
 })
 
 test('keeps Add field off while a field is being declared, so Enter sends it once', async () => {
@@ -290,7 +290,7 @@ test('keeps Add field off while a field is being declared, so Enter sends it onc
 	)
 	renderAt('/field-groups/3')
 	const main = await pageTitled('Article details')
-	const name = within(main).getByLabelText('Name')
+	const name = within(main).getByLabelText('Label')
 	const add = within(main).getByRole('button', { name: 'Add field' })
 
 	await userEvent.type(name, 'Summary{Enter}')
@@ -309,7 +309,7 @@ test('names a field that could not be added in a toast as well as above the fiel
 	renderAt('/field-groups/3')
 	const main = await pageTitled('Article details')
 
-	await userEvent.type(within(main).getByLabelText('Name'), 'Subtitle')
+	await userEvent.type(within(main).getByLabelText('Label'), 'Subtitle')
 	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
 
 	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
@@ -385,11 +385,11 @@ test('keeps the fields in view and names the failed read when the groups cannot 
 	renderAt('/field-groups/3')
 	const main = await pageTitled('Article details')
 
-	await userEvent.type(within(main).getByLabelText('Name'), 'Summary')
+	await userEvent.type(within(main).getByLabelText('Label'), 'Summary')
 	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
 
 	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be loaded.')
-	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
+	expect(await fieldRow(main, 'Subtitle')).toBeInTheDocument()
 	expect(within(main).getByRole('button', { name: 'Add field' })).toBeInTheDocument()
 })
 
@@ -404,7 +404,7 @@ test('holds the title, the active flag, the rules and the day the group was made
 	expect(within(details).getByRole('heading', { level: 3, name: 'Location rules' })).toBeInTheDocument()
 	expect(within(details).getByRole('group', { name: 'Rule 1 of set 1' })).toBeInTheDocument()
 	expect(within(details).getByText(`Created ${formatDate(DETAILS.created_at)}`)).toBeInTheDocument()
-	expect(within(details).queryByRole('listitem', { name: 'Subtitle' })).not.toBeInTheDocument()
+	expect(details).not.toContainElement(await fieldRow(main, 'Subtitle'))
 })
 
 test('keeps Save off until a part of the group changes, and off again once the change is undone', async () => {
@@ -630,7 +630,7 @@ test('stores a Linked from pick saved after the field was renamed over the page'
 	await userEvent.clear(within(dialog).getByLabelText('Name'))
 	await userEvent.type(within(dialog).getByLabelText('Name'), 'Linked cars')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename' }))
-	expect(await within(main).findByRole('listitem', { name: 'Linked cars' })).toBeInTheDocument()
+	expect(await fieldRow(main, 'Linked cars')).toBeInTheDocument()
 	await userEvent.click(saveOf(main))
 
 	expect(await findToast('Article details updated.')).toBeInTheDocument()
@@ -675,8 +675,8 @@ test('keeps the fields in view after a save that answers the group without them'
 	await userEvent.click(saveOf(main))
 
 	expect(await findToast('Car details updated.')).toBeInTheDocument()
-	expect(within(main).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
-	expect(within(main).queryByText('This group holds no fields yet.')).not.toBeInTheDocument()
+	expect(await fieldRow(main, 'Subtitle')).toBeInTheDocument()
+	expect(within(main).queryByRole('heading', { name: NO_FIELDS })).not.toBeInTheDocument()
 	reading.release()
 })
 
@@ -703,7 +703,7 @@ test('forgets a Linked from pick once its field leaves the group, and saves the 
 
 	await userEvent.click(within(main).getByRole('button', { name: 'Delete Linked from' }))
 	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete the field' }))
-	expect(await within(main).findByText('This group holds no fields yet.')).toBeInTheDocument()
+	expect(await within(main).findByRole('heading', { name: NO_FIELDS })).toBeInTheDocument()
 
 	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
 	await userEvent.type(within(detailsOf(main)).getByRole('textbox', { name: 'Title' }), ' here')
@@ -862,6 +862,16 @@ test('heads the add field form with its own section title', async () => {
 	expect(heading.parentElement).toContainElement(within(main).getByRole('button', { name: 'Add field' }))
 })
 
+test('leaves a large gap between the fields table and the add field section under it', async () => {
+	renderAt('/field-groups/3')
+
+	const main = await pageTitled('Article details')
+
+	const body = within(main).getByRole('region', { name: 'Fields' }).parentElement as HTMLElement
+	expect(body).toContainElement(within(main).getByRole('heading', { level: 3, name: 'Add a field' }))
+	expect(body.style.gap).toMatch(/^var\(--wpds-dimension-gap-lg[,)]/)
+})
+
 const READERS = [
 	{
 		locale: 'es-ES',
@@ -886,8 +896,8 @@ const READERS = [
 ]
 
 const ADD_READERS = [
-	{ locale: 'es-ES', name: 'Nombre', add: 'Añadir campo', failed: 'No se ha podido añadir el campo.' },
-	{ locale: 'fr-FR', name: 'Nom', add: 'Ajouter un champ', failed: 'Impossible d’ajouter le champ.' },
+	{ locale: 'es-ES', label: 'Etiqueta', add: 'Añadir campo', failed: 'No se ha podido añadir el campo.' },
+	{ locale: 'fr-FR', label: 'Libellé', add: 'Ajouter un champ', failed: 'Impossible d’ajouter le champ.' },
 ]
 
 test.each(ADD_READERS)('names a field that could not be added in its toast in $locale', async (said) => {
@@ -897,7 +907,7 @@ test.each(ADD_READERS)('names a field that could not be added in its toast in $l
 	renderAt('/field-groups/3')
 	const main = await pageTitled('Article details')
 
-	await userEvent.type(within(main).getByLabelText(said.name), 'Subtitle')
+	await userEvent.type(within(main).getByLabelText(said.label), 'Subtitle')
 	await userEvent.click(within(main).getByRole('button', { name: said.add }))
 
 	expect(await findToast(`${said.failed} ${LOCKED}`)).toBeInTheDocument()

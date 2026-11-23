@@ -9,6 +9,7 @@ import { shadowings } from '../content/GroupsScreen'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { listenAt } from './announcements'
+import { fieldRow } from './groupFieldsFixtures'
 import { renderAt } from './render'
 import type { Location } from '../content/groups'
 
@@ -194,7 +195,7 @@ test('warns on the page of a group that loses a field and marks the field it los
 	expect(
 		within(main).getByText('subtitle is served by Article details, so Extras does not show it on Posts.'),
 	).toBeInTheDocument()
-	const lost = within(main).getByRole('listitem', { name: 'Subtitle' })
+	const lost = await fieldRow(main, 'Subtitle')
 	expect(within(lost).getByText('Shadowed')).toBeInTheDocument()
 })
 
@@ -210,7 +211,7 @@ test('warns on the page of a group of every overlap it serves and leaves its own
 	expect(
 		within(main).getByText('subtitle is served by Article details, so More does not show it on Posts.'),
 	).toBeInTheDocument()
-	expect(within(within(main).getByRole('listitem', { name: 'Subtitle' })).queryByText('Shadowed')).toBeNull()
+	expect(within(await fieldRow(main, 'Subtitle')).queryByText('Shadowed')).toBeNull()
 })
 
 test('keeps the page of a group quiet about an overlap between two other groups', async () => {

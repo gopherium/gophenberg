@@ -211,7 +211,7 @@ function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change
 		<>
 			<InputControl
 				className="godmin-form__grow"
-				label={_x('Name', 'field', 'gophenberg')}
+				label={__('Label', 'gophenberg')}
 				autoComplete="off"
 				value={draft.label}
 				readOnly={readOnly}

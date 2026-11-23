@@ -233,7 +233,8 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 		expect(overflow.canvas, `${path} spills the canvas`).toBeLessThanOrEqual(0)
 	}
 	await page.goto(`/admin/field-groups/${group}`)
-	await expect(page.getByRole('main').getByRole('listitem', { name: 'Measure' })).toBeVisible()
+	const fields = page.getByRole('main').getByRole('region', { name: 'Fields' })
+	await expect(fields.getByRole('row').filter({ has: page.getByText('Measure', { exact: true }) })).toBeVisible()
 	const grouped = await spills(page)
 	expect(grouped.document, 'the page of a group spills the document').toBeLessThanOrEqual(0)
 	expect(grouped.canvas, 'the page of a group spills the canvas').toBeLessThanOrEqual(0)

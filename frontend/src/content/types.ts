@@ -404,16 +404,58 @@ export function pickedKind(value: string): PickedKind {
 	return settled[value] ?? { kind: value, many: false }
 }
 
+/** What a stored field holds that tells which picker entry made it. */
+type StoredKind = Pick<ContentField, 'kind' | 'many' | 'settings'>
+
+/** The starting settings that tell one picker entry from another of the same kind. */
+const TELLING_SETTINGS = ['variant', 'presentation']
+
 /**
- * Returns the label a declared field's kind is shown under.
- * @param kind - The kind as the registry stored it.
- * @returns The label to show, the stored kind when the admin offers no name for it.
+ * Returns the starting settings of a picker entry that tell it from another entry of the same kind.
+ * @param picked - What the picker entry declares.
+ * @returns The variant and the presentation the entry starts with, as name and value pairs.
  */
-export function kindLabel(kind: string): string {
-	if (kind === 'choice') {
-		return _x('Choice', 'field type', 'gophenberg')
+function tellingSettings(picked: PickedKind): [string, unknown][] {
+	return Object.entries(picked.settings ?? {}).filter(([name]) => TELLING_SETTINGS.includes(name))
+}
+
+/**
+ * Reports whether a stored field stands as a picker entry declares a field.
+ * @param picked - What the picker entry declares.
+ * @param field - The field as the registry stored it.
+ * @returns Whether the field holds the entry's kind, the many flag it sets, its variant and its presentation.
+ */
+function standsAs(picked: PickedKind, field: StoredKind): boolean {
+	return (
+		picked.kind === field.kind
+		&& (field.many || !picked.many)
+		&& tellingSettings(picked).every(([name, value]) => field.settings[name] === value)
+	)
+}
+
+/**
+ * Returns how much of a field a picker entry sets beyond its kind.
+ * @param picked - What the picker entry declares.
+ * @returns The count of telling settings, one more when the entry holds many.
+ */
+function weightOf(picked: PickedKind): number {
+	return tellingSettings(picked).length + Number(picked.many)
+}
+
+/**
+ * Returns the label of the picker entry a stored field was made from, the reverse of pickedKind.
+ * @param field - The field as the registry stored it.
+ * @returns The label the picker showed, the stored kind when no entry makes such a field.
+ */
+export function pickedLabel(field: StoredKind): string {
+	const [made] = fieldKinds()
+		.map((entry) => ({ label: entry.label, picked: pickedKind(entry.value) }))
+		.filter((entry) => standsAs(entry.picked, field))
+		.sort((one, other) => weightOf(other.picked) - weightOf(one.picked))
+	if (made !== undefined) {
+		return made.label
 	}
-	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
+	return field.kind === 'choice' ? _x('Choice', 'field type', 'gophenberg') : field.kind
 }
 
 /**
