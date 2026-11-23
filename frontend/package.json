@@ -9,7 +9,7 @@
 		"cover": "vitest run --coverage",
 		"dev": "vite",
 		"lint": "pnpm -w lint",
-		"lint:css": "stylelint 'src/**/*.css' '../plugins/*/frontend/*.css'",
+		"lint:css": "stylelint --config ./stylelint.config.js 'src/**/*.css' '../plugins/*/frontend/*.css'",
 		"mutate": "cd .. && stryker run frontend/stryker.config.json",
 		"mutate:changed": "node scripts/mutate-changed.ts",
 		"pot": "node scripts/write-pot.ts",

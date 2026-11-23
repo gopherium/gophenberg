@@ -764,11 +764,13 @@ for the account at `/api/auth/session`, so serve that address with
 
 A plugin keeps its styles in a stylesheet in its own `frontend`
 folder, as `plugins/hello/frontend/hello.css`. The screens that need
-it import it, and the plugin's entry does not, so the admin carries
-the styles only while one of those screens is open. Name every class
-after the plugin, as `hello-screen`, so that it cannot collide with
-the admin's own classes or another plugin's. A plugin never edits the
-admin's own stylesheet, `frontend/src/index.css`.
+it import it, and the plugin's entry does not, so the stylesheet's
+first load waits until one of those screens opens, and it stays
+loaded once the screen closes, since Vite keeps the CSS an import
+brought in. Name every class after the plugin, as `hello-screen`, so
+that it cannot collide with the admin's own classes or another
+plugin's. A plugin never edits the admin's own stylesheet,
+`frontend/src/index.css`.
 
 `pnpm run lint:css` in `frontend/` reads `src/**/*.css` and
 `../plugins/*/frontend/*.css`, so a plugin's stylesheet gets the same
