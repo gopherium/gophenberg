@@ -21,6 +21,9 @@ import (
 // cronStart is the moment the cron store tests take their first lease.
 var cronStart = time.Date(2026, time.October, 13, 10, 0, 0, 0, time.UTC)
 
+// takeDeadline is how long a cron take behind a held write runs before its context ends.
+const takeDeadline = 200 * time.Millisecond
+
 // lastFailureIn returns a way to read the failure a job's last run recorded in the file behind handle.
 func lastFailureIn(handle *sql.DB) func(ctx context.Context, name string) (string, error) {
 	return func(ctx context.Context, name string) (string, error) {
@@ -84,6 +87,27 @@ func TestCronTakeBehindAnotherWriterAnswersDbkitsBusyClass(t *testing.T) {
 	named := strings.HasPrefix(fmt.Sprint(err), `sqlite: taking the cron job "tidy": `)
 	if taken || !errors.Is(err, dbkit.ErrBusy) || !named {
 		t.Errorf("Take() behind another writer = %v, %v, want dbkit.ErrBusy under the take", taken, err)
+	}
+}
+
+func TestCronTakeBehindAHeldWriteGivesUpOnceItsContextEnds(t *testing.T) {
+	t.Parallel()
+
+	handle := migrated(t)
+	holdWrites(t, handle)
+	ctx, cancel := context.WithTimeout(t.Context(), takeDeadline)
+	defer cancel()
+	began := time.Now()
+
+	_, taken, err := sqlite.NewCronStore(handle).Take(ctx, tidyLease())
+
+	waited := time.Since(began)
+	if taken || !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Take() behind a held write = %v, %v, want context.DeadlineExceeded once its context ends", taken, err)
+	}
+	if waited > takeDeadline+waitMargin {
+		t.Errorf("Take() behind a held write answered after %v, want about %v, well before the busy timeout %v",
+			waited, takeDeadline, testSettings().BusyTimeout)
 	}
 }
 
