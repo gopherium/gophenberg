@@ -6,11 +6,15 @@ import { holdsRows } from './types'
 import type { Choice } from './select'
 import type { ChoicePair, ContentField } from './types'
 
-/** One setting a kind takes, as its control edits it. */
-interface SettingControl {
+/** The tab of an open field a setting shows in. */
+export type SettingTab = 'general' | 'validation' | 'presentation'
+
+/** One setting a kind takes, as its control edits it, and the tab it shows in. */
+export interface SettingControl {
 	name: string
 	label: string
-	shape: 'text' | 'number' | 'choice'
+	shape: 'text' | 'textarea' | 'number' | 'choice'
+	tab: SettingTab
 }
 
 /**
@@ -21,34 +25,34 @@ interface SettingControl {
 export function settingsOffered(field: ContentField): SettingControl[] {
 	const kind = field.kind
 	const held: SettingControl[] = [
-		{ name: 'instructions', label: __('Instructions', 'gophenberg'), shape: 'text' },
+		{ name: 'instructions', label: __('Instructions', 'gophenberg'), shape: 'textarea', tab: 'presentation' },
 	]
 	if (kind === 'media' && field.many) {
-		held.push({ name: 'min', label: __('Fewest files', 'gophenberg'), shape: 'number' })
-		held.push({ name: 'max', label: __('Most files', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'min', label: __('Fewest files', 'gophenberg'), shape: 'number', tab: 'validation' })
+		held.push({ name: 'max', label: __('Most files', 'gophenberg'), shape: 'number', tab: 'validation' })
 	}
 	if (kind === 'text') {
-		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'text' })
-		held.push({ name: 'placeholder', label: __('Placeholder', 'gophenberg'), shape: 'text' })
-		held.push({ name: 'maxlength', label: __('Longest', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'text', tab: 'general' })
+		held.push({ name: 'placeholder', label: __('Placeholder', 'gophenberg'), shape: 'text', tab: 'presentation' })
+		held.push({ name: 'maxlength', label: __('Longest', 'gophenberg'), shape: 'number', tab: 'validation' })
 	}
 	if (kind === 'number') {
-		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'number' })
-		held.push({ name: 'min', label: __('Lowest', 'gophenberg'), shape: 'number' })
-		held.push({ name: 'max', label: __('Highest', 'gophenberg'), shape: 'number' })
-		held.push({ name: 'step', label: __('Steps of', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'number', tab: 'general' })
+		held.push({ name: 'min', label: __('Lowest', 'gophenberg'), shape: 'number', tab: 'validation' })
+		held.push({ name: 'max', label: __('Highest', 'gophenberg'), shape: 'number', tab: 'validation' })
+		held.push({ name: 'step', label: __('Steps of', 'gophenberg'), shape: 'number', tab: 'presentation' })
 	}
 	if (kind === 'boolean') {
-		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'choice' })
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'choice', tab: 'general' })
 	}
 	if (kind === 'choice') {
-		held.push({ name: 'multiple', label: __('Many values', 'gophenberg'), shape: 'choice' })
-		held.push({ name: 'allow_custom', label: __('Allow custom', 'gophenberg'), shape: 'choice' })
-		held.push({ name: 'allow_null', label: __('Allow empty', 'gophenberg'), shape: 'choice' })
+		held.push({ name: 'multiple', label: __('Many values', 'gophenberg'), shape: 'choice', tab: 'general' })
+		held.push({ name: 'allow_custom', label: __('Allow custom', 'gophenberg'), shape: 'choice', tab: 'presentation' })
+		held.push({ name: 'allow_null', label: __('Allow empty', 'gophenberg'), shape: 'choice', tab: 'validation' })
 	}
 	if (holdsRows(kind)) {
-		held.push({ name: 'min', label: __('Fewest rows', 'gophenberg'), shape: 'number' })
-		held.push({ name: 'max', label: __('Most rows', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'min', label: __('Fewest rows', 'gophenberg'), shape: 'number', tab: 'validation' })
+		held.push({ name: 'max', label: __('Most rows', 'gophenberg'), shape: 'number', tab: 'validation' })
 	}
 	return held
 }

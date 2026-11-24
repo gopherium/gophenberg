@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
 import { gate } from './gate'
-import { fieldRow } from './groupFieldsFixtures'
+import { openField, showTab } from './groupFieldsFixtures'
 import { renderAt } from './render'
 import { expectReadOnly, waitBusy } from './typeFixtures'
 
@@ -64,15 +64,39 @@ async function openFields() {
 }
 
 /**
- * Opens the conditions dialog of the named field.
+ * Opens the named field in place, then its conditions dialog.
  * @param named - The field whose conditions to open.
  * @returns The conditions dialog.
  */
 async function openConditions(named: string) {
 	const fields = await openFields()
-	const row = await fieldRow(fields, named)
-	await userEvent.click(within(row).getByRole('button', { name: `Rules showing ${named}` }))
+	const part = await openField(fields, named)
+	await userEvent.click(within(part).getByRole('button', { name: `Rules showing ${named}` }))
 	return screen.findByRole('dialog', { name: `Rules showing ${named}` })
+}
+
+/**
+ * Records the body of every field edit the page sends, answering each with the sale note.
+ * @returns The bodies sent so far.
+ */
+function recordingEdits(): unknown[] {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(SALE_NOTE)
+		}),
+	)
+	return sent
+}
+
+/**
+ * Returns the Save button in the header of the group's page.
+ * @param main - The main work of the page.
+ * @returns The Save button.
+ */
+function saveOf(main: HTMLElement) {
+	return within(main).getByRole('button', { name: 'Save' })
 }
 
 /**
@@ -114,8 +138,25 @@ test('offers no rules on a field whose siblings cannot be read', async () => {
 
 	const dialog = await openFields()
 
-	const row = await fieldRow(dialog, 'Photo')
-	expect(within(row).queryByRole('button', { name: 'Rules showing Photo' })).not.toBeInTheDocument()
+	const part = await openField(dialog, 'Photo')
+	expect(within(part).queryByRole('button', { name: 'Rules showing Photo' })).not.toBeInTheDocument()
+	expect(within(part).getByRole('button', { name: 'Close field' })).toBeInTheDocument()
+})
+
+test('holds Rules back while the field holds unsaved changes, naming why beside it', async () => {
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Sale note')
+	const rules = within(part).getByRole('button', { name: 'Rules showing Sale note' })
+	expect(rules).not.toHaveAttribute('aria-disabled', 'true')
+	expect(within(part).queryByText('Unsaved changes')).toBeNull()
+
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+
+	expect(rules).toHaveAttribute('aria-disabled', 'true')
+	expect(within(part).getByText('Unsaved changes')).toBeInTheDocument()
+	await userEvent.click(rules)
+	expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).toBeNull()
 })
 
 test('stores a rule showing a field while a sibling holds', async () => {
@@ -552,9 +593,10 @@ test('stores the rules of a field standing inside a container', async () => {
 	const held = recordingSettings()
 	renderAt('/field-groups')
 	const fields = await openFields()
+	await openField(fields, 'Crew')
 
-	const row = within(fields).getByRole('listitem', { name: 'Fee' })
-	await userEvent.click(within(row).getByRole('button', { name: 'Rules showing Fee' }))
+	const part = await openField(fields, 'Fee')
+	await userEvent.click(within(part).getByRole('button', { name: 'Rules showing Fee' }))
 	const dialog = await screen.findByRole('dialog', { name: 'Rules showing Fee' })
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
@@ -567,51 +609,78 @@ test('stores the rules of a field standing inside a container', async () => {
 	)
 })
 
-test('puts a field in the admin list and takes it out again', async () => {
-	const held = recordingSettings()
+test('puts a field in the admin list from the Show in the list box of its Presentation tab', async () => {
+	const sent = recordingEdits()
 	renderAt('/field-groups')
 	const dialog = await openFields()
+	const part = await openField(dialog, 'Sale note')
 
-	const row = await fieldRow(dialog, 'Sale note')
-	await userEvent.click(within(row).getByRole('button', { name: 'Show Sale note in the list' }))
+	await showTab(part, 'Presentation')
+	await userEvent.click(within(part).getByRole('checkbox', { name: 'Show in the list' }))
+	await userEvent.click(saveOf(dialog))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({ settings: { listed: true }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([
+			{ label: 'Sale note', required: false, settings: { listed: true }, updated_at: '2026-08-01T10:00:00Z' },
+		]),
 	)
 })
 
 test('takes a field out of the admin list again', async () => {
 	const listed = { ...SALE_NOTE, settings: { listed: true } }
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [listed] }] })))
-	const held = recordingSettings()
+	const sent = recordingEdits()
 	renderAt('/field-groups')
 	const dialog = await openFields()
+	const part = await openField(dialog, 'Sale note')
 
-	const row = await fieldRow(dialog, 'Sale note')
-	await userEvent.click(within(row).getByRole('button', { name: 'Keep Sale note out of the list' }))
+	await showTab(part, 'Presentation')
+	const box = within(part).getByRole('checkbox', { name: 'Show in the list' })
+	expect(box).toBeChecked()
+	await userEvent.click(box)
+	await userEvent.click(saveOf(dialog))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({ settings: { listed: false }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([
+			{ label: 'Sale note', required: false, settings: { listed: false }, updated_at: '2026-08-01T10:00:00Z' },
+		]),
 	)
 })
 
-test('offers no list flip inside a container, where the list never reaches', async () => {
+test('counts no change once the Show in the list box is ticked and cleared again', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	const part = await openField(dialog, 'Sale note')
+	await showTab(part, 'Presentation')
+	const box = within(part).getByRole('checkbox', { name: 'Show in the list' })
+
+	await userEvent.click(box)
+	expect(saveOf(dialog)).not.toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(box)
+
+	expect(saveOf(dialog)).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('offers no Show in the list box inside a container, where the list never reaches', async () => {
 	const paid = { ...ON_SALE, key: 'paid', label: 'Paid' }
 	const crew = { ...ON_SALE, key: 'crew', label: 'Crew', kind: 'section', fields: [paid] }
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [crew] }] })))
 	renderAt('/field-groups')
-
 	const dialog = await openFields()
+	await openField(dialog, 'Crew')
 
-	const row = within(dialog).getByRole('listitem', { name: 'Paid' })
-	expect(within(row).queryByRole('button', { name: /in the list/ })).not.toBeInTheDocument()
+	const part = await openField(dialog, 'Paid')
+
+	await showTab(part, 'Presentation')
+	expect(within(part).queryByRole('checkbox', { name: 'Show in the list' })).not.toBeInTheDocument()
 })
 
-test('offers no list flip on a kind the list cannot show', async () => {
+test('offers no Show in the list box on a kind the list cannot show', async () => {
 	renderAt('/field-groups')
-
 	const dialog = await openFields()
 
-	const row = await fieldRow(dialog, 'Photo')
-	expect(within(row).queryByRole('button', { name: /in the list/ })).not.toBeInTheDocument()
+	const part = await openField(dialog, 'Photo')
+
+	await showTab(part, 'Presentation')
+	expect(within(part).queryByRole('checkbox', { name: 'Show in the list' })).not.toBeInTheDocument()
 })

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Badge, Button, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { FormDialog } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { conditionsOf, multipleOf, needsValue, operatorsFor } from './conditions'
-import { fieldRead, formAnswer, setFieldSettingsInGroup } from './groups'
+import { editFieldInGroup, fieldRead, formAnswer } from './groups'
 import { chosenOf } from './select'
 import { pairsOf } from './types'
 import type { ConditionRule } from './conditions'
@@ -242,17 +242,18 @@ interface ConditionsProps {
 	group: number
 	field: ContentField
 	siblings: ContentField[]
-	path?: string
+	path: string
 	onDone: (said: string) => Promise<void>
 	onRefused: (cause: unknown) => Promise<void>
 }
 
 /**
  * Renders the control editing the rules a field is shown under and, while it asks, its form.
- * @param props - The group, the field, its siblings, its path, and what to report.
- * @returns The control and its form, or nothing when no sibling can be read.
+ * @param props - The group, the field, its siblings, its path, whether the field holds a draft holding the control
+ * back, and what to report.
+ * @returns The control, the badge naming why it is off, and its form, or nothing when no sibling can be read.
  */
-export function FieldConditions(props: ConditionsProps) {
+export function FieldConditions(props: ConditionsProps & { held: boolean }) {
 	const [asking, setAsking] = useState(false)
 	const sources = conditionSources(props.siblings, props.field)
 	const title = sprintf(__('Rules showing %(field)s', 'gophenberg'), { field: props.field.label })
@@ -261,9 +262,18 @@ export function FieldConditions(props: ConditionsProps) {
 	}
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{__('Rules', 'gophenberg')}
-			</Button>
+			<Stack direction="row" gap="sm" align="center" wrap="wrap">
+				<Button
+					variant="outline"
+					size="compact"
+					aria-label={title}
+					disabled={props.held}
+					onClick={() => setAsking(true)}
+				>
+					{__('Rules', 'gophenberg')}
+				</Button>
+				{props.held && <Badge intent="draft">{__('Unsaved changes', 'gophenberg')}</Badge>}
+			</Stack>
 			{asking ? (
 				<ConditionsForm {...props} title={title} sources={sources} onClose={() => setAsking(false)} />
 			) : null}
@@ -281,7 +291,7 @@ function ConditionsForm(props: ConditionsProps & { title: string; sources: Conte
 	const [draft, setDraft] = useState<ConditionRule[][]>(() => conditionsOf(opened))
 	const save = useMutation({
 		mutationFn: (signal: AbortSignal) =>
-			setFieldSettingsInGroup(fieldRead(props, opened), storedConditions(opened.settings, draft), signal),
+			editFieldInGroup(fieldRead(props, opened), { settings: storedConditions(opened.settings, draft) }, signal),
 	})
 	const said = sprintf(__('%(field)s shows by its rules now.', 'gophenberg'), { field: props.field.label })
 	return (

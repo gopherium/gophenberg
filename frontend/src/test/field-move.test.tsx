@@ -6,17 +6,20 @@ import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
+import { gate } from './gate'
 import {
 	DETAILS,
 	EXTRAS,
 	fieldsOf,
 	listing,
+	openField,
 	openFields,
 	READING_TIME,
 	serveFieldGroups,
 	SUBTITLE,
 } from './groupFieldsFixtures'
 import { renderAt } from './render'
+import { expectReadOnly, waitBusy } from './typeFixtures'
 
 const NAME = { ...SUBTITLE, key: 'name', label: 'Name' }
 
@@ -146,8 +149,9 @@ test('carries a field out of a container to the top of its group', async () => {
 	listing([NESTED, EXTRAS])
 	renderAt('/field-groups')
 	const dialog = await openFields()
+	const author = await openField(dialog, 'Author')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Name elsewhere' }))
+	await userEvent.click(within(author).getByRole('button', { name: 'Move Name elsewhere' }))
 	const moving = await screen.findByRole('dialog', { name: 'Move Name elsewhere' })
 	await userEvent.click(within(moving).getByLabelText('Destination'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Article details' }))
@@ -176,8 +180,9 @@ test('offers a layout nothing but another flexible content field', async () => {
 	listing([{ ...DETAILS, fields: [BLOCKS, AUTHOR] }, { ...EXTRAS, fields: [gallery, BOX] }])
 	renderAt('/field-groups')
 	const dialog = await openFields()
+	const blocks = await openField(dialog, 'Blocks')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Quote elsewhere' }))
+	await userEvent.click(within(blocks).getByRole('button', { name: 'Move Quote elsewhere' }))
 	const moving = await screen.findByRole('dialog', { name: 'Move Quote elsewhere' })
 	await userEvent.click(within(moving).getByLabelText('Destination'))
 
@@ -279,6 +284,51 @@ test('keeps a field where it is when the move is dismissed', async () => {
 		expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument(),
 	)
 	expect(hit).toBe(false)
+})
+
+test('keeps the destination of a field read only while its move runs', async () => {
+	const answer = gate()
+	server.use(
+		http.post('/api/groups/3/fields/subtitle/move', async () => {
+			await answer.held
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	await userEvent.click(within(main).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+	await waitBusy(moving, 'Move the field')
+
+	expectReadOnly(moving)
+	answer.release()
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument())
+})
+
+test('holds Move back while a draft is held in or under the field, and lets it go once discarded', async () => {
+	listing([NESTED, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+	const subtitle = await openField(main, 'Subtitle')
+
+	await userEvent.type(within(subtitle).getByRole('textbox', { name: 'Label' }), ' line')
+
+	const move = within(main).getByRole('button', { name: 'Move Subtitle elsewhere' })
+	expect(move).toHaveAttribute('aria-disabled', 'true')
+	const other = within(main).getByRole('button', { name: 'Move Reading time elsewhere' })
+	expect(other).not.toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(move)
+	expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).toBeNull()
+	await userEvent.click(within(subtitle).getByRole('button', { name: 'Discard changes' }))
+	expect(move).not.toHaveAttribute('aria-disabled', 'true')
+
+	await openField(main, 'Author')
+	const name = await openField(main, 'Name')
+	await userEvent.type(within(name).getByRole('textbox', { name: 'Label' }), ' line')
+	expect(within(main).getByRole('button', { name: 'Move Author elsewhere' })).toHaveAttribute('aria-disabled', 'true')
+	expect(within(main).getByRole('button', { name: 'Move Name elsewhere' })).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('carries a field to the first place still on offer once the group picked left while it asked', async () => {

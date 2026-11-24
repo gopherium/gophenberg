@@ -10,7 +10,7 @@ import { backlinkSettings, backlinkSources, createFieldInGroup, createSubField }
 import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import { pluralOf } from './typeText'
-import { kindsInside, pickedKind, requirable, slugifyKey } from './types'
+import { kindsInside, pickedKind, slugifyKey } from './types'
 import type { Reporter } from './fieldControls'
 import type { BacklinkSources, FieldGroup } from './groups'
 import type { Choice } from './select'
@@ -78,7 +78,6 @@ interface DraftAnswers {
 	picked: PickedKind
 	target: Choice | undefined
 	holding: Choice
-	presence: Choice
 	sources: BacklinkSources
 }
 
@@ -87,7 +86,6 @@ interface DraftOffers {
 	kinds: Choice[]
 	targets: Choice[]
 	holdings: Choice[]
-	presences: Choice[]
 }
 
 /** What changes each answer the controls of a new field hold. */
@@ -96,7 +94,6 @@ interface DraftChanges {
 	kind: (kind: Choice) => void
 	target: (key: string) => void
 	holding: (holding: Choice) => void
-	presence: (presence: Choice) => void
 	sourceGroup: (key: string) => void
 	sourceField: (key: string) => void
 }
@@ -109,10 +106,6 @@ interface DraftChanges {
 export function useFieldDraft(props: FieldPlace): FieldDraft {
 	const [kinds] = useState(() => kindsInside(props.parent))
 	const targets = props.types.map((listed) => ({ label: pluralOf(listed), value: listed.key }))
-	const [presences] = useState<Choice[]>([
-		{ label: __('No', 'gophenberg'), value: 'optional' },
-		{ label: __('Yes', 'gophenberg'), value: 'required' },
-	])
 	const [holdings] = useState<Choice[]>([
 		{ label: __('Many targets', 'gophenberg'), value: 'many' },
 		{ label: __('One target', 'gophenberg'), value: 'one' },
@@ -120,7 +113,6 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 	const [label, setLabel] = useState('')
 	const [kind, setKind] = useState(kinds[0])
 	const [targetKey, setTargetKey] = useState('')
-	const [presence, setPresence] = useState(presences[0])
 	const [holding, setHolding] = useState(holdings[0])
 	const [sourceKey, setSourceKey] = useState('')
 	const [throughKey, setThroughKey] = useState('')
@@ -130,7 +122,6 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 		picked: pickedKind(kind.value),
 		target: targets.find((held) => held.value === targetKey) ?? targets[0],
 		holding,
-		presence,
 		sources: backlinkSources(props.groups ?? [], sourceKey, throughKey),
 	}
 	const add = useMutation({
@@ -146,7 +137,6 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 		kind: setKind,
 		target: setTargetKey,
 		holding: setHolding,
-		presence: setPresence,
 		sourceGroup: setSourceKey,
 		sourceField: setThroughKey,
 	}
@@ -154,7 +144,7 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 		controls: (
 			<DraftControls
 				draft={draft}
-				offers={{ kinds, targets, holdings, presences }}
+				offers={{ kinds, targets, holdings }}
 				change={change}
 				readOnly={add.isPending}
 			/>
@@ -180,7 +170,7 @@ function draftBlocked(draft: DraftAnswers): boolean {
 }
 
 /**
- * Returns the field the controls ask to declare.
+ * Returns the field the controls ask to declare, optional until its open field makes it required.
  * @param draft - What the controls hold.
  * @returns The field to declare.
  */
@@ -193,7 +183,7 @@ function askedField(draft: DraftAnswers): NewField {
 		kind: picked.kind,
 		relatesTo: relating ? draft.target?.value : undefined,
 		many: relating ? draft.holding.value === 'many' : picked.many,
-		required: requirable(picked.kind) && draft.presence.value === 'required',
+		required: false,
 		settings: picked.kind === 'backlinks' ? backlinkSettings(draft.sources) : picked.settings,
 	}
 }
@@ -205,7 +195,7 @@ function askedField(draft: DraftAnswers): NewField {
  */
 function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change: DraftChanges; readOnly: boolean }) {
 	const { draft, offers, change, readOnly } = props
-	const { kind, target, holding, presence } = draft
+	const { kind, target, holding } = draft
 	const relating = draft.picked.kind === 'relation'
 	return (
 		<>
@@ -248,15 +238,6 @@ function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change
 					readOnly={readOnly}
 					onGroup={change.sourceGroup}
 					onField={change.sourceField}
-				/>
-			)}
-			{requirable(draft.picked.kind) && (
-				<SelectControl
-					label={__('Required', 'gophenberg')}
-					items={offers.presences}
-					value={presence}
-					readOnly={readOnly}
-					onValueChange={(item) => change.presence(chosenOf(item, offers.presences, presence))}
 				/>
 			)}
 		</>

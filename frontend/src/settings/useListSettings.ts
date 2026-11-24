@@ -19,6 +19,14 @@ export function useListSettings() {
  * Reads the settings every list follows once a screen loaded them, never asking the server itself.
  * @returns The list settings query, whose data is the settings once a screen loaded them.
  */
-export function useLoadedListSettings() {
+function useLoadedListSettings() {
 	return useQuery({ queryKey: listSettingsQueryKey, queryFn: fetchListSettings, staleTime: 'static', enabled: false })
+}
+
+/**
+ * Returns the time limit a busy write gets, the one the site serves once a screen loaded its settings.
+ * @returns The time limit in milliseconds, Infinity while the settings are not loaded.
+ */
+export function useWriteTimeout(): number {
+	return useLoadedListSettings().data?.dialog_write_timeout_milliseconds ?? Infinity
 }

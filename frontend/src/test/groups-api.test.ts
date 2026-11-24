@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import {
 	backlinkSources,
@@ -13,13 +13,12 @@ import {
 	listRuleSources,
 	createSubField,
 	deleteSubField,
+	editFieldInGroup,
 	moveField,
 	pickOf,
-	renameFieldInGroup,
+	RejectedWriteError,
 	reorderFieldsInGroup,
 	reorderGroups,
-	setFieldRequiredInGroup,
-	setFieldSettingsInGroup,
 	StaleWriteError,
 	staleGroupMessage,
 	updateGroup,
@@ -170,6 +169,20 @@ test.each([
 	expect(sent).toEqual(body)
 })
 
+test('sends no group edit once its signal stopped', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(GROUP_ROW)
+		}),
+	)
+
+	await expect(updateGroup(groupRead, { title: 'Renamed' }, AbortSignal.abort())).rejects.toBeDefined()
+
+	expect(sent).toEqual([])
+})
+
 test('names the group someone saved after it was read', async () => {
 	server.use(
 		http.patch('/api/groups/3', () =>
@@ -255,52 +268,122 @@ test('declares a field inside a group', async () => {
 	expect(declared.key).toBe('subtitle')
 })
 
-test('renames a field inside its group', async () => {
-	let sent: unknown
+const SUBTITLE_READ = { group: 3, key: 'subtitle', updatedAt: stampRead }
+
+test('sends the label, the required flag and the settings of a field in one request with its stamp', async () => {
+	const sent: unknown[] = []
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE_ROW, label: 'Renamed' })
+			sent.push(await request.json())
+			return HttpResponse.json({ ...SUBTITLE_ROW, label: 'Strapline', required: false, settings: { maxlength: 80 } })
 		}),
 	)
 
-	const renamed = await renameFieldInGroup({ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' }, 'Renamed')
+	const edited = await editFieldInGroup(SUBTITLE_READ, {
+		label: 'Strapline',
+		required: false,
+		settings: { maxlength: 80 },
+	})
 
-	expect(sent).toEqual({ label: 'Renamed', updated_at: '2026-08-01T10:00:00Z' })
-	expect(renamed.label).toBe('Renamed')
+	expect(sent).toEqual([
+		{ label: 'Strapline', required: false, settings: { maxlength: 80 }, updated_at: stampRead },
+	])
+	expect(edited).toMatchObject({ label: 'Strapline', required: false, settings: { maxlength: 80 } })
 })
 
-test('stores whether a field gates publishing', async () => {
-	let sent: unknown
+test.each([
+	{ what: 'a label alone', parts: { label: 'Strapline' }, body: { label: 'Strapline', updated_at: stampRead } },
+	{ what: 'a required flag alone', parts: { required: true }, body: { required: true, updated_at: stampRead } },
+	{
+		what: 'settings alone',
+		parts: { settings: { listed: true } },
+		body: { settings: { listed: true }, updated_at: stampRead },
+	},
+])('sends $what when a field edit names only that part', async ({ parts, body }) => {
+	const sent: unknown[] = []
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE_ROW, required: false })
+			sent.push(await request.json())
+			return HttpResponse.json(SUBTITLE_ROW)
 		}),
 	)
 
-	const eased = await setFieldRequiredInGroup({ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' }, false)
+	await editFieldInGroup(SUBTITLE_READ, parts)
 
-	expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' })
-	expect(eased.required).toBe(false)
+	expect(sent).toEqual([body])
 })
 
-test('stores the settings a field carries', async () => {
-	let sent: unknown
+test('edits a field inside a container on its dotted path', async () => {
+	let hit = ''
 	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE_ROW, settings: { maxlength: 80 } })
+		http.patch('/api/groups/3/fields/:path', ({ params }) => {
+			hit = String(params.path)
+			return HttpResponse.json(SUBTITLE_ROW)
 		}),
 	)
 
-	const bounded = await setFieldSettingsInGroup(
-		{ group: 3, key: 'subtitle', updatedAt: '2026-08-01T10:00:00Z' },
-		{ maxlength: 80 },
+	await editFieldInGroup({ ...SUBTITLE_READ, key: 'team.role' }, { required: true })
+
+	expect(hit).toBe('team.role')
+})
+
+test('hands a field edit its signal, so a stopped signal stops the request', async () => {
+	const stopped: boolean[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', ({ request }) => {
+			stopped.push(request.signal.aborted)
+			return new Promise<never>(() => {})
+		}),
+	)
+	const controller = new AbortController()
+
+	const editing = editFieldInGroup(SUBTITLE_READ, { required: true }, controller.signal)
+	await vi.waitFor(() => expect(stopped).toEqual([false]))
+	controller.abort()
+
+	await expect(editing).rejects.toBeDefined()
+})
+
+test('keeps the code and the setting a rejected field edit names', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: settings disagree: default', code: 'setting_bounds', meta: { setting: 'default' } },
+				{ status: 422 },
+			),
+		),
 	)
 
-	expect(sent).toEqual({ settings: { maxlength: 80 }, updated_at: '2026-08-01T10:00:00Z' })
-	expect(bounded.settings).toEqual({ maxlength: 80 })
+	const failure = await editFieldInGroup(SUBTITLE_READ, { settings: { maxlength: 2, default: 'far too long' } }).catch(
+		(cause: unknown) => cause,
+	)
+
+	expect(failure).toBeInstanceOf(RejectedWriteError)
+	expect(failure).not.toBeInstanceOf(StaleWriteError)
+	expect(failure).toMatchObject({ code: 'setting_bounds', meta: { setting: 'default' } })
+	expect((failure as Error).message).toMatch(/default/)
+})
+
+test('names a field edit someone saved after it was read as stale', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+
+	const failure = await editFieldInGroup(SUBTITLE_READ, { label: 'Strapline' }).catch((cause: unknown) => cause)
+
+	expect(failure).toBeInstanceOf(StaleWriteError)
+	expect(failure).toMatchObject({ code: 'content_stale_update' })
+})
+
+test('keeps no code on a rejection whose answer carries no JSON', async () => {
+	server.use(http.patch('/api/groups/3/fields/subtitle', () => new HttpResponse('gone wrong', { status: 500 })))
+
+	const failure = await editFieldInGroup(SUBTITLE_READ, { label: 'Strapline' }).catch((cause: unknown) => cause)
+
+	expect(failure).toBeInstanceOf(RejectedWriteError)
+	expect(failure).toMatchObject({ code: '', meta: {} })
 })
 
 test('stores the declaration order of a group', async () => {
@@ -343,8 +426,8 @@ test.each([
 		'/api/groups/3/fields',
 	],
 	[
-		'renameFieldInGroup',
-		() => renameFieldInGroup({ group: 3, key: 'a', updatedAt: '2026-08-01T10:00:00Z' }, 'B'),
+		'editFieldInGroup',
+		() => editFieldInGroup({ group: 3, key: 'a', updatedAt: '2026-08-01T10:00:00Z' }, { label: 'B' }),
 		'patch',
 		'/api/groups/3/fields/a',
 	],

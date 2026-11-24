@@ -3,7 +3,7 @@
 import { AdminRoot } from '@gopherium/godmin'
 import type { ReactNode } from 'react'
 
-import { useLoadedListSettings } from './settings/useListSettings'
+import { useWriteTimeout } from './settings/useListSettings'
 
 /**
  * Hosts the admin, giving a busy dialog's write the time limit the site serves once its settings loaded.
@@ -11,6 +11,5 @@ import { useLoadedListSettings } from './settings/useListSettings'
  * @returns The host element.
  */
 export function AdminHost({ children }: { children: ReactNode }) {
-	const settings = useLoadedListSettings().data
-	return <AdminRoot writeTimeout={settings?.dialog_write_timeout_milliseconds ?? Infinity}>{children}</AdminRoot>
+	return <AdminRoot writeTimeout={useWriteTimeout()}>{children}</AdminRoot>
 }

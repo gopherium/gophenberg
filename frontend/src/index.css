@@ -47,21 +47,8 @@
 	overflow: hidden;
 }
 
-.gophenberg-fields__list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.gophenberg-fields__list > li {
-	padding: 12px 0;
-}
-
-.gophenberg-fields__list > li + li {
-	border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
-}
-
-.gophenberg-fields__actions button {
+.gophenberg-fields__label > :not(.godmin-table__toggle),
+.gophenberg-fields__label > :not(.godmin-table__toggle) * {
 	white-space: nowrap;
 }
 

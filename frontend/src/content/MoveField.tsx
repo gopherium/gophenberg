@@ -80,12 +80,13 @@ function landingsFor(groups: FieldGroup[], group: number, at: string, kind: stri
 }
 
 /**
- * Renders the control carrying a field to a group's top or into a container.
- * @param props - The group, the field, its path, every group it may land in, and what to report.
+ * Renders the control carrying a field to a group's top or into a container, off while the field holds a draft.
+ * @param props - The group, the field, its dotted path, every group it may land in, whether it or a field inside it
+ * holds unsaved changes, and what to report.
  * @returns The control and its dialog, or nothing when there is nowhere to carry it.
  */
-export function CarryField(props: Inside & { groups: FieldGroup[] }) {
-	const at = props.path ?? props.field.key
+export function CarryField(props: Inside & { groups: FieldGroup[]; path: string; held: boolean }) {
+	const at = props.path
 	const landings = landingsFor(props.groups, props.group, at, props.field.kind)
 	const first = landings[0]
 	if (first === undefined) {
@@ -98,6 +99,7 @@ export function CarryField(props: Inside & { groups: FieldGroup[] }) {
 			at={at}
 			landings={landings}
 			first={first}
+			held={props.held}
 			onDone={props.onDone}
 			onRefused={props.onRefused}
 		/>
@@ -113,14 +115,16 @@ interface Carried {
 
 /**
  * Renders the control carrying a field elsewhere and, while it asks, the form choosing where it lands.
- * @param props - The group, the field, its path, the landings on offer, the first of them, and what to report.
+ * @param props - The group, the field, its path, the landings on offer, the first of them, whether a draft holds the
+ * control back, and what to report.
  * @returns The control and its form.
  */
-function CarryDialog(props: Inside & Carried) {
+function CarryDialog(props: Inside & Carried & { held: boolean }) {
 	return (
 		<DialogButton
 			words={__('Move', 'gophenberg')}
 			title={sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })}
+			disabled={props.held}
 			dialog={(asked) => <CarryForm {...props} {...asked} />}
 		/>
 	)

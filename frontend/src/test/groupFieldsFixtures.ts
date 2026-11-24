@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach } from 'vitest'
+import { beforeEach, expect } from 'vitest'
 
 /** The title a group holding no fields shows where its fields table would be. */
 export const NO_FIELDS = 'No fields yet'
@@ -123,10 +123,10 @@ export function fieldsOf(main: HTMLElement) {
  * Reports whether a row of the fields table is a field's own row and shows the label in its Label cell.
  * @param row - The row of the table.
  * @param label - The label looked for.
- * @returns Whether the row is the field's, not the header nor the row listing the fields inside a container.
+ * @returns Whether the row is the field's, not the header nor the row that opens under a field.
  */
 function labelledRow(row: HTMLElement, label: string) {
-	const [first, second] = within(row).queryAllByRole('cell')
+	const [first, second] = [...(row as HTMLTableRowElement).cells]
 	return second !== undefined && within(first).queryByText(label, { exact: true }) !== null
 }
 
@@ -146,6 +146,57 @@ export async function fieldRow(main: HTMLElement, label: string) {
 		}
 		return row
 	})
+}
+
+/**
+ * Returns the label button that opens and closes a field under its row.
+ * @param row - The field's own row.
+ * @param label - The label the field shows.
+ * @returns The toggle.
+ */
+export function toggleOf(row: HTMLElement, label: string) {
+	return within(row).getByRole('button', { name: label })
+}
+
+/**
+ * Returns the row that opens under a field's own row.
+ * @param row - The field's own row.
+ * @returns The row holding the open part.
+ */
+export function partOf(row: HTMLElement) {
+	return row.nextElementSibling as HTMLElement
+}
+
+/**
+ * Opens a field from the label in its row and returns the row that opened under it.
+ * @param main - The main work of the page.
+ * @param label - The label the field shows.
+ * @returns The row holding the open part.
+ */
+export async function openField(main: HTMLElement, label: string) {
+	const row = await fieldRow(main, label)
+	await userEvent.click(toggleOf(row, label))
+	const part = partOf(row)
+	await waitFor(() => expect(part).not.toHaveAttribute('hidden'))
+	return part
+}
+
+/**
+ * Shows one tab of an open field.
+ * @param part - The row holding the open part.
+ * @param name - The name of the tab.
+ */
+export async function showTab(part: HTMLElement, name: string) {
+	await userEvent.click(within(part).getByRole('tab', { name }))
+}
+
+/**
+ * Returns the Save button in the header of a group's page.
+ * @param main - The main work of the page.
+ * @returns The Save button.
+ */
+export function saveOf(main: HTMLElement) {
+	return within(main).getByRole('button', { name: 'Save' })
 }
 
 /** Serves the post type and the article details and extras groups before each test of the calling file. */

@@ -11,453 +11,393 @@ import {
 	DETAILS,
 	EXTRAS,
 	FEATURES,
+	fieldRow,
 	HERO,
 	listing,
+	openField,
 	openFields,
 	READING_TIME,
+	saveOf,
 	serveFieldGroups,
+	showTab,
 	SUBTITLE,
+	toggleOf,
 } from './groupFieldsFixtures'
-import { renderAt } from './render'
-import { expectReadOnly, waitBusy } from './typeFixtures'
+import { renderAt, renderRoutedAt } from './render'
+import { siteSettings } from './siteSettings'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
+
+const READ_STAMP = '2026-08-01T10:00:00Z'
+
+const OTHER_SAVE_STAMP = '2026-08-02T09:00:00Z'
+
+/** A time limit far shorter than any test. */
+const SHORT_LIMIT = 20
 
 serveFieldGroups()
 
-test('renames a field without moving what is stored under it', async () => {
-	let sent: unknown
+/**
+ * Returns how many milliseconds pass, so a request that went out has the time to arrive.
+ * @returns A promise settling once the time has passed.
+ */
+function aMoment() {
+	return act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+}
+
+/**
+ * Reports whether the header Save showed the spinner of a run while a step ran or just after.
+ * @param main - The main work of the page.
+ * @param step - The step to watch.
+ * @returns Whether a run started.
+ */
+async function turnedBusy(main: HTMLElement, step: () => Promise<void>): Promise<boolean> {
+	const save = saveOf(main)
+	let busy = false
+	const watch = new MutationObserver(() => {
+		busy ||= /__is-loading\b/.test(save.className)
+	})
+	watch.observe(save, { attributes: true, attributeFilter: ['class'] })
+	await step()
+	await aMoment()
+	watch.disconnect()
+	return busy
+}
+
+/**
+ * Returns what the header Save shows: off, on, or absent from a page with nothing to save.
+ * @param main - The main work of the page.
+ * @returns The state of the button.
+ */
+function saveState(main: HTMLElement): 'off' | 'on' | 'absent' {
+	const save = within(main).queryByRole('button', { name: 'Save' })
+	if (save === null) {
+		return 'absent'
+	}
+	return save.getAttribute('aria-disabled') === 'true' ? 'off' : 'on'
+}
+
+/** One field edit the page sent: the dotted path it named and the body it carried. */
+interface SentEdit {
+	path: string
+	body: unknown
+}
+
+/**
+ * Records every field edit the page sends, answering each with the field as stored.
+ * @param stored - The field each edit answers with.
+ * @returns The edits sent so far.
+ */
+function recordingEdits(stored: object = SUBTITLE): SentEdit[] {
+	const sent: SentEdit[] = []
 	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, label: 'Standfirst' })
+		http.patch('/api/groups/3/fields/:path', async ({ request, params }) => {
+			sent.push({ path: String(params.path), body: await request.json() })
+			return HttpResponse.json(stored)
 		}),
 	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
+	return sent
+}
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	const box = within(renaming).getByLabelText('Name')
+/**
+ * Returns the Label cell of a field's own row.
+ * @param row - The field's own row.
+ * @returns The cell.
+ */
+function labelOf(row: HTMLElement) {
+	return (row as HTMLTableRowElement).cells[0]
+}
+
+/**
+ * Returns the body a field edit sends when only the parts named move.
+ * @param field - The field as read.
+ * @param field.label - The label the field holds.
+ * @param field.required - Whether the field is required.
+ * @param moved - The parts the edit changes.
+ * @returns The body.
+ */
+function editOf(field: { label: string; required: boolean }, moved: Record<string, unknown>) {
+	return { label: field.label, required: field.required, settings: {}, updated_at: READ_STAMP, ...moved }
+}
+
+test('sends the new label of a field from the header Save without moving what is stored under it', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+
+	const box = within(part).getByRole('textbox', { name: 'Label' })
 	await userEvent.clear(box)
 	await userEvent.type(box, 'Standfirst')
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(sent).toEqual({ label: 'Standfirst', updated_at: '2026-08-01T10:00:00Z' }),
-	)
+	await waitFor(() => expect(sent).toEqual([{ path: 'subtitle', body: editOf(SUBTITLE, { label: 'Standfirst' }) }]))
 })
 
-test('requires a field that was optional', async () => {
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, required: true })
-		}),
-	)
+test('requires a field that was optional from the Required box of its Validation tab', async () => {
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Require Subtitle' }))
+	await showTab(part, 'Validation')
+	await userEvent.click(within(part).getByRole('checkbox', { name: 'Required' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(sent).toEqual({ required: true, updated_at: '2026-08-01T10:00:00Z' }),
-	)
+	await waitFor(() => expect(sent).toEqual([{ path: 'subtitle', body: editOf(SUBTITLE, { required: true }) }]))
 })
 
 test('makes a required field optional again', async () => {
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/reading-time', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...READING_TIME, required: false })
-		}),
-	)
+	const sent = recordingEdits(READING_TIME)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Reading time')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Make Reading time optional' }))
+	await showTab(part, 'Validation')
+	const required = within(part).getByRole('checkbox', { name: 'Required' })
+	expect(required).toBeChecked()
+	await userEvent.click(required)
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([{ path: 'reading-time', body: editOf(READING_TIME, { required: false }) }]),
 	)
 })
 
-test('renames on the timestamp the dialog opened with, not one that landed while it was open', async () => {
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, label: 'Standfirst' })
-		}),
+test('sends one edit per changed field in the order the page shows them', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const later = await openField(main, 'Reading time')
+	const first = await openField(main, 'Subtitle')
+
+	await showTab(later, 'Validation')
+	await userEvent.type(within(later).getByRole('spinbutton', { name: 'Lowest' }), '1')
+	await userEvent.type(within(first).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() =>
+		expect(sent).toEqual([
+			{ path: 'subtitle', body: editOf(SUBTITLE, { label: 'Subtitle line' }) },
+			{ path: 'reading-time', body: editOf(READING_TIME, { settings: { min: 1 } }) },
+		]),
 	)
-	const client = renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	const box = within(renaming).getByLabelText('Name')
+})
+
+test('sends back the settings no tab shows, so an email field stays one and keeps its rules', async () => {
+	const rules = [[{ source: 'reading-time', operator: '==', value: '5' }]]
+	const contact = { ...SUBTITLE, key: 'contact', label: 'Contact', settings: { variant: 'email', conditions: rules } }
+	listing([{ ...DETAILS, fields: [contact, READING_TIME] }, EXTRAS])
+	const sent = recordingEdits(contact)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Contact')
+
+	await showTab(part, 'Presentation')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Instructions' }), 'Write to maria.perez@example.com')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() =>
+		expect(sent).toEqual([
+			{
+				path: 'contact',
+				body: editOf(contact, {
+					settings: { variant: 'email', conditions: rules, instructions: 'Write to maria.perez@example.com' },
+				}),
+			},
+		]),
+	)
+})
+
+test('keeps Save off until a field changes, and off again once the change is undone', async () => {
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	const box = within(part).getByRole('textbox', { name: 'Label' })
+
+	await userEvent.type(box, 's')
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.type(box, '{Backspace}')
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('asks before the page is left while only a field holds unsaved changes', async () => {
+	const { router } = renderRoutedAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+
+	const trail = within(main).getByRole('navigation', { name: 'Breadcrumbs' })
+	await userEvent.click(within(trail).getByRole('link', { name: 'Field Groups' }))
+
+	expect(await screen.findByRole('alertdialog', { name: 'Discard changes?' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+})
+
+test('drops the draft and closes the field on Discard changes, the focus back on its label', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	expect(within(part).queryByRole('button', { name: 'Discard changes' })).toBeNull()
+	const box = within(part).getByRole('textbox', { name: 'Label' })
 	await userEvent.clear(box)
 	await userEvent.type(box, 'Standfirst')
 
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
-		EXTRAS,
-	])
-	await act(async () => {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-	})
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+	await userEvent.click(within(part).getByRole('button', { name: 'Discard changes' }))
 
-	await waitFor(() =>
-		expect(sent).toEqual({ label: 'Standfirst', updated_at: '2026-08-01T10:00:00Z' }),
-	)
+	const toggle = toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')
+	expect(toggle).toHaveAttribute('aria-expanded', 'false')
+	expect(toggle).toHaveFocus()
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(toggle)
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle')
+	expect(sent).toEqual([])
 })
 
-test('settles on the timestamp the dialog opened with, not one that landed while it was open', async () => {
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	const client = renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
-
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
-		EXTRAS,
-	])
-	await act(async () => {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-	})
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
-
-	await waitFor(() =>
-		expect(sent).toEqual({
-			settings: { instructions: 'Say who wrote it.' },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
-})
-
-test('renames the same field twice in one sitting', async () => {
-	const sent: unknown[] = []
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent.push(await request.json())
-			listing([
-				{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
-				EXTRAS,
-			])
-			return HttpResponse.json({ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' })
-		}),
-	)
+test('keeps the draft of a field closed with Close field, shown again once it reopens', async () => {
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
-			name: 'Rename',
-		}),
-	)
-	await waitFor(() => expect(sent).toHaveLength(1))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
-			name: 'Rename',
-		}),
-	)
+	await userEvent.click(within(part).getByRole('button', { name: 'Close field' }))
+	await userEvent.click(toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle'))
 
-	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
 })
 
-test('reads the field afresh after a settings save lost to a concurrent edit', async () => {
-	const sent: unknown[] = []
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent.push(await request.json())
-			if (sent.length > 1) {
-				return HttpResponse.json(SUBTITLE)
-			}
-			listing([
-				{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
-				EXTRAS,
-			])
-			return HttpResponse.json(
-				{ error: 'content: conflicting update', code: 'content_stale_update' },
-				{ status: 409 },
-			)
-		}),
-	)
+test('runs the header Save from Enter in a box of an open field', async () => {
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	await userEvent.type(
-		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByLabelText(
-			'Instructions',
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line{Enter}')
+
+	await waitFor(() => expect(sent).toEqual([{ path: 'subtitle', body: editOf(SUBTITLE, { label: 'Subtitle line' }) }]))
+	expect(await findToast('Article details updated.')).toBeInTheDocument()
+})
+
+test('closes a field once its save landed, the focus back on its label', async () => {
+	recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	const kept = await openField(main, 'Reading time')
+
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line{Enter}')
+
+	const toggle = toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')
+	await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'))
+	expect(toggle).toHaveFocus()
+	expect(within(labelOf(await fieldRow(main, 'Subtitle'))).queryByText('Unsaved changes')).toBeNull()
+	expect(toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')).toHaveAttribute('aria-expanded', 'true')
+	expect(kept).not.toHaveAttribute('hidden')
+})
+
+test('sends nothing from Enter in an open field while nothing changed', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Reading time')
+	await showTab(part, 'Validation')
+
+	const enter = () => userEvent.type(within(part).getByRole('spinbutton', { name: 'Lowest' }), '{Enter}')
+
+	expect(await turnedBusy(main, enter)).toBe(false)
+	expect(sent).toEqual([])
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('stops a field save past the time limit the site serves, naming the field groups unreached', async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
 		),
-		'Say who wrote it.',
-	)
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
-			name: 'Save settings',
-		}),
-	)
-	await within(dialog).findByRole('alert')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
-			name: 'Save settings',
-		}),
-	)
-
-	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
-})
-
-test('reads the field afresh even when the listing is slow to answer', async () => {
-	const sent: unknown[] = []
-	let stamp = '2026-08-01T10:00:00Z'
-	server.use(
-		http.get('/api/groups', async () => {
-			await new Promise((settle) => setTimeout(settle, 50))
-			return HttpResponse.json({
-				items: [
-					{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: stamp }, READING_TIME] },
-					EXTRAS,
-				],
-			})
-		}),
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent.push(await request.json())
-			if (sent.length > 1) {
-				return HttpResponse.json(SUBTITLE)
-			}
-			stamp = '2026-08-02T09:00:00Z'
-			return HttpResponse.json(
-				{ error: 'content: conflicting update', code: 'content_stale_update' },
-				{ status: 409 },
-			)
-		}),
+		http.patch('/api/groups/3/fields/subtitle', () => new Promise<never>(() => {})),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
-			name: 'Save settings',
-		}),
-	)
-	await within(dialog).findByRole('alert')
-	await waitFor(() =>
-		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).toBeNull(),
-	)
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	await userEvent.click(
-		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
-			name: 'Save settings',
-		}),
-	)
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+	expect(await findToast('Could not save Subtitle. The field groups could not be reached.')).toBeInTheDocument()
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
 })
 
-test('keeps the rename open on the name typed and says inside why it was turned away', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () =>
-			HttpResponse.json(
-				{ error: 'content: field label required', code: 'field_label_required' },
-				{ status: 422 },
-			),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	const box = within(renaming).getByLabelText('Name')
-	await userEvent.clear(box)
-	await userEvent.type(box, 'Standfirst')
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
-
-	const said = 'A field needs a name. Type one and try again.'
-	expect(await within(renaming).findByText(said)).toBeInTheDocument()
-	expect(screen.getAllByText(said)).toHaveLength(1)
-	expect(screen.getByRole('dialog', { name: 'Rename Subtitle' })).toBe(renaming)
-	expect(within(renaming).getByLabelText('Name')).toHaveValue('Standfirst')
-})
-
-test('reports a rename that lost to a concurrent edit', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () =>
-			HttpResponse.json(
-				{ error: 'content: conflicting update', code: 'content_stale_update' },
-				{ status: 409 },
-			),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
-
-	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/someone else saved/i)
-})
-
-test('keeps the name when a rename is dismissed', async () => {
-	let hit = false
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () => {
-			hit = true
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Subtitle' })).not.toBeInTheDocument())
-	expect(hit).toBe(false)
-})
-
-test.each([
-	{ form: 'Rename Subtitle', send: 'Rename' },
-	{ form: 'Settings of Subtitle', send: 'Save settings' },
-	{ form: 'Move Subtitle elsewhere', send: 'Move the field' },
-])('keeps every control of $form read only while its write runs', async ({ form, send }) => {
+test('keeps every box of an open field read only and Discard changes off while the header Save runs', async () => {
 	const answer = gate()
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', async () => {
 			await answer.held
 			return HttpResponse.json(SUBTITLE)
 		}),
-		http.post('/api/groups/3/fields/subtitle/move', async () => {
-			await answer.held
-			return HttpResponse.json(SUBTITLE)
-		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await showTab(part, 'Presentation')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Instructions' }), 'Say who wrote it.')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: form }))
-	const asked = await screen.findByRole('dialog', { name: form })
-	await userEvent.click(within(asked).getByRole('button', { name: send }))
-	await waitBusy(asked, send)
+	await userEvent.click(saveOf(main))
+	await waitBusy(main, 'Save')
 
-	expectReadOnly(asked)
+	expectReadOnly(part)
+	expect(within(part).getByRole('button', { name: 'Discard changes' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: form })).not.toBeInTheDocument())
+	const instructions = within(part).getByRole('textbox', { name: 'Instructions' })
+	await waitFor(() => expect(instructions).not.toHaveAttribute('readonly'))
 })
 
-test('offers the settings a text field takes and stores them', async () => {
-	let sent: unknown
+test('saves on the stamp the field was read at as the draft began, not one that landed after', async () => {
+	const sent = recordingEdits()
+	const client = renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: OTHER_SAVE_STAMP }, READING_TIME] }, EXTRAS])
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+	})
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ path: 'subtitle', body: editOf(SUBTITLE, { label: 'Subtitle line' }) }]))
+})
+
+test('saves the same field twice in one sitting, the second time on the stamp the first save left', async () => {
+	const sent: unknown[] = []
+	const saved = { ...SUBTITLE, label: 'Subtitle line', updated_at: OTHER_SAVE_STAMP }
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, settings: { maxlength: 80 } })
+			sent.push(await request.json())
+			listing([{ ...DETAILS, fields: [saved, READING_TIME] }, EXTRAS])
+			return HttpResponse.json(saved)
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	const box = within(part).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(box, ' line')
+	await userEvent.click(saveOf(main))
+	await waitFor(() => expect(box).toHaveValue('Subtitle line'))
+	await waitFor(() => expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true'))
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
-	await userEvent.type(within(settings).getByLabelText('Longest'), '80')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await openField(main, 'Subtitle line')
+	await userEvent.type(box, ' again')
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(sent).toEqual({
-			settings: { instructions: 'Say who wrote it.', maxlength: 80 },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toEqual({ label: 'Subtitle line again', required: false, settings: {}, updated_at: OTHER_SAVE_STAMP })
 })
 
-test('offers a number field its own bounds', async () => {
-	listing([{ ...DETAILS, fields: [READING_TIME] }, EXTRAS])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/reading-time', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(READING_TIME)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
-	await userEvent.type(within(settings).getByLabelText('Lowest'), '1')
-	await userEvent.type(within(settings).getByLabelText('Highest'), '10')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
-
-	await waitFor(() =>
-		expect(sent).toEqual({ settings: { min: 1, max: 10 }, updated_at: '2026-08-01T10:00:00Z' }),
-	)
-})
-
-test('offers a media field nothing but instructions', async () => {
-	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'cover', label: 'Cover', kind: 'media' }] }])
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Cover' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Cover' })
-
-	expect(within(settings).getByLabelText('Instructions')).toBeInTheDocument()
-	expect(within(settings).queryByLabelText('Longest')).not.toBeInTheDocument()
-	expect(within(settings).queryByLabelText('Default')).not.toBeInTheDocument()
-})
-
-test('shows the settings a field already carries', async () => {
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, settings: { instructions: 'Held.', maxlength: 40 } }] },
-	])
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-
-	expect(within(settings).getByLabelText('Instructions')).toHaveValue('Held.')
-	expect(within(settings).getByLabelText('Longest')).toHaveValue(40)
-})
-
-test('stores nothing for a setting left empty', async () => {
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
-
-	await waitFor(() =>
-		expect(sent).toEqual({ settings: {}, updated_at: '2026-08-01T10:00:00Z' }),
-	)
-})
-
-test('keeps the settings open and says inside why they were turned away', async () => {
+test('keeps a field open on what was typed when its save is rejected, naming why in the toast', async () => {
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () =>
 			HttpResponse.json(
@@ -467,197 +407,377 @@ test('keeps the settings open and says inside why they were turned away', async 
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await showTab(part, 'Presentation')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Instructions' }), 'Say who wrote it.')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await userEvent.click(saveOf(main))
 
 	const said = 'The setting min falls outside the others. Keep min below max and the default inside the bounds.'
-	expect(await within(settings).findByText(said)).toBeInTheDocument()
-	expect(screen.getAllByText(said)).toHaveLength(1)
+	expect(await findToast(`Could not save Subtitle. ${said}`)).toBeInTheDocument()
+	expect(toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')).toHaveAttribute('aria-expanded', 'true')
+	expect(within(part).getByRole('textbox', { name: 'Instructions' })).toHaveValue('Say who wrote it.')
+	expect(within(part).getByRole('alert')).toHaveTextContent(said)
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
 })
 
-test('keeps what was typed in the open settings when they are turned away', async () => {
+test('keeps a failed field open with the words under the setting named, closing the one that saved', async () => {
+	const said = 'The setting placeholder cannot hold the value it was given. Check what this setting takes and try again.'
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () =>
 			HttpResponse.json(
-				{ error: 'content: setting shape', code: 'setting_shape', meta: { setting: 'maxlength' } },
+				{ error: 'content: setting shape', code: 'setting_shape', meta: { setting: 'placeholder' } },
 				{ status: 422 },
 			),
 		),
+		http.patch('/api/groups/3/fields/reading-time', () => HttpResponse.json(READING_TIME)),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const failing = await openField(main, 'Subtitle')
+	await showTab(failing, 'Presentation')
+	await userEvent.type(within(failing).getByRole('textbox', { name: 'Placeholder' }), 'Maria Perez')
+	await showTab(failing, 'General')
+	const saving = await openField(main, 'Reading time')
+	await userEvent.type(within(saving).getByRole('textbox', { name: 'Label' }), ' in minutes')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await userEvent.click(saveOf(main))
 
-	expect(await within(settings).findByText(/The setting maxlength cannot hold/)).toBeInTheDocument()
-	expect(screen.getByRole('dialog', { name: 'Settings of Subtitle' })).toBe(settings)
-	expect(within(settings).getByLabelText('Instructions')).toHaveValue('Say who wrote it.')
+	expect(await findToast(`Saved 1 of 2 changes. Could not save Subtitle. ${said}`)).toBeInTheDocument()
+	expect(toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')).toHaveAttribute('aria-expanded', 'false')
+	expect(toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')).toHaveAttribute('aria-expanded', 'true')
+	expect(within(failing).getByRole('tab', { name: 'Presentation' })).toHaveAttribute('aria-selected', 'true')
+	const placeholder = within(failing).getByRole('textbox', { name: 'Placeholder' })
+	await waitFor(() => expect(placeholder).toHaveAccessibleDescription(said))
+	expect(within(failing).queryByRole('alert')).toBeNull()
+	await userEvent.type(placeholder, '!')
+	expect(placeholder).toHaveAccessibleDescription('')
 })
 
-test('keeps a setting the dialog does not offer', async () => {
-	listing([
-		{ ...DETAILS, fields: [{ ...READING_TIME, settings: { placeholder: 'How many minutes' } }] },
-	])
-	let sent: unknown
+test('opens a closed field whose save was rejected, so the words show beside its draft', async () => {
 	server.use(
-		http.patch('/api/groups/3/fields/reading-time', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(READING_TIME)
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json({ error: 'content: the field group is locked' }, { status: 422 }),
+		),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(within(part).getByRole('button', { name: 'Close field' }))
+
+	await userEvent.click(saveOf(main))
+
+	const toggle = toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')
+	await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'true'))
+	expect(within(part).getByRole('alert')).toHaveTextContent('content: the field group is locked')
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
+})
+
+test('keeps the draft of a field someone else saved first, with Load saved version in its notice', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+
+	await userEvent.click(saveOf(main))
+
+	const said = 'Someone saved Subtitle after you opened it.'
+	expect(await findToast(`Could not save Subtitle. ${said}`)).toBeInTheDocument()
+	expect(within(part).getByRole('alert')).toHaveTextContent(said)
+	expect(within(part).getByRole('button', { name: 'Load saved version' })).toBeInTheDocument()
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
+	expect(within(labelOf(await fieldRow(main, 'Subtitle'))).getByText('Unsaved changes')).toBeInTheDocument()
+})
+
+test('moves a stale draft onto the saved version, keeping its own changes and marking the one both made', async () => {
+	const theirs = {
+		...SUBTITLE,
+		settings: { instructions: 'Say who wrote it.', default: 'Their default', listed: false },
+		updated_at: OTHER_SAVE_STAMP,
+	}
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent.push(await request.json())
+			if (sent.length === 1) {
+				listing([{ ...DETAILS, fields: [theirs, READING_TIME] }, EXTRAS])
+				return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+			}
+			return HttpResponse.json(theirs)
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await showTab(part, 'Presentation')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Placeholder' }), 'Maria Perez')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Instructions' }), 'Write to maria.perez@example.com')
+	await userEvent.click(within(part).getByRole('checkbox', { name: 'Show in the list' }))
+	await userEvent.click(saveOf(main))
+	await within(part).findByRole('button', { name: 'Load saved version' })
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
-	await userEvent.type(within(settings).getByLabelText('Lowest'), '1')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await userEvent.click(within(part).getByRole('button', { name: 'Load saved version' }))
+
+	const lost = 'Changed elsewhere too. Your edit was not kept.'
+	await waitFor(() => expect(within(part).queryByRole('button', { name: 'Load saved version' })).toBeNull())
+	expect(within(part).getByRole('textbox', { name: 'Placeholder' })).toHaveValue('Maria Perez')
+	expect(within(part).getByRole('textbox', { name: 'Placeholder' })).toHaveAccessibleDescription('')
+	const instructions = within(part).getByRole('textbox', { name: 'Instructions' })
+	expect(instructions).toHaveValue('Say who wrote it.')
+	expect(instructions).toHaveAccessibleDescription(lost)
+	const listed = within(part).getByRole('checkbox', { name: 'Show in the list' })
+	expect(listed).not.toBeChecked()
+	expect(listed.closest('label')?.nextElementSibling).toHaveTextContent(lost)
+	await showTab(part, 'General')
+	const fallback = within(part).getByRole('textbox', { name: 'Default' })
+	expect(fallback).toHaveValue('Their default')
+	expect(fallback).toHaveAccessibleDescription('')
+	await userEvent.click(saveOf(main))
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toEqual({
+		label: 'Subtitle',
+		required: false,
+		settings: { instructions: 'Say who wrote it.', default: 'Their default', listed: false, placeholder: 'Maria Perez' },
+		updated_at: OTHER_SAVE_STAMP,
+	})
+})
+
+test('takes the notice of a rejected save away once the field drops its draft', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json({ error: 'content: the field group is locked' }, { status: 422 }),
+		),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(saveOf(main))
+	expect(await within(part).findByRole('alert')).toHaveTextContent('content: the field group is locked')
+
+	await userEvent.click(within(part).getByRole('button', { name: 'Discard changes' }))
+	await openField(main, 'Subtitle')
+
+	expect(within(part).queryByRole('alert')).toBeNull()
+})
+
+test.each([
+	{ gone: 'the field', left: [{ ...DETAILS, fields: [READING_TIME] }, EXTRAS], shows: 'Reading time', save: 'off' },
+	{ gone: 'its group', left: [EXTRAS], shows: 'This field group does not exist', save: 'absent' },
+])('lets a stale draft go once Load saved version finds someone deleted $gone', async (asked) => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () => {
+			listing(asked.left)
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(saveOf(main))
+
+	await userEvent.click(await within(part).findByRole('button', { name: 'Load saved version' }))
+
+	expect(await within(main).findByText(new RegExp(asked.shows))).toBeInTheDocument()
+	expect(within(main).queryByRole('button', { name: 'Subtitle' })).toBeNull()
+	expect(saveState(main)).toBe(asked.save)
+})
+
+test('offers the settings a text field takes on their tabs and stores them', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+
+	expect(within(part).getByRole('textbox', { name: 'Default' })).toBeInTheDocument()
+	await showTab(part, 'Presentation')
+	expect(within(part).getByRole('textbox', { name: 'Placeholder' })).toBeInTheDocument()
+	expect(within(part).getByRole('textbox', { name: 'Instructions' }).tagName).toBe('TEXTAREA')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Instructions' }), 'Say who wrote it.')
+	await showTab(part, 'Validation')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Longest' }), '80')
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({
-			settings: { placeholder: 'How many minutes', min: 1 },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([
+			{ path: 'subtitle', body: editOf(SUBTITLE, { settings: { instructions: 'Say who wrote it.', maxlength: 80 } }) },
+		]),
 	)
 })
 
-test('offers a number field no placeholder, which its control never shows', async () => {
+test('offers a number field its own bounds', async () => {
+	listing([{ ...DETAILS, fields: [READING_TIME] }, EXTRAS])
+	const sent = recordingEdits(READING_TIME)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Reading time')
+
+	expect(within(part).getByRole('spinbutton', { name: 'Default' })).toBeInTheDocument()
+	await showTab(part, 'Validation')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Lowest' }), '1')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Highest' }), '10')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() =>
+		expect(sent).toEqual([{ path: 'reading-time', body: editOf(READING_TIME, { settings: { min: 1, max: 10 } }) }]),
+	)
+})
+
+test('offers a number field its steps and no placeholder, which its control never shows', async () => {
 	listing([{ ...DETAILS, fields: [READING_TIME] }])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Reading time')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
+	await showTab(part, 'Presentation')
 
-	expect(within(settings).queryByLabelText('Placeholder')).not.toBeInTheDocument()
+	expect(within(part).getByRole('spinbutton', { name: 'Steps of' })).toBeInTheDocument()
+	expect(within(part).queryByRole('textbox', { name: 'Placeholder' })).toBeNull()
 })
 
-test('offers a choice field the flags its kind takes', async () => {
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }] },
-	])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/style', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, key: 'style', kind: 'choice' })
-		}),
-	)
+test('offers a media field instructions and none of the bounds of a text', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'cover', label: 'Cover', kind: 'media' }] }])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Cover')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Style' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Style' })
-	await userEvent.click(within(settings).getByRole('combobox', { name: 'Allow custom' }))
+	expect(within(part).queryByRole('textbox', { name: 'Default' })).toBeNull()
+	await showTab(part, 'Validation')
+	expect(within(part).queryByRole('spinbutton', { name: 'Longest' })).toBeNull()
+	expect(within(part).queryByRole('spinbutton', { name: 'Fewest files' })).toBeNull()
+	await showTab(part, 'Presentation')
+	expect(within(part).getByRole('textbox', { name: 'Instructions' })).toBeInTheDocument()
+})
+
+test('shows the settings a field already carries', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, settings: { instructions: 'Held.', maxlength: 40 } }] }])
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+
+	await showTab(part, 'Presentation')
+	expect(within(part).getByRole('textbox', { name: 'Instructions' })).toHaveValue('Held.')
+	await showTab(part, 'Validation')
+	expect(within(part).getByRole('spinbutton', { name: 'Longest' })).toHaveValue(40)
+})
+
+test('drops a setting whose box is emptied', async () => {
+	const held = { ...SUBTITLE, settings: { instructions: 'Held.' } }
+	listing([{ ...DETAILS, fields: [held] }, EXTRAS])
+	const sent = recordingEdits(held)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+
+	await showTab(part, 'Presentation')
+	await userEvent.clear(within(part).getByRole('textbox', { name: 'Instructions' }))
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([{ path: 'subtitle', body: editOf(SUBTITLE, { settings: {} }) }]))
+})
+
+test('offers a choice field its flags on their tabs', async () => {
+	const style = { ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }
+	listing([{ ...DETAILS, fields: [style] }])
+	const sent = recordingEdits(style)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Style')
+
+	expect(within(part).getByRole('combobox', { name: 'Many values' })).toBeInTheDocument()
+	await showTab(part, 'Validation')
+	expect(within(part).getByRole('combobox', { name: 'Allow empty' })).toBeInTheDocument()
+	await showTab(part, 'Presentation')
+	await userEvent.click(within(part).getByRole('combobox', { name: 'Allow custom' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { allow_custom: true }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([{ path: 'style', body: editOf(style, { settings: { allow_custom: true } }) }]),
 	)
 })
 
 test('offers a boolean field the value it starts on', async () => {
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'boxed', label: 'Boxed', kind: 'boolean' }] },
-	])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/boxed', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
+	const boxed = { ...SUBTITLE, key: 'boxed', label: 'Boxed', kind: 'boolean' }
+	listing([{ ...DETAILS, fields: [boxed] }])
+	const sent = recordingEdits(boxed)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Boxed')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Boxed' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Boxed' })
-	await userEvent.click(within(settings).getByRole('combobox', { name: 'Default' }))
+	await userEvent.click(within(part).getByRole('combobox', { name: 'Default' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(sent).toEqual({ settings: { default: true }, updated_at: '2026-08-01T10:00:00Z' }),
-	)
+	await waitFor(() => expect(sent).toEqual([{ path: 'boxed', body: editOf(boxed, { settings: { default: true } }) }]))
 })
 
 test('offers a repeater the count of rows it takes and stores it', async () => {
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [] }] },
-	])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/team', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
+	const team = { ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [] }
+	listing([{ ...DETAILS, fields: [team] }])
+	const sent = recordingEdits(team)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Team')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Team' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Team' })
-	await userEvent.type(within(settings).getByLabelText('Fewest rows'), '1')
-	await userEvent.type(within(settings).getByLabelText('Most rows'), '4')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await showTab(part, 'Validation')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Fewest rows' }), '1')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Most rows' }), '4')
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { min: 1, max: 4 }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([{ path: 'team', body: editOf(team, { settings: { min: 1, max: 4 } }) }]),
 	)
 })
 
-test('offers a layout the count of rows it takes and stores it', async () => {
+test('opens a layout in place inside its open flexible content field and stores its count of rows', async () => {
 	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/features.hero', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(HERO)
-		}),
-	)
+	const sent = recordingEdits(HERO)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	await openField(main, 'Features')
+	const part = await openField(main, 'Hero')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Hero' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Hero' })
-	await userEvent.type(within(settings).getByLabelText('Most rows'), '2')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await showTab(part, 'Validation')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Most rows' }), '2')
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { max: 2 }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([{ path: 'features.hero', body: editOf(HERO, { settings: { max: 2 } }) }]),
 	)
 })
 
 test('offers a flexible content field the count of rows it takes', async () => {
 	listing([{ ...DETAILS, fields: [FEATURES] }])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Features')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Features' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Features' })
+	await showTab(part, 'Validation')
 
-	expect(within(settings).getByLabelText('Fewest rows')).toBeInTheDocument()
-	expect(within(settings).getByLabelText('Most rows')).toBeInTheDocument()
+	expect(within(part).getByRole('spinbutton', { name: 'Fewest rows' })).toBeInTheDocument()
+	expect(within(part).getByRole('spinbutton', { name: 'Most rows' })).toBeInTheDocument()
 })
 
 test('offers a text field no count of rows', async () => {
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await showTab(part, 'Validation')
 
-	expect(within(settings).queryByLabelText('Most rows')).not.toBeInTheDocument()
+	expect(within(part).queryByRole('spinbutton', { name: 'Most rows' })).toBeNull()
 })
 
-test('offers no require button on a layout or a linked from field', async () => {
+test('offers no Required box on a layout, and no Validation tab on a Linked from field', async () => {
 	listing([
 		{
 			...DETAILS,
@@ -669,82 +789,31 @@ test('offers no require button on a layout or a linked from field', async () => 
 		EXTRAS,
 	])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	expect(within(dialog).getByRole('button', { name: 'Require Features' })).toBeInTheDocument()
-	expect(within(dialog).queryByRole('button', { name: 'Require Hero' })).not.toBeInTheDocument()
-	expect(within(dialog).queryByRole('button', { name: 'Require Linked from' })).not.toBeInTheDocument()
+	await openField(main, 'Features')
+	const layout = await openField(main, 'Hero')
+	const reading = await openField(main, 'Linked from')
+
+	await showTab(layout, 'Validation')
+	expect(within(layout).queryByRole('checkbox', { name: 'Required' })).toBeNull()
+	expect(within(reading).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['General', 'Presentation'])
 })
 
 test('offers a gallery the count of files it takes and stores it', async () => {
-	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'media', many: true }] }])
-	let sent: unknown
-	server.use(
-		http.patch('/api/groups/3/fields/gallery', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
+	const gallery = { ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'media', many: true }
+	listing([{ ...DETAILS, fields: [gallery] }])
+	const sent = recordingEdits(gallery)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const part = await openField(main, 'Gallery')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Gallery' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Gallery' })
-	await userEvent.type(within(settings).getByLabelText('Fewest files'), '2')
-	await userEvent.type(within(settings).getByLabelText('Most files'), '6')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await showTab(part, 'Validation')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Fewest files' }), '2')
+	await userEvent.type(within(part).getByRole('spinbutton', { name: 'Most files' }), '6')
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { min: 2, max: 6 }, updated_at: '2026-08-01T10:00:00Z' }),
+		expect(sent).toEqual([{ path: 'gallery', body: editOf(gallery, { settings: { min: 2, max: 6 } }) }]),
 	)
-})
-
-test('offers a media field holding one file no count', async () => {
-	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'cover', label: 'Cover', kind: 'media' }] }])
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Cover' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Cover' })
-
-	expect(within(settings).queryByLabelText('Fewest files')).not.toBeInTheDocument()
-})
-
-test('keeps the rename open and says inside why it was turned away', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () =>
-			HttpResponse.json({ error: 'content: field not found', code: 'field_unknown' }, { status: 404 }),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
-
-	expect(await within(renaming).findByText('content: field not found')).toBeInTheDocument()
-	expect(screen.getAllByText('content: field not found')).toHaveLength(1)
-})
-
-test('stores no settings when the dialog is abandoned', async () => {
-	let hit = false
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () => {
-			hit = true
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Never stored.')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() =>
-		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).not.toBeInTheDocument(),
-	)
-	expect(hit).toBe(false)
 })

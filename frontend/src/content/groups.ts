@@ -178,8 +178,27 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 	}
 }
 
+/** A write the server rejected, with the code and the data its answer named. */
+export class RejectedWriteError extends Error {
+	/** The code the server named, empty when it named none. */
+	readonly code: string
+	/** The data the answer carried, such as the setting it names. */
+	readonly meta: Record<string, unknown>
+
+	/**
+	 * Holds the words for the reader with the code and the data the server named.
+	 * @param message - The words for the reader.
+	 * @param rejected - The code and the data the answer carried.
+	 */
+	constructor(message: string, rejected: Pick<z.infer<typeof errorSchema>, 'code' | 'meta'>) {
+		super(message)
+		this.code = rejected.code ?? ''
+		this.meta = rejected.meta ?? {}
+	}
+}
+
 /** The failure a write reports when the stored field moved on before it landed. */
-export class StaleWriteError extends Error {}
+export class StaleWriteError extends RejectedWriteError {}
 
 /**
  * Returns the sentence saying someone saved the group after it was read.
@@ -188,6 +207,15 @@ export class StaleWriteError extends Error {}
  */
 export function staleGroupMessage(title: string): string {
 	return sprintf(__('Someone saved %(group)s after you opened it.', 'gophenberg'), { group: title })
+}
+
+/**
+ * Returns the sentence saying someone saved a field after its draft began.
+ * @param label - The label of the field.
+ * @returns The sentence to show.
+ */
+export function staleFieldMessage(label: string): string {
+	return sprintf(__('Someone saved %(field)s after you opened it.', 'gophenberg'), { field: label })
 }
 
 /**
@@ -221,13 +249,22 @@ export function formAnswer(
 }
 
 /**
- * Throws the reason a group write was refused, or the status it failed with.
+ * Throws the reason a group write was rejected, with the code and the data the server named.
  * @param response - The answer the server gave.
  */
 async function refuse(response: Response): Promise<never> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	const said = errorText(parsed.success ? parsed.data : { error: '' })
-	throw response.status === 409 ? new StaleWriteError(said) : new Error(said)
+	const rejected = parsed.success ? parsed.data : { error: '' }
+	const said = errorText(rejected)
+	throw response.status === 409 ? new StaleWriteError(said, rejected) : new RejectedWriteError(said, rejected)
+}
+
+/**
+ * Returns the sentence saying no answer came from the field groups.
+ * @returns The sentence to show.
+ */
+export function groupsUnreached(): string {
+	return __('The field groups could not be reached.', 'gophenberg')
 }
 
 /**
@@ -236,7 +273,7 @@ async function refuse(response: Response): Promise<never> {
  * @returns The sentence to show.
  */
 export function groupErrorMessage(cause: unknown): string {
-	return cause instanceof Error ? cause.message : __('The field groups could not be reached.', 'gophenberg')
+	return cause instanceof Error ? cause.message : groupsUnreached()
 }
 
 /** The key the stored field groups are cached under. */
@@ -287,9 +324,10 @@ export async function createGroup(title: string, location: Location, signal?: Ab
  * Edits the parts of a group the caller names, while the group still holds the stamp it was read at.
  * @param read - The group to edit, with the timestamp the editor read.
  * @param edit - The parts to move.
+ * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored group.
  */
-export async function updateGroup(read: GroupRead, edit: GroupEdit): Promise<FieldGroup> {
+export async function updateGroup(read: GroupRead, edit: GroupEdit, signal?: AbortSignal): Promise<FieldGroup> {
 	const body: Record<string, unknown> = { updated_at: read.updatedAt }
 	if (edit.title !== undefined) {
 		body.title = edit.title
@@ -307,6 +345,7 @@ export async function updateGroup(read: GroupRead, edit: GroupEdit): Promise<Fie
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(body),
+		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
@@ -394,73 +433,49 @@ interface FieldRead {
 }
 
 /**
- * Returns the field an edit is for, by its path inside a container or else its own key, as the editor read it.
- * @param place - The group declaring the field, and the dotted path of a field inside a container.
+ * Returns the field an edit is for, by its dotted path, as the editor read it.
+ * @param place - The group declaring the field, and the dotted path of the field, its own key at the group's top.
  * @param field - The field as the editor read it.
  * @returns The field to edit.
  */
-export function fieldRead(place: { group: number; path?: string }, field: ContentField): FieldRead {
-	return { group: place.group, key: place.path ?? field.key, updatedAt: field.updatedAt }
+export function fieldRead(place: { group: number; path: string }, field: ContentField): FieldRead {
+	return { group: place.group, key: place.path, updatedAt: field.updatedAt }
+}
+
+/** The parts of a field an edit may move, where an absent part is unchanged and settings replace the ones held. */
+interface FieldPatch {
+	label?: string
+	required?: boolean
+	settings?: Record<string, unknown>
 }
 
 /**
- * Carries an edit to a field inside its group, while the field still holds the stamp it was read at.
+ * Carries an edit to a field inside its group in one request, while the field still holds the stamp it was read at.
  * @param read - The field to edit, with the timestamp the editor read.
- * @param body - The parts to move.
+ * @param parts - The label, the required flag and the settings to move, each left out to keep it.
  * @param signal - The signal that stops the request, none for a write that waits for its answer.
  * @returns The stored field.
  */
-async function patchFieldInGroup(
+export async function editFieldInGroup(
 	read: FieldRead,
-	body: Record<string, unknown>,
+	parts: FieldPatch,
 	signal?: AbortSignal,
 ): Promise<ContentField> {
 	const response = await fetch(`/api/groups/${read.group}/fields/${read.key}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ ...body, updated_at: read.updatedAt }),
+		body: JSON.stringify({
+			label: parts.label,
+			required: parts.required,
+			settings: parts.settings,
+			updated_at: read.updatedAt,
+		}),
 		signal,
 	})
 	if (!response.ok) {
 		await refuse(response)
 	}
 	return toField(fieldSchema.parse(await response.json()))
-}
-
-/**
- * Carries a new label for a field inside its group.
- * @param read - The field to relabel, with the timestamp the editor read.
- * @param label - The label to carry.
- * @param signal - The signal that stops the request, none for a write that waits for its answer.
- * @returns The stored field.
- */
-export async function renameFieldInGroup(read: FieldRead, label: string, signal?: AbortSignal): Promise<ContentField> {
-	return patchFieldInGroup(read, { label }, signal)
-}
-
-/**
- * Stores the settings a field carries, replacing the ones it held.
- * @param read - The field to change, with the timestamp the editor read.
- * @param settings - The settings to store.
- * @param signal - The signal that stops the request, none for a write that waits for its answer.
- * @returns The stored field.
- */
-export async function setFieldSettingsInGroup(
-	read: FieldRead,
-	settings: Record<string, unknown>,
-	signal?: AbortSignal,
-): Promise<ContentField> {
-	return patchFieldInGroup(read, { settings }, signal)
-}
-
-/**
- * Stores whether a field must be filled before its item publishes.
- * @param read - The field to change, with the timestamp the editor read.
- * @param required - Whether the field gates publishing.
- * @returns The stored field.
- */
-export async function setFieldRequiredInGroup(read: FieldRead, required: boolean): Promise<ContentField> {
-	return patchFieldInGroup(read, { required })
 }
 
 /**

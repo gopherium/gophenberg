@@ -1,22 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Checkbox, InputControl, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
-import { ErrorNotice, SectionTitle, useToaster } from '@gopherium/godmin'
+import { InputControl, Notice, Text } from '@gophenberg/frontend-sdk'
+import { ErrorNotice, SectionTitle } from '@gopherium/godmin'
 import { formatDate } from '@gopherium/gottext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
-import {
-	changedElsewhere,
-	changedParts,
-	draftOf,
-	editedParts,
-	editOf,
-	rebased,
-	withLivePicks,
-	withPick,
-} from './groupDraft'
+import { TickBox } from './fieldControls'
+import { changedElsewhere, changedParts, draftOf, editedParts, rebased, withLivePicks, withPick } from './groupDraft'
 import {
 	groupErrorMessage,
 	groupsQueryKey,
@@ -24,9 +16,7 @@ import {
 	ruleSourcesQueryKey,
 	StaleWriteError,
 	staleGroupMessage,
-	updateGroup,
 } from './groups'
-import { typesQueryKey } from './nav'
 import { LinkedSources, namedSources, RulesBody } from './RulesDialog'
 import type { DraftPart, GroupDraft } from './groupDraft'
 import type { FieldGroup } from './groups'
@@ -38,28 +28,24 @@ interface Held {
 	draft: GroupDraft
 }
 
-/** The details of a group as its page edits them, and what saves them or moves them onto a saved version. */
+/** The details of a group as its page edits them, what moves them onto a saved version and what a save tells them. */
 export interface GroupDetailsState {
+	/** The group the draft stands on, whose stamp a save sends. */
+	base: FieldGroup
 	draft: GroupDraft
 	changed: boolean
-	saving: boolean
 	stale: boolean
 	loading: boolean
 	failure: string
 	lost: DraftPart[]
 	edit: (next: GroupDraft) => void
-	save: () => void
 	load: () => void
-}
-
-/**
- * Returns the groups with one group's details as the server stored them and its fields as held.
- * @param listed - The groups held, none before the first read.
- * @param stored - The group the server answered with.
- * @returns The groups to hold.
- */
-function withStored(listed: FieldGroup[] | undefined, stored: FieldGroup): FieldGroup[] | undefined {
-	return listed?.map((one) => (one.id === stored.id ? { ...one, ...stored, fields: one.fields } : one))
+	/** Takes the notices of the last save away as the next one starts. */
+	saveStarted: () => void
+	/** Follows the group as read again once a save stored the draft. */
+	saveLanded: () => void
+	/** Keeps the draft and shows why the group was not saved. */
+	saveFailed: (cause: unknown) => void
 }
 
 /**
@@ -77,14 +63,12 @@ function liveDraft(kept: Held | null, held: FieldGroup): Held | null {
 }
 
 /**
- * Returns the draft of a group's details, the save sending its changed parts and the move onto a saved version.
+ * Returns the draft of a group's details, the move onto a saved version, and what a save reports back to.
  * @param held - The group as last read.
- * @param groups - Every group read, which a Linked from pick may stand in.
  * @returns The details state.
  */
-export function useGroupDetails(held: FieldGroup, groups: FieldGroup[]): GroupDetailsState {
+export function useGroupDetails(held: FieldGroup): GroupDetailsState {
 	const client = useQueryClient()
-	const toaster = useToaster()
 	const [kept, setKept] = useState<Held | null>(null)
 	const [stale, setStale] = useState(false)
 	const [failure, setFailure] = useState('')
@@ -117,32 +101,30 @@ export function useGroupDetails(held: FieldGroup, groups: FieldGroup[]): GroupDe
 		hold(base, next)
 	}
 
-	const save = useMutation({
-		mutationFn: () => updateGroup(base, editOf(draft, parts, held, groups)),
-		onMutate: () => {
-			setFailure('')
-			setStale(false)
-		},
-		onSuccess: async (stored) => {
-			client.setQueryData<FieldGroup[]>(groupsQueryKey, (listed) => withStored(listed, stored))
-			setKept(null)
-			setLost([])
-			toaster.show(sprintf(__('%(group)s updated.', 'gophenberg'), { group: stored.title }))
-			await Promise.all([
-				client.invalidateQueries({ queryKey: groupsQueryKey }),
-				client.invalidateQueries({ queryKey: typesQueryKey }),
-			])
-		},
-		onError: (cause: unknown) => {
-			const said = cause instanceof StaleWriteError ? staleGroupMessage(base.title) : groupErrorMessage(cause)
-			toaster.show(sprintf(__('Could not save the field group. %s', 'gophenberg'), said))
-			if (cause instanceof StaleWriteError) {
-				setStale(true)
-				return
-			}
-			setFailure(said)
-		},
-	})
+	/** Takes the notices of the last save away as the next one starts. */
+	function saveStarted() {
+		setFailure('')
+		setStale(false)
+	}
+
+	/** Follows the group as read again once a save stored the draft. */
+	function saveLanded() {
+		setKept(null)
+		setLost([])
+	}
+
+	/**
+	 * Keeps the draft and shows why the group was not saved: someone saved it first, or the server's words.
+	 * @param cause - What the save of the group failed with.
+	 */
+	function saveFailed(cause: unknown) {
+		if (cause instanceof StaleWriteError) {
+			setStale(true)
+			return
+		}
+		setFailure(groupErrorMessage(cause))
+	}
+
 	const load = useMutation({
 		mutationFn: async () => {
 			await client.refetchQueries({ queryKey: groupsQueryKey }, { throwOnError: true })
@@ -160,16 +142,18 @@ export function useGroupDetails(held: FieldGroup, groups: FieldGroup[]): GroupDe
 		},
 	})
 	return {
+		base,
 		draft,
 		changed: parts.length > 0,
-		saving: save.isPending,
 		stale,
 		loading: load.isPending,
 		failure,
 		lost,
 		edit,
-		save: () => save.mutate(),
 		load: () => load.mutate(),
+		saveStarted,
+		saveLanded,
+		saveFailed,
 	}
 }
 
@@ -180,6 +164,8 @@ interface GroupDetailsProps {
 	groups: FieldGroup[]
 	types: ContentType[]
 	details: GroupDetailsState
+	saving: boolean
+	onSave: () => void
 }
 
 /**
@@ -199,7 +185,8 @@ export function SaveNotices(props: { held: FieldGroup; details: GroupDetailsStat
 
 /**
  * Renders a group's title, active flag, location rules and Linked from sources as one form, and the day it was made.
- * @param props - The id the header Save submits, the group as read, every group, the types and the details state.
+ * @param props - The id the header Save submits, the group as read, every group, the types, the details state,
+ * whether the header Save runs, and what runs it.
  * @returns The details column.
  */
 export function GroupDetails(props: GroupDetailsProps) {
@@ -213,20 +200,21 @@ export function GroupDetails(props: GroupDetailsProps) {
 				className="godmin-form"
 				onSubmit={(event) => {
 					event.preventDefault()
-					details.save()
+					props.onSave()
 				}}
 			>
 				<InputControl
 					label={__('Title', 'gophenberg')}
 					autoComplete="off"
 					value={draft.title}
-					readOnly={details.saving}
+					readOnly={props.saving}
 					description={details.lost.includes('title') ? changedElsewhere() : undefined}
 					onValueChange={(title) => details.edit({ ...draft, title })}
 				/>
-				<ActiveBox
+				<TickBox
+					label={_x('Active', 'field group', 'gophenberg')}
 					checked={draft.active}
-					readOnly={details.saving}
+					readOnly={props.saving}
 					onChange={(active) => details.edit({ ...draft, active })}
 				/>
 				<SectionTitle>{__('Location rules', 'gophenberg')}</SectionTitle>
@@ -235,14 +223,14 @@ export function GroupDetails(props: GroupDetailsProps) {
 					draft={draft.location}
 					sources={namedSources(sources.data ?? [], props.types)}
 					failed={sources.isError}
-					readOnly={details.saving}
+					readOnly={props.saving}
 					onDraft={(location) => details.edit({ ...draft, location })}
 				/>
 				<LinkedSources
 					held={props.held}
 					groups={props.groups}
 					picked={draft.links}
-					readOnly={details.saving}
+					readOnly={props.saving}
 					lost={details.lost}
 					onPick={(field, pick) => details.edit(withPick(draft, field, pick))}
 				/>
@@ -251,20 +239,6 @@ export function GroupDetails(props: GroupDetailsProps) {
 				{sprintf(__('Created %(date)s', 'gophenberg'), { date: formatDate(props.held.createdAt) })}
 			</Text>
 		</>
-	)
-}
-
-/**
- * Renders the box turning a group on and off, labelled by the words beside it.
- * @param props - Whether the group is active, whether the box is read only, and what to call with the new flag.
- * @returns The box with its label.
- */
-function ActiveBox(props: { checked: boolean; readOnly: boolean; onChange: (active: boolean) => void }) {
-	return (
-		<Stack direction="row" gap="sm" align="center" render={<label />}>
-			<Checkbox checked={props.checked} readOnly={props.readOnly} onCheckedChange={props.onChange} />
-			<Text>{_x('Active', 'field group', 'gophenberg')}</Text>
-		</Stack>
 	)
 }
 
