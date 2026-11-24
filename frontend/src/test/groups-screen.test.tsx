@@ -541,6 +541,17 @@ test('reports why a group write was turned away', async () => {
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
+test('says the field groups could not be reached when the network drops a group write', async () => {
+	server.use(http.patch('/api/groups/3', () => HttpResponse.error()))
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	expect(await findToast('Could not save the change. The field groups could not be reached.')).toBeInTheDocument()
+})
+
 test('reports why the groups could not be reordered', async () => {
 	server.use(
 		http.put('/api/groups/order', () =>

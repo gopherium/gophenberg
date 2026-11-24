@@ -19,6 +19,7 @@ import {
 	RejectedWriteError,
 	reorderFieldsInGroup,
 	reorderGroups,
+	reorderSubFields,
 	StaleWriteError,
 	staleGroupMessage,
 	updateGroup,
@@ -415,7 +416,8 @@ test('removes a field from its group', async () => {
 	expect(hit).toBe(true)
 })
 
-test.each([
+const GROUP_WRITES = [
+	['createGroup', () => createGroup('Article details', []), 'post', '/api/groups'],
 	['updateGroup', () => updateGroup(groupRead, { title: 'Renamed' }), 'patch', '/api/groups/3'],
 	['deleteGroup', () => deleteGroup(3), 'delete', '/api/groups/3'],
 	['reorderGroups', () => reorderGroups([3]), 'put', '/api/groups/order'],
@@ -440,8 +442,11 @@ test.each([
 		'post',
 		'/api/groups/3/fields/author',
 	],
+	['reorderSubFields', () => reorderSubFields(3, 'author', ['a']), 'put', '/api/groups/3/inside/author/order'],
 	['deleteSubField', () => deleteSubField(3, 'author.a'), 'delete', '/api/groups/3/inside/author.a'],
-] as const)('carries the reason %s was refused', async (_name, run, method, path) => {
+] as const
+
+test.each(GROUP_WRITES)('carries the reason %s was rejected', async (_name, run, method, path) => {
 	server.use(
 		http[method](path, () =>
 			HttpResponse.json({ error: 'content: field group not found', code: 'group_not_found' }, { status: 404 }),
@@ -449,6 +454,12 @@ test.each([
 	)
 
 	await expect(run()).rejects.toThrow(/group/i)
+})
+
+test.each(GROUP_WRITES)('names the field groups unreached when %s never arrives', async (_name, run, method, path) => {
+	server.use(http[method](path, () => HttpResponse.error()))
+
+	await expect(run()).rejects.toThrow(/^The field groups could not be reached\.$/)
 })
 
 test('answers something readable when an error response carries no JSON', async () => {

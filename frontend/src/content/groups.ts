@@ -268,6 +268,23 @@ export function groupsUnreached(): string {
 }
 
 /**
+ * Sends a field group write and returns the answer the server accepted.
+ * @param url - The address of the write.
+ * @param init - The method, the body and the signal of the write.
+ * @returns The answer, or throws why the server rejected the write, or that the field groups could not be reached.
+ */
+async function accepted(url: string, init: RequestInit): Promise<Response> {
+	const response = await fetch(url, init).catch(() => null)
+	if (response === null) {
+		throw new Error(groupsUnreached())
+	}
+	if (!response.ok) {
+		await refuse(response)
+	}
+	return response
+}
+
+/**
  * Returns the sentence naming why a group write was turned away.
  * @param cause - What the write failed with.
  * @returns The sentence to show.
@@ -308,15 +325,12 @@ export async function listGroups(): Promise<FieldGroup[]> {
  * @returns The stored group.
  */
 export async function createGroup(title: string, location: Location, signal?: AbortSignal): Promise<FieldGroup> {
-	const response = await fetch('/api/groups', {
+	const response = await accepted('/api/groups', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ title, location }),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toGroup(groupSchema.parse(await response.json()))
 }
 
@@ -341,15 +355,12 @@ export async function updateGroup(read: GroupRead, edit: GroupEdit, signal?: Abo
 	if (edit.backlinks !== undefined) {
 		body.backlinks = edit.backlinks
 	}
-	const response = await fetch(`/api/groups/${read.id}`, {
+	const response = await accepted(`/api/groups/${read.id}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(body),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toGroup(groupSchema.parse(await response.json()))
 }
 
@@ -359,10 +370,7 @@ export async function updateGroup(read: GroupRead, edit: GroupEdit, signal?: Abo
  * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
 export async function deleteGroup(id: number, signal?: AbortSignal): Promise<void> {
-	const response = await fetch(`/api/groups/${id}`, { method: 'DELETE', signal })
-	if (!response.ok) {
-		await refuse(response)
-	}
+	await accepted(`/api/groups/${id}`, { method: 'DELETE', signal })
 }
 
 /**
@@ -371,14 +379,11 @@ export async function deleteGroup(id: number, signal?: AbortSignal): Promise<voi
  * @returns The reordered groups.
  */
 export async function reorderGroups(ids: number[]): Promise<FieldGroup[]> {
-	const response = await fetch('/api/groups/order', {
+	const response = await accepted('/api/groups/order', {
 		method: 'PUT',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ order: ids }),
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return groupListSchema.parse(await response.json()).items.map(toGroup)
 }
 
@@ -402,7 +407,7 @@ export async function listRuleSources(): Promise<RuleSource[]> {
  * @returns The stored field.
  */
 export async function createFieldInGroup(id: number, asked: NewField, signal?: AbortSignal): Promise<ContentField> {
-	const response = await fetch(`/api/groups/${id}/fields`, {
+	const response = await accepted(`/api/groups/${id}/fields`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({
@@ -416,9 +421,6 @@ export async function createFieldInGroup(id: number, asked: NewField, signal?: A
 		}),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toField(fieldSchema.parse(await response.json()))
 }
 
@@ -461,7 +463,7 @@ export async function editFieldInGroup(
 	parts: FieldPatch,
 	signal?: AbortSignal,
 ): Promise<ContentField> {
-	const response = await fetch(`/api/groups/${read.group}/fields/${read.key}`, {
+	const response = await accepted(`/api/groups/${read.group}/fields/${read.key}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({
@@ -472,9 +474,6 @@ export async function editFieldInGroup(
 		}),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toField(fieldSchema.parse(await response.json()))
 }
 
@@ -490,14 +489,11 @@ export async function reorderSubFields(
 	path: string,
 	keys: string[],
 ): Promise<ContentField[]> {
-	const response = await fetch(`/api/groups/${id}/inside/${path}/order`, {
+	const response = await accepted(`/api/groups/${id}/inside/${path}/order`, {
 		method: 'PUT',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ order: keys }),
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
 	return listed.items.map(toField)
 }
@@ -509,14 +505,11 @@ export async function reorderSubFields(
  * @returns The fields in the stored order.
  */
 export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<ContentField[]> {
-	const response = await fetch(`/api/groups/${id}/fields/order`, {
+	const response = await accepted(`/api/groups/${id}/fields/order`, {
 		method: 'PUT',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ order: keys }),
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
 	return listed.items.map(toField)
 }
@@ -528,10 +521,7 @@ export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<
  * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
 export async function deleteFieldInGroup(id: number, key: string, signal?: AbortSignal): Promise<void> {
-	const response = await fetch(`/api/groups/${id}/fields/${key}`, { method: 'DELETE', signal })
-	if (!response.ok) {
-		await refuse(response)
-	}
+	await accepted(`/api/groups/${id}/fields/${key}`, { method: 'DELETE', signal })
 }
 
 /**
@@ -548,7 +538,7 @@ export async function createSubField(
 	asked: NewField,
 	signal?: AbortSignal,
 ): Promise<ContentField> {
-	const response = await fetch(`/api/groups/${id}/fields/${path}`, {
+	const response = await accepted(`/api/groups/${id}/fields/${path}`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({
@@ -562,9 +552,6 @@ export async function createSubField(
 		}),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toField(fieldSchema.parse(await response.json()))
 }
 
@@ -575,10 +562,7 @@ export async function createSubField(
  * @param signal - The signal that stops the request, none for a write that waits for its answer.
  */
 export async function deleteSubField(id: number, path: string, signal?: AbortSignal): Promise<void> {
-	const response = await fetch(`/api/groups/${id}/inside/${path}`, { method: 'DELETE', signal })
-	if (!response.ok) {
-		await refuse(response)
-	}
+	await accepted(`/api/groups/${id}/inside/${path}`, { method: 'DELETE', signal })
 }
 
 /** Where a field carried to another place lands. */
@@ -608,14 +592,11 @@ export async function moveField(
 	if (parent !== '') {
 		body.to_parent = parent
 	}
-	const response = await fetch(`/api/groups/${id}/fields/${path}/move`, {
+	const response = await accepted(`/api/groups/${id}/fields/${path}/move`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(body),
 		signal,
 	})
-	if (!response.ok) {
-		await refuse(response)
-	}
 	return toField(fieldSchema.parse(await response.json()))
 }
