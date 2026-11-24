@@ -149,11 +149,11 @@ export function runView(
 	if (overview === undefined) {
 		return undefined
 	}
+	const seen = { overview, failing }
 	const followed = run ?? foundRun(overview)
-	if (followed === undefined) {
+	if (followed === undefined || leftBehind(followed, seen)) {
 		return undefined
 	}
-	const seen = { overview, failing }
 	const current = withMove(followed, seen)
 	const line = stepLine(current, seen)
 	const restarting = RESTARTING.includes(line)
@@ -175,8 +175,24 @@ export function heldRun(
 	if (overview === undefined) {
 		return run
 	}
+	const seen = { overview, failing }
 	const followed = run ?? foundRun(overview)
-	return followed === undefined ? undefined : withMove(followed, { overview, failing })
+	return followed === undefined || leftBehind(followed, seen) ? undefined : withMove(followed, seen)
+}
+
+/**
+ * Reports whether the job of the update stands at a step before its switch while no update runs, as a server that
+ * stopped left it, so the screen stops following it.
+ * @param run - The update followed.
+ * @param seen - The overview last read and whether the read failed.
+ * @returns True once the update stopped short of its switch with nothing left to run it.
+ */
+function leftBehind(run: UpdateRun, seen: Seen): boolean {
+	const { overview } = seen
+	if (seen.failing || overview.updating || overview.running !== run.from) {
+		return false
+	}
+	return UNDER_WAY.includes(ownStep(run, overview))
 }
 
 /**

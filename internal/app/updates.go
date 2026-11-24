@@ -142,14 +142,15 @@ func (u siteUpdates) Start(ctx context.Context, asked server.UpdateStart) error 
 }
 
 // Overview returns what the admin shows: what the checks stored, this binary, its server, install, whether an update
-// runs and the next check.
+// runs and the next check. It reads whether an update runs after the job, so a job an update that started meanwhile
+// wrote never stands beside a flag read before it.
 func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, error) {
-	updating := u.admin.updating()
 	result, resultErr := u.Result(ctx)
 	install, installErr := updater.ReadOverview(u.install)
+	updating, updatingErr := u.updating(ctx)
 	next, nextErr := u.nextCheck(ctx)
 	major, majorErr := u.major(ctx)
-	if err := errors.Join(resultErr, installErr, nextErr, majorErr); err != nil {
+	if err := errors.Join(resultErr, installErr, updatingErr, nextErr, majorErr); err != nil {
 		return server.UpdatesOverview{}, err
 	}
 	reason := updater.CannotUpdate(u.install, u.stamp)
@@ -160,6 +161,18 @@ func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, erro
 		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, Updating: updating,
 		NextCheck: next,
 	}, nil
+}
+
+// updating reports whether an update runs now: one an administrator started in this server, or update:apply in another
+// process holding the update lock on the site database.
+func (u siteUpdates) updating(ctx context.Context) (bool, error) {
+	if u.admin.updating() {
+		return true, nil
+	}
+	if u.admin == nil || u.admin.job.DB == nil {
+		return false, nil
+	}
+	return updater.LockHeld(ctx, u.admin.job.DB)
 }
 
 // withRunningPostgreSQL returns result with its offer compared to major, the PostgreSQL server that runs now.

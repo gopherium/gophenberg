@@ -68,6 +68,38 @@ func TestLockStopsASecondJobUntilTheFirstLetsGo(t *testing.T) {
 	locked(t, db)()
 }
 
+func TestLockHeldSaysWhetherAJobHoldsTheUpdateLockWithoutTakingIt(t *testing.T) {
+	t.Parallel()
+
+	db := testdb.Open(t, emptyDatabase(t))
+	if held, err := updater.LockHeld(t.Context(), db); err != nil || held {
+		t.Fatalf("LockHeld() with no job = %t, %v, want false, nil", held, err)
+	}
+	release := locked(t, db)
+
+	held, err := updater.LockHeld(t.Context(), db)
+
+	if err != nil || !held {
+		t.Errorf("LockHeld() while a job holds the lock = %t, %v, want true, nil", held, err)
+	}
+	release()
+	if held, err := updater.LockHeld(t.Context(), db); err != nil || held {
+		t.Errorf("LockHeld() once the job let go = %t, %v, want false, nil", held, err)
+	}
+	locked(t, db)()
+}
+
+func TestLockHeldRefusesADatabaseItCannotReach(t *testing.T) {
+	t.Parallel()
+
+	db := testdb.Open(t, emptyDatabase(t))
+	_ = db.Close()
+
+	_, err := updater.LockHeld(t.Context(), db)
+
+	wantRefused(t, err, "updater: read the update lock")
+}
+
 func TestLockRefusesADatabaseItCannotReach(t *testing.T) {
 	t.Parallel()
 
