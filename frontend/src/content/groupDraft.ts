@@ -224,7 +224,7 @@ export function editOf(draft: GroupDraft, parts: DraftPart[], live: FieldGroup, 
 	}
 }
 
-/** One part of a group as the draft started from it, as the draft holds it and as it was saved elsewhere. */
+/** One part as a draft started from it, as the draft holds it and as it was saved elsewhere. */
 interface Sides<T> {
 	base: T
 	mine: T
@@ -232,14 +232,19 @@ interface Sides<T> {
 }
 
 /**
- * Returns the value a part takes once the draft moves onto the saved version, naming the part when the saved value won.
+ * Returns the value a part takes once a draft moves onto the saved version, naming the part when the saved value won.
  * @param part - The name of the part.
  * @param sides - The part as the draft started from it, as the draft holds it and as it was saved.
  * @param same - What tells two values of the part apart.
  * @param lost - The parts named so far, where a part the saved value won over goes.
  * @returns The value the draft holds.
  */
-function settled<T>(part: DraftPart, sides: Sides<T>, same: (one: T, other: T) => boolean, lost: DraftPart[]): T {
+export function settled<T, P extends string>(
+	part: P,
+	sides: Sides<T>,
+	same: (one: T, other: T) => boolean,
+	lost: P[],
+): T {
 	if (same(sides.mine, sides.base)) {
 		return sides.theirs
 	}
