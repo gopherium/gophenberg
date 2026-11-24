@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { IconButton, Tabs, closeIcon } from '@gophenberg/frontend-sdk'
+import { IconButton, Tabs, closeSmall } from '@gophenberg/frontend-sdk'
 import { BlockInspector } from '@gophenberg/frontend-sdk/editor'
 import { __ } from '@wordpress/i18n'
 
@@ -32,7 +32,7 @@ export function EditorSidebar({
 				</Tabs.List>
 				<IconButton
 					label={__('Close Settings', 'gophenberg')}
-					icon={closeIcon}
+					icon={closeSmall}
 					variant="minimal"
 					tone="neutral"
 					size="compact"

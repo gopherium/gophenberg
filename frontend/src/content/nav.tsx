@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { categoryIcon, customPostTypeIcon, listIcon, pageIcon, postIcon } from '@gophenberg/frontend-sdk'
+import { category, customPostType, list, page, post } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
@@ -15,7 +15,7 @@ export const typesMenuItem = {
 		return _x('Content Types', 'admin section', 'gophenberg')
 	},
 	to: '/content-types',
-	icon: customPostTypeIcon,
+	icon: customPostType,
 } satisfies MenuItem
 
 /** The key the registry is cached under. */
@@ -27,13 +27,13 @@ export const groupsMenuItem: MenuItem = {
 		return _x('Field Groups', 'admin section', 'gophenberg')
 	},
 	to: '/field-groups',
-	icon: listIcon,
+	icon: list,
 }
 
 /** The glyphs of the built-in types WordPress draws apart from posts, by type key. */
 const TYPE_GLYPHS = new Map([
-	['page', pageIcon],
-	['category', categoryIcon],
+	['page', page],
+	['category', category],
 ])
 
 /**
@@ -43,7 +43,7 @@ const TYPE_GLYPHS = new Map([
  */
 function glyphOf(registered: ContentType): MenuItem['icon'] {
 	const shipped = (registered.origin ?? '') === '' ? TYPE_GLYPHS.get(registered.key) : undefined
-	return shipped ?? postIcon
+	return shipped ?? post
 }
 
 /**

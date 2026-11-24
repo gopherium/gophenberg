@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mediaIcon } from '@gophenberg/frontend-sdk'
+import { media } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
 
@@ -9,5 +9,5 @@ export const mediaMenuItem: MenuItem = {
 		return _x('Media', 'admin section', 'gophenberg')
 	},
 	to: '/media',
-	icon: mediaIcon,
+	icon: media,
 }

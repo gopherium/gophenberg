@@ -8,8 +8,8 @@ import {
 	SelectControl,
 	Stack,
 	Text,
-	downIcon,
-	upIcon,
+	chevronDown,
+	chevronUp,
 } from '@gophenberg/frontend-sdk'
 import { ConfirmDialog, ErrorNotice, FormDialog, SectionTitle, useToaster } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
@@ -189,7 +189,7 @@ function FieldsBody(
 									<FieldTitle field={field} shadowed={props.shadowed.has(field.key)} />
 									<Stack direction="row" gap="xs" align="center">
 										<IconButton
-											icon={upIcon}
+											icon={chevronUp}
 											label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
 											size="compact"
 											variant="minimal"
@@ -198,7 +198,7 @@ function FieldsBody(
 											onClick={() => reorder.mutate(moved(index, -1))}
 										/>
 										<IconButton
-											icon={downIcon}
+											icon={chevronDown}
 											label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
 											size="compact"
 											variant="minimal"
@@ -1178,7 +1178,7 @@ function HeldFields(
 							<FieldTitle field={field} shadowed={false} />
 							<Stack direction="row" gap="xs" align="center">
 								<IconButton
-									icon={upIcon}
+									icon={chevronUp}
 									label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
 									size="compact"
 									variant="minimal"
@@ -1187,7 +1187,7 @@ function HeldFields(
 									onClick={() => reorder.mutate(moved(index, -1))}
 								/>
 								<IconButton
-									icon={downIcon}
+									icon={chevronDown}
 									label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
 									size="compact"
 									variant="minimal"

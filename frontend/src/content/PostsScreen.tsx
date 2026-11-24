@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, CHANGE_OTHERS_WORK, can, postIcon, trashIcon } from '@gophenberg/frontend-sdk'
+import { Button, CHANGE_OTHERS_WORK, can, post, trash } from '@gophenberg/frontend-sdk'
 import type { Session } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
@@ -116,13 +116,13 @@ function usePostPage(type: string, status: string, asked: PostQuery) {
  * @returns The count, 0 until it arrives.
  */
 function useTrashTotal(type: string, status: string): number {
-	const trash = useQuery({
+	const total = useQuery({
 		queryKey: ['posts', type, 'trash', 'total'],
 		queryFn: () => listPosts({ type, status: 'trash', perPage: 1 }),
 		enabled: status === 'trash',
 		select: (page) => page.total,
 	})
-	return trash.data ?? 0
+	return total.data ?? 0
 }
 
 /**
@@ -239,12 +239,12 @@ function PostsEmpty({ view, status, adding }: { view: OfferedView<View>, status:
 		return <ListNoResults />
 	}
 	if (status === 'trash') {
-		return <ListEmpty icon={trashIcon} title={__('Trash is empty', 'gophenberg')} />
+		return <ListEmpty icon={trash}title={__('Trash is empty', 'gophenberg')} />
 	}
 	if (status !== '') {
-		return <ListEmpty icon={postIcon} title={emptyTabTitles()[status]} />
+		return <ListEmpty icon={post} title={emptyTabTitles()[status]} />
 	}
-	return <ListEmpty icon={postIcon} title={__('No items yet', 'gophenberg')} actions={adding} />
+	return <ListEmpty icon={post} title={__('No items yet', 'gophenberg')} actions={adding} />
 }
 
 /**

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { DropZone, mediaIcon, uploadIcon } from '@gophenberg/frontend-sdk'
+import { DropZone, media as mediaIcon, upload as uploadIcon } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
 import {

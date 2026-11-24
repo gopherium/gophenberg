@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-	audioIcon,
-	fileIcon,
+	audio,
+	file,
 	Icon,
-	imageIcon,
+	image,
 	Link,
 	Stack,
 	Text,
 	Tooltip,
-	videoIcon,
+	video,
 } from '@gophenberg/frontend-sdk'
 import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
 import type { ViewGuard } from '@gopherium/godmin'
@@ -40,11 +40,7 @@ export const MEDIA_VIEW_GUARD: ViewGuard = {
 }
 
 /** The icon a card draws for each WordPress file type group that has its own, keyed by the group. */
-const KIND_ICONS: Record<string, typeof fileIcon | undefined> = {
-	image: imageIcon,
-	video: videoIcon,
-	audio: audioIcon,
-}
+const KIND_ICONS: Record<string, typeof file | undefined> = { image, video, audio }
 
 /** The class of a picture's box at each step of its load, a fade only while it loads. */
 const LOADING_CLASSES = {
@@ -63,11 +59,11 @@ const narrowings: Record<string, Narrowing<MediaQuery> | undefined> = {
 
 /**
  * Returns the file name of a stored file.
- * @param file - The library relative path of the file.
+ * @param path - The library relative path of the file.
  * @returns The name without its directories.
  */
-function fileNameOf(file: string): string {
-	return file.slice(file.lastIndexOf('/') + 1)
+function fileNameOf(path: string): string {
+	return path.slice(path.lastIndexOf('/') + 1)
 }
 
 /**
@@ -119,7 +115,7 @@ function KindCell({ item }: { item: MediaItem }) {
 			<Stack direction="column" justify="center" align="center" className="gophenberg-media__stack">
 				<Icon
 					className="gophenberg-media__icon"
-					icon={KIND_ICONS[kindOf(item.mimeType)] ?? fileIcon}
+					icon={KIND_ICONS[kindOf(item.mimeType)] ?? file}
 					size={24}
 				/>
 				<div className="gophenberg-media__name-box">

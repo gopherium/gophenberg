@@ -836,38 +836,43 @@ for the account at `/api/auth/session`, so serve that address with
     which no longer takes them.
 
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
-from `@wordpress/icons`, each named after the job it does in the
-admin: `audioIcon`, `authorIcon`, `backIcon`, `backupIcon`,
-`brushIcon`, `categoryIcon`, `checkIcon`, `closeIcon`,
-`customPostTypeIcon`, `downIcon`, `fileIcon`, `imageIcon`,
-`languageIcon`, `listIcon`, `listViewIcon`, `mediaIcon`,
-`notAllowedIcon`, `pageIcon`, `pluginsIcon`, `postIcon`, `redoIcon`,
-`saveIcon`, `settingsIcon`, `sidebarIcon`, `sidebarRtlIcon`,
-`trashIcon`, `undoIcon`, `upIcon`, `updateIcon`, `uploadIcon` and
-`videoIcon`. `authorIcon` is the one an
-author cell shows when the site shows no avatars, `postIcon` the one
-an empty content list shows, `mediaIcon` the one an empty media
-library shows, `pluginsIcon` the one an empty Plugins list shows,
-and `uploadIcon` the one an upload button carries.
-`imageIcon`, `videoIcon`, `audioIcon` and `fileIcon` are the ones a
+from `@wordpress/icons`, each under the name `@wordpress/icons` gives
+it, so a plugin imports an icon by the same name in both: `audio`,
+`backup`, `brush`, `category`, `check`, `chevronDown`, `chevronLeft`,
+`chevronUp`, `closeSmall`, `cloudUpload`, `commentAuthorAvatar`,
+`customPostType`, `drawerLeft`, `drawerRight`, `file`, `image`,
+`language`, `list`, `listView`, `media`, `notAllowed`, `page`,
+`plugins`, `post`, `redo`, `settings`, `trash`, `undo`, `update`,
+`upload` and `video`. `commentAuthorAvatar` is the one an
+author cell shows when the site shows no avatars, `post` the one
+an empty content list shows, `media` the one an empty media
+library shows, `plugins` the one an empty Plugins list shows,
+and `upload` the one an upload button carries.
+`image`, `video`, `audio` and `file` are the ones a
 media card draws for a file that shows no picture, picked by its
 file type as WordPress picks them.
-`sidebarIcon` is the one the editor's Settings button carries, and
-`sidebarRtlIcon` its mirror for a language written right to left.
-`saveIcon` is the one Save draft shows on a phone, and `closeIcon`
+`drawerRight` is the one the editor's Settings button carries, and
+`drawerLeft` its mirror for a language written right to left.
+`cloudUpload` is the one Save draft shows on a phone, and `closeSmall`
 the one a panel's close button carries.
 The sidebar rows carry the icons WordPress draws for the same rows:
-`postIcon` for Posts and every type a site adds, `pageIcon` for
-Pages, `categoryIcon` for Categories, `mediaIcon` for Media,
-`brushIcon` for Themes, `pluginsIcon` for Plugins,
-`customPostTypeIcon` for Content Types,
-`listIcon` for Field Groups, `languageIcon` for Language,
-`settingsIcon` for Settings and `updateIcon` for Updates.
+`post` for Posts and every type a site adds, `page` for
+Pages, `category` for Categories, `media` for Media,
+`brush` for Themes, `plugins` for Plugins,
+`customPostType` for Content Types,
+`list` for Field Groups, `language` for Language,
+`settings` for Settings and `update` for Updates.
 Import them from the SDK, so the admin keeps one copy of the icon set:
 
 ```ts
-import { trashIcon } from '@gophenberg/frontend-sdk'
+import { trash } from '@gophenberg/frontend-sdk'
 ```
+
+The SDK no longer hands out the older names with an `Icon` suffix,
+such as `trashIcon` or `authorIcon`. Import each icon under its
+`@wordpress/icons` name instead, and rename it on import where a
+name of your own already takes it, such as
+`import { upload as uploadIcon } from '@gophenberg/frontend-sdk'`.
 
 A write that fails says why. A dialog that stays open says it inside.
 A dialog that closes, and a write with no dialog, say it in a toast
@@ -1101,13 +1106,13 @@ instead. It takes no props, and the admin already loads its words.
 `viewNarrows` tells the two cases apart:
 
 ```tsx
-import { ListEmpty, ListNoResults, postIcon, viewNarrows } from '@gophenberg/frontend-sdk'
+import { ListEmpty, ListNoResults, post, viewNarrows } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 
 const empty = viewNarrows(view) ? (
 	<ListNoResults />
 ) : (
-	<ListEmpty icon={postIcon} title="No notes yet" actions={<AddNote size="default" />} />
+	<ListEmpty icon={post} title="No notes yet" actions={<AddNote size="default" />} />
 )
 
 <DataViews {...props} empty={empty} />

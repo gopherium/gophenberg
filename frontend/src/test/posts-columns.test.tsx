@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { authorIcon, Icon } from '@gophenberg/frontend-sdk'
+import { commentAuthorAvatar, Icon } from '@gophenberg/frontend-sdk'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { offeredView } from '@gopherium/godmin'
@@ -423,7 +423,7 @@ test('draws the avatar picture the server sent at 16px before the author name, a
 
 test('draws the author icon and no avatar before the name on a site showing no avatars, as WordPress does', () => {
 	const cell = renderAuthorCell('')
-	const { container: drawn } = render(<Icon icon={authorIcon} />)
+	const { container: drawn } = render(<Icon icon={commentAuthorAvatar} />)
 
 	expect(cell.querySelector('.godmin-avatar')).toBeNull()
 	expect(cell.querySelector('.gophenberg-author__icon')?.innerHTML).toBe(drawn.innerHTML)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { pluginsIcon } from '@gophenberg/frontend-sdk'
+import { plugins as pluginsIcon } from '@gophenberg/frontend-sdk'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { PageTab, PageTabs, offeredSize } from '@gopherium/godmin'
 import { useListView } from '@gopherium/godmin/router'

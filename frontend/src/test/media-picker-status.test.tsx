@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { checkIcon, Icon } from '@gophenberg/frontend-sdk'
+import { check, Icon } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -92,7 +92,7 @@ function rowOf(file: File): HTMLElement {
  * @returns The markup inside the icon's svg.
  */
 function checkOutline(): string {
-	const { container, unmount } = render(<Icon icon={checkIcon} />)
+	const { container, unmount } = render(<Icon icon={check} />)
 	const outline = (container.querySelector('svg') as SVGSVGElement).innerHTML
 	unmount()
 	return outline

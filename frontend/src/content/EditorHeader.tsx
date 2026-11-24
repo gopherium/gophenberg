@@ -6,13 +6,13 @@ import {
 	SelectControl,
 	Stack,
 	Text,
-	backIcon,
-	listViewIcon,
-	redoIcon,
-	saveIcon,
-	sidebarIcon,
-	sidebarRtlIcon,
-	undoIcon,
+	chevronLeft,
+	cloudUpload,
+	drawerLeft,
+	drawerRight,
+	listView,
+	redo,
+	undo,
 } from '@gophenberg/frontend-sdk'
 import { Inserter } from '@gophenberg/frontend-sdk/editor'
 import { __, _x, isRTL, sprintf } from '@wordpress/i18n'
@@ -95,7 +95,7 @@ function HistoryButtons({ buffer }: { buffer: EditorBuffer }) {
 		<>
 			<IconButton
 				label={__('Undo', 'gophenberg')}
-				icon={undoIcon}
+				icon={undo}
 				variant="minimal"
 				tone="neutral"
 				disabled={!buffer.hasUndo}
@@ -103,7 +103,7 @@ function HistoryButtons({ buffer }: { buffer: EditorBuffer }) {
 			/>
 			<IconButton
 				label={__('Redo', 'gophenberg')}
-				icon={redoIcon}
+				icon={redo}
 				variant="minimal"
 				tone="neutral"
 				disabled={!buffer.hasRedo}
@@ -154,7 +154,7 @@ function SaveDraft({ buffer, width }: { buffer: EditorBuffer, width: EditorWidth
 		return (
 			<IconButton
 				label={name}
-				icon={saveIcon}
+				icon={cloudUpload}
 				variant="minimal"
 				disabled={disabled}
 				className={pulse}
@@ -179,7 +179,7 @@ function SettingsToggle({ views, settingsRef }: { views: EditorViews, settingsRe
 		<IconButton
 			ref={settingsRef}
 			label={_x('Settings', 'panel button label', 'gophenberg')}
-			icon={isRTL() ? sidebarRtlIcon : sidebarIcon}
+			icon={isRTL() ? drawerLeft : drawerRight}
 			variant="minimal"
 			tone="neutral"
 			aria-pressed={views.sidebarOpen}
@@ -212,7 +212,7 @@ export function EditorHeader(
 			<Stack direction="row" gap="xs" align="center" className="gophenberg-editor__tools">
 				<IconButton
 					label={sprintf(__('Back to %(type)s', 'gophenberg'), { type: pluralOf(listed).toLowerCase() })}
-					icon={backIcon}
+					icon={chevronLeft}
 					variant="minimal"
 					tone="neutral"
 					render={<Link to="/content/$typeKey" params={{ typeKey: type }} />}
@@ -221,7 +221,7 @@ export function EditorHeader(
 				{width.narrow ? null : <HistoryButtons buffer={buffer} />}
 				<IconButton
 					label={__('List view', 'gophenberg')}
-					icon={listViewIcon}
+					icon={listView}
 					variant="minimal"
 					tone="neutral"
 					aria-pressed={views.listOpen}

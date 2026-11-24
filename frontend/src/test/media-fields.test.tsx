@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { audioIcon, fileIcon, Icon, imageIcon, videoIcon } from '@gophenberg/frontend-sdk'
+import { audio, file, Icon, image, video } from '@gophenberg/frontend-sdk'
 import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -76,7 +76,7 @@ function renderCell(id: string, held: MediaItem, sizes?: string): HTMLElement {
  * @param icon - The icon.
  * @returns The markup inside its svg.
  */
-function drawnIcon(icon: typeof fileIcon): string {
+function drawnIcon(icon: typeof file): string {
 	const { container, unmount } = render(<Icon icon={icon} />)
 	const markup = container.querySelector('svg')?.innerHTML
 	unmount()
@@ -88,7 +88,7 @@ function drawnIcon(icon: typeof fileIcon): string {
  * @param cell - The cell.
  * @param icon - The icon it should draw.
  */
-function expectKindIcon(cell: HTMLElement, icon: typeof fileIcon) {
+function expectKindIcon(cell: HTMLElement, icon: typeof file) {
 	const drawn = cell.querySelector('svg.gophenberg-media__icon')
 
 	expect(drawn?.innerHTML).toBe(drawnIcon(icon))
@@ -395,10 +395,10 @@ test('names a picture by its alt text, else by its title', () => {
 })
 
 test.each([
-	['application/pdf', 'manual.pdf', fileIcon],
-	['video/mp4', 'harbor-tour.mp4', videoIcon],
-	['audio/mpeg', 'interview.mp3', audioIcon],
-	['application/octet-stream', 'notes.bin', fileIcon],
+	['application/pdf', 'manual.pdf', file],
+	['video/mp4', 'harbor-tour.mp4', video],
+	['audio/mpeg', 'interview.mp3', audio],
+	['application/octet-stream', 'notes.bin', file],
 ])('draws the kind icon of a %s file and its whole file name, no picture', (mimeType, name, icon) => {
 	const cell = renderCell('thumbnail', item({ type: 'file', mimeType, file: `2026/08/${name}` }), '900px')
 
@@ -413,7 +413,7 @@ test('draws the picture icon and the file name for a picture whose file will not
 	fireEvent.error(cell.querySelector('img') as HTMLImageElement)
 
 	expect(cell.querySelector('img')).toBeNull()
-	expectKindIcon(cell, imageIcon)
+	expectKindIcon(cell, image)
 	expect(cell.querySelector('.gophenberg-media__filename-text')).toHaveTextContent('harbor.jpg')
 })
 

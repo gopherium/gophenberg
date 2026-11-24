@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { languageIcon } from '@gophenberg/frontend-sdk'
+import { language } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
 
@@ -9,5 +9,5 @@ export const languageMenuItem: MenuItem = {
 		return _x('Language', 'admin section', 'gophenberg')
 	},
 	to: '/language',
-	icon: languageIcon,
+	icon: language,
 }

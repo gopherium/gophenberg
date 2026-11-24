@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { UPDATE_CORE, updateIcon } from '@gophenberg/frontend-sdk'
+import { UPDATE_CORE, update } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
@@ -16,7 +16,7 @@ export function useUpdatesMenuItem(): MenuItem {
 	return {
 		label: __('Updates', 'gophenberg'),
 		to: '/update-core',
-		icon: updateIcon,
+		icon: update,
 		capability: UPDATE_CORE,
 		count: {
 			value: waiting,

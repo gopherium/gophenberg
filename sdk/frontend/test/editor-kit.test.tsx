@@ -9,7 +9,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import { useEffect } from 'react'
 import { beforeAll, expect, onTestFinished, test } from 'vitest'
 
-import { closeIcon, saveIcon, sidebarIcon, sidebarRtlIcon } from '../index'
+import * as sdk from '../index'
 import { BLOCK_EDITOR_STORE, BlockEditorProvider, BlockToolbar, Button, registerCuratedBlocks } from '../editor'
 
 beforeAll(() => {
@@ -70,10 +70,10 @@ function toolbarWords() {
 }
 
 test('hands the editor the icons WordPress draws its settings, save and close buttons with', () => {
-	expect(sidebarIcon).toBe(drawerRight)
-	expect(sidebarRtlIcon).toBe(drawerLeft)
-	expect(saveIcon).toBe(cloudUpload)
-	expect(closeIcon).toBe(closeSmall)
+	expect(sdk.drawerRight).toBe(drawerRight)
+	expect(sdk.drawerLeft).toBe(drawerLeft)
+	expect(sdk.cloudUpload).toBe(cloudUpload)
+	expect(sdk.closeSmall).toBe(closeSmall)
 })
 
 test('draws no toolbar while no block is selected, as the block editor does', () => {
