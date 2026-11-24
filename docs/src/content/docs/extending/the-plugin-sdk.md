@@ -954,6 +954,19 @@ show the controls a components overlay draws.
 words in a `label`. `CheckboxControl` is a different one, the labelled
 box from `@wordpress/components`.
 
+`Collapsible` from `@gophenberg/frontend-sdk` is the one from
+`@wordpress/ui`. It shows a part of a screen only while the reader
+wants it. `Collapsible.Root` holds whether the part is open,
+`Collapsible.Trigger` is the button that opens and closes it, and
+`Collapsible.Panel` is the part itself. The button tells a screen
+reader whether its part is open. `Collapsible` draws no look of its
+own, so style each piece through its `className`. Give the panel
+`hiddenUntilFound` and the browser's find in page still reads a closed
+part, and opens it on a match. When your screen keeps which parts are
+open, through `open` and `onOpenChange` on the root, open a part
+whenever `onOpenChange` hands you `true`, even with no press, or a part
+that find in page opened closes again.
+
 A block that fails at something, such as an upload the server
 refused, leaves a message for the block editor and draws nothing
 itself. `useBlockNotices` from `@gophenberg/frontend-sdk/editor`
@@ -1147,6 +1160,9 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
   plugin with the `name`, `description` and `version` its
   `plugin.json` gives, and why one is paused. `description` is a new
   key, see [the manifest](/extending/write-a-plugin/#1-the-manifest).
+- New: the frontend SDK passes on `Collapsible` from `@wordpress/ui`,
+  a part of a screen that a button opens and closes. See
+  [admin screens for plugins](#admin-screens-for-plugins).
 - `Deps.Getenv`, `Deps.Env` and the `Env` type are gone, a breaking
   change.
 - `make generate` rejects a `plugin.json` that spells a key in

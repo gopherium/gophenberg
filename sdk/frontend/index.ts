@@ -52,6 +52,7 @@ export {
 	Badge,
 	Button,
 	Checkbox,
+	Collapsible,
 	Dialog,
 	Icon,
 	IconButton,
