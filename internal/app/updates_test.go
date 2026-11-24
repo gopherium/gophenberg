@@ -332,6 +332,28 @@ func TestSiteUpdatesOverviewNamesWhatTheChecksStoredBesideThisBinaryAndItsInstal
 	}
 }
 
+func TestSiteUpdatesOverviewSaysWhetherAnUpdateRunsNow(t *testing.T) {
+	t.Parallel()
+
+	updates := officialUpdates(t)
+	updates.admin = idleUpdates(t)
+
+	idle, err := updates.Overview(t.Context())
+	if err != nil || idle.Updating {
+		t.Errorf("Overview() with no update under way = %t, %v, want false", idle.Updating, err)
+	}
+	if !updates.admin.take() {
+		t.Fatal("take() = false on a serve run with no update, want the update under way")
+	}
+	defer updates.admin.free()
+
+	running, err := updates.Overview(t.Context())
+
+	if err != nil || !running.Updating {
+		t.Errorf("Overview() while an update runs = %t, %v, want true", running.Updating, err)
+	}
+}
+
 func TestSiteUpdatesOverviewNamesThePostgreSQLMajorThatRunsAndNoneOnSQLite(t *testing.T) {
 	t.Parallel()
 

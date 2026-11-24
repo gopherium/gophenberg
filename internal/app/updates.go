@@ -141,8 +141,10 @@ func (u siteUpdates) Start(ctx context.Context, asked server.UpdateStart) error 
 	return u.admin.start(ctx, asked)
 }
 
-// Overview returns what the admin shows: what the checks stored, this binary, its server, install and the next check.
+// Overview returns what the admin shows: what the checks stored, this binary, its server, install, whether an update
+// runs and the next check.
 func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, error) {
+	updating := u.admin.updating()
 	result, resultErr := u.Result(ctx)
 	install, installErr := updater.ReadOverview(u.install)
 	next, nextErr := u.nextCheck(ctx)
@@ -155,7 +157,8 @@ func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, erro
 	return server.UpdatesOverview{
 		Result:   withRunningPostgreSQL(withoutReachedOffer(result, running), major),
 		Overview: withoutReachedFailure(install, running),
-		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
+		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, Updating: updating,
+		NextCheck: next,
 	}, nil
 }
 

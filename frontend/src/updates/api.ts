@@ -47,6 +47,7 @@ const overviewSchema = resultSchema.extend({
 	running_postgresql: z.number().optional(),
 	can_update: z.boolean(),
 	cannot_update: z.string().optional(),
+	updating: z.boolean(),
 	refused: z.array(z.string()),
 	job: jobSchema.nullable(),
 	backups: backupsSchema,
@@ -59,7 +60,10 @@ const errorSchema = z.object({
 	meta: z.record(z.string(), z.unknown()).optional(),
 })
 
-/** What GET /api/updates answers: what the checks found, the version that runs, its install and its last update. */
+/**
+ * What GET /api/updates answers: what the checks found, the version that runs, its install, its last update and
+ * whether an update runs in the server now.
+ */
 export type UpdatesOverview = z.infer<typeof overviewSchema>
 
 /** The update a check found for this site. */

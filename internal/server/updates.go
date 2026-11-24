@@ -39,7 +39,8 @@ type UpdatesScreen struct {
 	RestartWait      time.Duration
 }
 
-// UpdatesOverview is GET /api/updates: what the checks found, this binary, its server, its install and the next check.
+// UpdatesOverview is GET /api/updates: what the checks found, this binary, its server, its install, whether an update
+// runs in it now and the next check.
 type UpdatesOverview struct {
 	update.Result
 	updater.Overview
@@ -47,6 +48,7 @@ type UpdatesOverview struct {
 	RunningPostgreSQL int            `json:"running_postgresql,omitempty"`
 	CanUpdate         bool           `json:"can_update"`
 	CannotUpdate      updater.Reason `json:"cannot_update,omitempty"`
+	Updating          bool           `json:"updating"`
 	NextCheck         *time.Time     `json:"next_check"`
 }
 

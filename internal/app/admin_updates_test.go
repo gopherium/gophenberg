@@ -85,6 +85,29 @@ func TestAdminUpdatesEndTheServeRunOnlyOnceTheUpdateUnderWayEnded(t *testing.T) 
 	})
 }
 
+func TestAdminUpdatesSayAnUpdateRunsFromItsStartUntilItEnds(t *testing.T) {
+	t.Parallel()
+
+	var none *adminUpdates
+	if none.updating() {
+		t.Error("updating() with no runner = true, want false")
+	}
+	updates := idleUpdates(t)
+	if updates.updating() {
+		t.Error("updating() before any start = true, want false")
+	}
+	if !updates.take() {
+		t.Fatal("take() = false on a serve run with no update, want the update under way")
+	}
+	if !updates.updating() {
+		t.Error("updating() while an update runs = false, want true")
+	}
+	updates.free()
+	if updates.updating() {
+		t.Error("updating() once the update ended = true, want false")
+	}
+}
+
 func TestAdminUpdatesRestartOnlyOnceTheSwitchStands(t *testing.T) {
 	t.Parallel()
 

@@ -61,7 +61,7 @@ const OPEN_PHASES: RunPhase['kind'][] = ['steps', 'not-back']
  * @param asked - The version it updates to and whether it retries it.
  * @param before - The overview the screen held when the update started.
  * @param answered - The overview the start answered with.
- * @returns The update, which has not moved yet.
+ * @returns The update, moved when the start answered that an update runs in the server.
  */
 export function startedRun(asked: UpdateStart, before: UpdatesOverview, answered: UpdatesOverview): UpdateRun {
 	return {
@@ -70,7 +70,7 @@ export function startedRun(asked: UpdateStart, before: UpdatesOverview, answered
 		retry: asked.retry,
 		priorFailure: before.job?.failure?.at,
 		priorBackup: answered.backups.newest,
-		moved: false,
+		moved: answered.updating,
 		ended: false,
 	}
 }
@@ -104,9 +104,9 @@ function foundRun(overview: UpdatesOverview): UpdateRun | undefined {
  */
 function pickedUp(job: UpdateJob, overview: UpdatesOverview): boolean {
 	if (job.to === overview.running) {
-		return job.step === 'failed' || openStep(job, overview.refused)
+		return job.step === 'failed' || openStep(job, overview)
 	}
-	return job.from === overview.running && openStep(job, overview.refused)
+	return job.from === overview.running && openStep(job, overview)
 }
 
 /**
@@ -119,16 +119,17 @@ export function mayMoveOn(view: RunView | undefined): boolean {
 }
 
 /**
- * Reports whether a job stands at a step before its switch, or at a switch the version it went to has not refused.
+ * Reports whether a job stands at a step before its switch while an update runs in the server, or at a switch the
+ * version it went to has not refused. A step before the switch with no update running is one a stopped server left.
  * @param job - The job the overview names.
- * @param refused - The versions the install refuses.
+ * @param overview - The overview of the updates.
  * @returns True while the job is under way.
  */
-function openStep(job: UpdateJob, refused: string[]): boolean {
+function openStep(job: UpdateJob, overview: UpdatesOverview): boolean {
 	if (UNDER_WAY.includes(job.step)) {
-		return true
+		return overview.updating
 	}
-	return job.step === 'switched' && !refused.includes(job.to)
+	return job.step === 'switched' && !overview.refused.includes(job.to)
 }
 
 /**
@@ -226,7 +227,7 @@ function progressed(run: UpdateRun, overview: UpdatesOverview): boolean {
  */
 function ownJobOpen(run: UpdateRun, overview: UpdatesOverview): boolean {
 	const job = ownJob(run, overview)
-	return job !== undefined && openStep(job, overview.refused)
+	return job !== undefined && openStep(job, overview)
 }
 
 /**
@@ -263,7 +264,22 @@ function stepLine(run: UpdateRun, seen: Seen): StepLine {
 	if (seen.overview.running === run.to) {
 		return 'check'
 	}
-	return run.moved ? (LINE_OF_STEP[ownStep(run, seen.overview)] ?? 'download') : 'download'
+	return run.moved ? jobLine(run, seen.overview) : 'download'
+}
+
+/**
+ * Returns the line the job of the update shows, the download while an update runs and the job names no step before
+ * its switch, as the job record still holds the try before it until the new one writes its first step.
+ * @param run - The update followed.
+ * @param overview - The overview last read.
+ * @returns The line under way.
+ */
+function jobLine(run: UpdateRun, overview: UpdatesOverview): StepLine {
+	const step = ownStep(run, overview)
+	if (overview.updating && !UNDER_WAY.includes(step)) {
+		return 'download'
+	}
+	return LINE_OF_STEP[step] ?? 'download'
 }
 
 /**
@@ -283,12 +299,16 @@ function phaseOf(run: UpdateRun, seen: Seen, line: StepLine, waited: boolean): R
 }
 
 /**
- * Returns the ending the overview shows: the new version kept or failed, a failure before, or the one before it back.
+ * Returns the ending the overview shows once no update runs: the new version kept or failed, a failure before, or the
+ * one before it back.
  * @param run - The update followed.
  * @param overview - The overview last read.
  * @returns The ending, or undefined while the update runs.
  */
 function endingOf(run: UpdateRun, overview: UpdatesOverview): Ending | undefined {
+	if (overview.updating) {
+		return undefined
+	}
 	if (overview.running === run.to) {
 		return ENDING_ON_NEW[ownStep(run, overview)]
 	}

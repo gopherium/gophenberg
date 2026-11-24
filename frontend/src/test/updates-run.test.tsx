@@ -19,6 +19,7 @@ import {
 	longJumpWaiting,
 	patchAt,
 	patchFailed,
+	patchLeftAt,
 	patchOffer,
 	patchRetryFailed,
 	patchRolledBack,
@@ -396,7 +397,7 @@ test('says a retry of a version the rollback unit took back failed before anythi
 
 test('says the update stays failed once a release past the minimum version fails its start check', async () => {
 	const assertive = listenAt('assertive')
-	const site = await startUpdate(longJumpWaiting, { ...longJumpWaiting, job: patchAt('download').job })
+	const site = await startUpdate(longJumpWaiting, { ...longJumpWaiting, updating: true, job: patchAt('download').job })
 
 	site('down')
 	await underWay('Restarting Gophenberg…')
@@ -482,6 +483,23 @@ test('keeps following a retry while the overview still names the version it went
 	site(patchAt('switched'))
 	await underWay('Restarting Gophenberg…')
 	site(patchWentBack)
+	expect(await screen.findByText(/Gophenberg went back to 0.20.0/)).toBeInTheDocument()
+})
+
+test.each([
+	['the start check', patchWentBack],
+	['the rollback unit', patchRolledBack],
+])('follows a retry the start answers as running, showing no ending until it stops', async (_by, wentBack) => {
+	const site = siteAnswering(wentBack)
+	acceptStarts({ ...wentBack, updating: true })
+	renderAt('/update-core')
+
+	await confirmUpdate(REINSTALL)
+	await readTwice(site, { ...wentBack, updating: true })
+
+	await underWay('Downloading Gophenberg 0.20.1…')
+	expect(screen.queryByText(/Gophenberg went back to/)).toBeNull()
+	site(wentBack)
 	expect(await screen.findByText(/Gophenberg went back to 0.20.0/)).toBeInTheDocument()
 })
 
@@ -579,6 +597,14 @@ test('follows an update already under way when the screen opens', async () => {
 
 	await underWay('Unpacking the update…')
 	expect(screen.queryByRole('button', { name: 'Update to version 0.20.1' })).toBeNull()
+})
+
+test.each(['download', 'stage', 'backup'])('follows no job a stopped server left at %s', async (step) => {
+	siteAnswering(patchLeftAt(step))
+	renderAt('/update-core')
+
+	expect(await screen.findByRole('button', { name: UPDATE })).toBeInTheDocument()
+	expect(screen.queryByText('Downloading Gophenberg 0.20.1…')).toBeNull()
 })
 
 test('says an update already under way when the screen opens succeeded once the new version runs', async () => {
