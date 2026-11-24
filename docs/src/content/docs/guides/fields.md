@@ -157,15 +157,17 @@ the edits and closes the field.
 **Save** at the top of the page saves every field you changed, one
 after another in table order, then the group's own details. Pressing
 Enter in a field's text box saves the same way. **Instructions** is
-the one box where Enter starts a new line instead. Each field that
-saved closes. Once every change saved, a message says the group was
-updated.
+the one box where Enter starts a new line instead. Once Save ends,
+every open field closes, the ones you did not change too. Only a
+field that did not save is left open, and it opens if it was closed.
+Once every change saved, a message says the group was updated.
 
 When the server rejects a field, the other changes still save. The
-rejected field opens with your edits kept. The reason shows under the
-setting it names, with that setting's tab chosen, or at the top of
-the field. A message names each field that did not save and counts
-the changes that did.
+rejected field opens with your edits kept. When it sits inside a
+container, the container opens too, so you see the field in place.
+The reason shows under the setting it names, with that setting's tab
+chosen, or at the top of the field. A message names each field that
+did not save and counts the changes that did.
 
 A field someone else saved after you opened it keeps your edits too.
 It says so and offers **Load saved version**, which works as it does
