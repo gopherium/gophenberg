@@ -709,9 +709,6 @@ msgstr "%(field)s declarado."
 msgid "%(field)s deleted."
 msgstr "%(field)s borrado."
 
-msgid "%(field)s renamed."
-msgstr "%(field)s renombrado."
-
 msgid "%(file)s is larger than one upload may be."
 msgstr "%(file)s es más grande de lo que una subida permite."
 
@@ -761,9 +758,6 @@ msgstr "Borrar %(field)s"
 msgid "Remove %(title)s"
 msgstr "Quitar %(title)s"
 
-msgid "Rename %(field)s"
-msgstr "Renombrar %(field)s"
-
 msgid "Roll back to %(theme)s"
 msgstr "Revertir a %(theme)s"
 
@@ -785,20 +779,8 @@ msgstr "El %(file)s dentro de %(name)s identifica su kit de temas como %(declare
 msgid "The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it."
 msgstr "El tema %(name)s se compiló con el kit de temas %(declared)s y este sitio sirve %(served)s. Compila el tema de nuevo con un kit que este sitio sirva y después instálalo."
 
-msgid "%(field)s is optional again."
-msgstr "%(field)s vuelve a ser opcional."
-
-msgid "%(field)s is required now."
-msgstr "%(field)s ahora es obligatorio."
-
 msgid "Holds"
 msgstr "Contiene"
-
-msgid "Make %(field)s optional"
-msgstr "Hacer %(field)s opcional"
-
-msgid "Make optional"
-msgstr "Hacer opcional"
 
 msgid "Many targets"
 msgstr "Varios destinos"
@@ -814,15 +796,6 @@ msgstr "No"
 
 msgid "One target"
 msgstr "Un destino"
-
-msgid "Order stored."
-msgstr "Orden guardado."
-
-msgid "Require"
-msgstr "Hacer obligatorio"
-
-msgid "Require %(field)s"
-msgstr "Hacer %(field)s obligatorio"
 
 msgid "Required"
 msgstr "Obligatorio"
@@ -865,10 +838,6 @@ msgstr "%(field)s nombra el mismo dos veces. Quita la repetición y guarda de nu
 #, fuzzy
 msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr "%(field)s solo admite una de las opciones de su lista. Elige una y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s settled."
-msgstr "%(field)s ajustado."
 
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
@@ -983,12 +952,20 @@ msgid "Choices"
 msgstr "Opciones"
 
 #, fuzzy
+msgid "Close field"
+msgstr "Cerrar campo"
+
+#, fuzzy
 msgid "Condition"
 msgstr "Condición"
 
 #, fuzzy
 msgid "Content type"
 msgstr "Tipo de contenido"
+
+#, fuzzy
+msgid "Could not save %(names)s."
+msgstr "Error al guardar %(names)s."
 
 #, fuzzy
 msgid "Create"
@@ -1013,6 +990,10 @@ msgstr "Eliminar el grupo"
 #, fuzzy
 msgid "Discard"
 msgstr "Descartar"
+
+#, fuzzy
+msgid "Discard changes"
+msgstr "Descartar los cambios"
 
 #, fuzzy
 msgid "Discard changes?"
@@ -1045,6 +1026,10 @@ msgstr "Ajustes del grupo de campos"
 #, fuzzy
 msgid "Fields of %(group)s"
 msgstr "Campos de %(group)s"
+
+#, fuzzy
+msgid "General"
+msgstr "General"
 
 #, fuzzy
 msgid "Group"
@@ -1135,6 +1120,10 @@ msgid "Placeholder"
 msgstr "Texto de ejemplo"
 
 #, fuzzy
+msgid "Presentation"
+msgstr "Presentación"
+
+#, fuzzy
 msgid "Radio group"
 msgstr "Grupo de botones de radio"
 
@@ -1151,20 +1140,27 @@ msgid "Save rules"
 msgstr "Guardar las reglas"
 
 #, fuzzy
-msgid "Save settings"
-msgstr "Guardar los ajustes"
+msgid "Saved %(done)s of %(asked)s change."
+msgid_plural "Saved %(done)s of %(asked)s changes."
+msgstr[0] "Cambios guardados: %(done)s de %(asked)s."
+msgstr[1] "Cambios guardados: %(done)s de %(asked)s."
+msgstr[2] "Cambios guardados: %(done)s de %(asked)s."
 
 #, fuzzy
 msgid "Settings"
 msgstr "Ajustes"
 
 #, fuzzy
-msgid "Settings of %(field)s"
-msgstr "Ajustes de %(field)s"
-
-#, fuzzy
 msgid "Shadowed"
 msgstr "Eclipsado"
+
+#, fuzzy
+msgid "Show in the list"
+msgstr "Mostrar en la lista"
+
+#, fuzzy
+msgid "Someone saved %(field)s after you opened it."
+msgstr "Alguien guardó el campo %(field)s después de que lo abrieras."
 
 #, fuzzy
 msgid "Someone saved %(group)s after you opened it."
@@ -1177,6 +1173,10 @@ msgstr "Origen"
 #, fuzzy
 msgid "Steps of"
 msgstr "Pasos de"
+
+#, fuzzy
+msgid "Sub fields of %(field)s"
+msgstr "Subcampos de %(field)s"
 
 #, fuzzy
 msgid "Text area"
@@ -1271,6 +1271,14 @@ msgid "Two rule sources are registered under the name %(param)s. A plugin is dec
 msgstr "Hay dos fuentes de reglas registradas con el nombre %(param)s. Un plugin declara una fuente que tu sitio ya tiene."
 
 #, fuzzy
+msgid "Unsaved changes inside %(field)s are lost too."
+msgstr "También se pierden los cambios sin guardar dentro de %(field)s."
+
+#, fuzzy
+msgid "Validation"
+msgstr "Validación"
+
+#, fuzzy
 msgid "Value"
 msgstr "Valor"
 
@@ -1301,14 +1309,6 @@ msgstr "%(field)s necesita al menos %(limit)s filas. Añade una y guarda de nuev
 #, fuzzy
 msgid "%(field)s shows by its rules now."
 msgstr "%(field)s ahora se muestra según sus reglas."
-
-#, fuzzy
-msgid "%(field)s stands in the list."
-msgstr "%(field)s aparece en la lista."
-
-#, fuzzy
-msgid "%(field)s stays out of the list."
-msgstr "%(field)s se queda fuera de la lista."
 
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
@@ -1447,20 +1447,12 @@ msgid "Import definitions"
 msgstr "Importar definiciones"
 
 #, fuzzy
-msgid "In list"
-msgstr "En la lista"
-
-#, fuzzy
 msgid "It moves to another group, so its stored values do not follow."
 msgstr "Se mueve a otro grupo, así que sus valores guardados no le siguen."
 
 #, fuzzy
 msgid "Its kind changed, so its stored values go with it."
 msgstr "Su tipo ha cambiado, así que sus valores guardados se van con él."
-
-#, fuzzy
-msgid "Keep %(field)s out of the list"
-msgstr "Dejar %(field)s fuera de la lista"
 
 #, fuzzy
 msgid "Most rows"
@@ -1477,10 +1469,6 @@ msgstr "Subir la fila"
 #, fuzzy
 msgid "Other"
 msgstr "Otro"
-
-#, fuzzy
-msgid "Out of list"
-msgstr "Fuera de la lista"
 
 #, fuzzy
 msgid "Picture quality"
@@ -1501,10 +1489,6 @@ msgstr "Quitar fila"
 #, fuzzy
 msgid "Rules showing %(field)s"
 msgstr "Reglas que muestran %(field)s"
-
-#, fuzzy
-msgid "Show %(field)s in the list"
-msgstr "Mostrar %(field)s en la lista"
 
 #, fuzzy
 msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
@@ -2792,10 +2776,6 @@ msgstr "Se ha borrado permanentemente el tipo de contenido «%s»."
 msgctxt "content type"
 msgid "\"%s\" successfully created."
 msgstr "Se ha creado correctamente el tipo de contenido «%s»."
-
-msgctxt "field"
-msgid "Name"
-msgstr "Nombre"
 
 msgctxt "field type"
 msgid "Date"
