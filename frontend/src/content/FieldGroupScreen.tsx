@@ -191,7 +191,7 @@ function useFieldEdits() {
 		ran: (saved: string[], failures: FieldFailure[]) => {
 			setDrafts((held) => withoutPaths(held, (path) => saved.includes(path)))
 			setNotes((held) => notesRan(held, saved, failures, drafts))
-			setOpened((held) => openedRan(held, saved, failures))
+			setOpened(openedRan(failures))
 		},
 	}
 }

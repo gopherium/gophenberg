@@ -68,10 +68,19 @@ test('clears what the last save said as a save starts, keeping the parts each fi
 	})
 })
 
-test('closes each field the run saved and opens each field it could not', () => {
-	const opened = openedRan(new Set(['phone', 'team']), ['phone'], [{ path: 'team.role', error: new Error('rejected') }])
+test('closes every open field once the run ends and opens each field it could not save', () => {
+	const opened = openedRan([{ path: 'phone', error: new Error('rejected') }])
 
-	expect([...opened]).toEqual(['team', 'team.role'])
+	expect([...opened]).toEqual(['phone'])
+})
+
+test('opens every container above a field the run could not save', () => {
+	const opened = openedRan([
+		{ path: 'team.role', error: new Error('rejected') },
+		{ path: 'features.hero.title', error: new Error('rejected') },
+	])
+
+	expect([...opened]).toEqual(['team', 'team.role', 'features', 'features.hero', 'features.hero.title'])
 })
 
 test('finds a field by its dotted path, however deep, and none at a path no field stands at', () => {

@@ -110,16 +110,20 @@ export function notesRan(
 }
 
 /**
- * Returns the fields standing open once a header Save ended: each one it saved closed, each one it could not open.
- * @param opened - The dotted paths of the fields standing open.
- * @param saved - The dotted paths of the fields the run saved.
+ * Returns the path of every container above a field, outermost first, then the field's own dotted path.
+ * @param path - The dotted path of a field.
+ * @returns The paths.
+ */
+function pathsDown(path: string): string[] {
+	const keys = path.split('.')
+	return keys.map((_key, at) => keys.slice(0, at + 1).join('.'))
+}
+
+/**
+ * Returns the fields standing open once a header Save ended: each one it could not save, inside every container above.
  * @param failures - The fields the run could not save.
  * @returns The paths to hold.
  */
-export function openedRan(opened: ReadonlySet<string>, saved: string[], failures: FieldFailure[]): ReadonlySet<string> {
-	const next = new Set([...opened].filter((path) => !saved.includes(path)))
-	for (const { path } of failures) {
-		next.add(path)
-	}
-	return next
+export function openedRan(failures: FieldFailure[]): ReadonlySet<string> {
+	return new Set(failures.flatMap((failure) => pathsDown(failure.path)))
 }

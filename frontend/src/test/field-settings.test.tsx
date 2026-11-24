@@ -286,7 +286,6 @@ test('closes a field once its save landed, the focus back on its label', async (
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Subtitle')
-	const kept = await openField(main, 'Reading time')
 
 	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line{Enter}')
 
@@ -294,8 +293,39 @@ test('closes a field once its save landed, the focus back on its label', async (
 	await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'))
 	expect(toggle).toHaveFocus()
 	expect(within(labelOf(await fieldRow(main, 'Subtitle'))).queryByText('Unsaved changes')).toBeNull()
-	expect(toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')).toHaveAttribute('aria-expanded', 'true')
-	expect(kept).not.toHaveAttribute('hidden')
+})
+
+test('closes every open field once the header Save ends, the ones it left unchanged too', async () => {
+	recordingEdits()
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await openField(main, 'Reading time')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+
+	await userEvent.click(saveOf(main))
+
+	const subtitle = toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')
+	await waitFor(() => expect(subtitle).toHaveAttribute('aria-expanded', 'false'))
+	expect(toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')).toHaveAttribute('aria-expanded', 'false')
+})
+
+test('closes every open field once the header Save ends, though the group details were rejected', async () => {
+	const said = 'content: another group already claims those items'
+	server.use(
+		http.patch('/api/groups/3', () => HttpResponse.json({ error: said, code: 'group_collides' }, { status: 422 })),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	await openField(main, 'Reading time')
+	const details = within(main).getByRole('region', { name: 'Field group settings' })
+	await userEvent.type(within(details).getByRole('textbox', { name: 'Title' }), ' here')
+
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast(`Could not save the field group. ${said}`)).toBeInTheDocument()
+	const toggle = toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')
+	await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'))
 })
 
 test('sends nothing from Enter in an open field while nothing changed', async () => {
