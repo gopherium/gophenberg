@@ -588,6 +588,50 @@ test('puts a field back in its stored place when the order it asked for is rejec
 	expect(standsAbove(await fieldRow(main, 'Subtitle'), await fieldRow(main, 'Reading time'))).toBe(true)
 })
 
+test('keeps the order the server holds and reads nothing again when an order never arrives', async () => {
+	const reads = countedReads()
+	server.use(http.put('/api/groups/3/fields/order', () => HttpResponse.error()))
+	renderAt('/field-groups')
+	const main = await openFields()
+	const before = reads.count
+
+	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
+
+	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
+	expect(standsAbove(await fieldRow(main, 'Subtitle'), await fieldRow(main, 'Reading time'))).toBe(true)
+	await act(async () => {})
+	expect(reads.count).toBe(before)
+})
+
+test('shows the order the first store landed and reads nothing again when the next order never arrives', async () => {
+	const answer = gate()
+	const reads = countedReads()
+	let orders = 0
+	server.use(
+		http.put('/api/groups/3/fields/order', async () => {
+			orders += 1
+			if (orders > 1) {
+				return HttpResponse.error()
+			}
+			await answer.held
+			reads.groups = [{ ...DETAILS, fields: [READING_TIME, SUBTITLE] }, EXTRAS]
+			return HttpResponse.json({ items: [READING_TIME, SUBTITLE] })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const before = reads.count
+
+	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
+	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle up' }))
+	answer.release()
+
+	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
+	expect(standsAbove(await fieldRow(main, 'Reading time'), await fieldRow(main, 'Subtitle'))).toBe(true)
+	await act(async () => {})
+	expect(reads.count).toBe(before)
+})
+
 test('reads the groups again once a later order is rejected, showing the order the first one stored', async () => {
 	const answer = gate()
 	let orders = 0

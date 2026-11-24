@@ -284,9 +284,11 @@ function FieldTable(props: Reporter & FieldsWork & Level) {
 	const order = useFieldOrder(props.fields, {
 		store: (keys) => (above === '' ? reorderFieldsInGroup(group, keys) : reorderSubFields(group, above, keys)),
 		onStored: () => props.onDone(),
-		onFailed: async (cause) => {
+		onFailed: async (cause, answered) => {
 			await props.onRefused(cause, 'order')
-			await client.invalidateQueries({ queryKey: groupsQueryKey })
+			if (answered) {
+				await client.invalidateQueries({ queryKey: groupsQueryKey })
+			}
 		},
 	})
 

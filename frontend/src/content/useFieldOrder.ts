@@ -2,13 +2,15 @@
 
 import { useLayoutEffect, useRef, useState } from 'react'
 
+import { RejectedWriteError } from './groups'
 import type { ContentField } from './types'
 
 /** What stores an order of field keys and what reports how the last store went. */
 interface OrderStore {
 	store: (keys: string[]) => Promise<unknown>
 	onStored: () => Promise<void>
-	onFailed: (cause: unknown) => Promise<void>
+	/** Reports a store that failed, and whether the server answered it or it never arrived. */
+	onFailed: (cause: unknown, answered: boolean) => Promise<void>
 }
 
 /** The fields in the order to show and the move that changes it. */
@@ -49,23 +51,25 @@ export function useFieldOrder(fields: readonly ContentField[], order: OrderStore
 	/**
 	 * Stores an order, then the order shown once it answers when the rows moved again meanwhile.
 	 * @param keys - The field keys in the order to store.
+	 * @param before - The order shown before this store, put back when it never arrives, null for the server's order.
 	 */
-	function send(keys: readonly string[]) {
+	function send(keys: readonly string[], before: readonly string[] | null) {
 		inFlight.current = true
 		setStoring(true)
 		void order.store([...keys]).then(
 			() => {
 				if (!sameOrder(shown.current, keys)) {
-					send(shown.current)
+					send(shown.current, keys)
 					return
 				}
 				settle()
 				void order.onStored()
 			},
 			(cause: unknown) => {
+				const answered = cause instanceof RejectedWriteError
 				settle()
-				setLocal(null)
-				void order.onFailed(cause)
+				setLocal(answered ? null : before)
+				void order.onFailed(cause, answered)
 			},
 		)
 	}
@@ -79,7 +83,7 @@ export function useFieldOrder(fields: readonly ContentField[], order: OrderStore
 		const next = moved(rows, at, offset).map((row) => row.key)
 		setLocal(next)
 		if (!inFlight.current) {
-			send(next)
+			send(next, local)
 		}
 	}
 
