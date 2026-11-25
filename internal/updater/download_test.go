@@ -331,9 +331,11 @@ func TestFetchRefusesASiteThatAnswersTooLate(t *testing.T) {
 	t.Parallel()
 
 	k := newKeys(t)
-	site := startSite(t, false, func(_ http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
+	done := make(chan struct{})
+	site := startSite(t, false, func(http.ResponseWriter, *http.Request) {
+		<-done
 	})
+	t.Cleanup(func() { close(done) })
 	download := k.download(t, site.URL+archivePath, k.release, trusting(site, 100*time.Millisecond))
 
 	_, err := download.Fetch(t.Context())
