@@ -12,7 +12,13 @@ const listSettingsQueryKey = ['list-settings'] as const
  * @returns The list settings query, whose data is the settings.
  */
 export function useListSettings() {
-	return useQuery({ queryKey: listSettingsQueryKey, queryFn: fetchListSettings, staleTime: 'static', retry: false })
+	return useQuery({
+		queryKey: listSettingsQueryKey,
+		queryFn: fetchListSettings,
+		staleTime: 'static',
+		retry: false,
+		retryOnMount: false,
+	})
 }
 
 /**

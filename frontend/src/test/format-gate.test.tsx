@@ -9,6 +9,7 @@ import { afterEach, expect, test } from 'vitest'
 
 import { DEFAULT_LOCALE } from '../i18n/catalog'
 import { SiteFormatGate } from '../settings/SiteFormatGate'
+import { useListSettings } from '../settings/useListSettings'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
 import { warmPostsScreen } from './warm'
@@ -18,6 +19,9 @@ warmPostsScreen()
 afterEach(() => {
 	rememberLocale(DEFAULT_LOCALE)
 })
+
+/** How long a test waits for a read the screens must not ask again. */
+const QUIET = 100
 
 /** A published post the list shows with its date. */
 const PUBLISHED = {
@@ -68,6 +72,15 @@ const DATED_POSTS = {
  */
 function Dated() {
 	return <p>{`${formatDate('2026-10-04')} ${formatNumber(1234)}`}</p>
+}
+
+/**
+ * Shows the page sizes the site settings name, reading them as a screen does.
+ * @returns The page sizes line.
+ */
+function SizedScreen() {
+	const sizes = useListSettings().data?.list_page_sizes
+	return <p>{`Page sizes ${sizes?.join(' ') ?? 'unknown'}`}</p>
 }
 
 /**
@@ -155,6 +168,31 @@ test('opens the screens on the first failed read through the client the admin bu
 	renderGate(createAuthQueryClient())
 
 	expect(await screen.findByText('10/04/2026 1,234')).toBeInTheDocument()
+	expect(asked).toBe(1)
+})
+
+test('keeps the screens open and asks once when a screen reads the settings a failed read left', async () => {
+	rememberLocale('en-US')
+	let asked = 0
+	server.use(
+		http.get('/api/settings', () => {
+			asked += 1
+			return HttpResponse.json({ error: 'boom' }, { status: 500 })
+		}),
+	)
+	render(
+		<QueryClientProvider client={createAuthQueryClient()}>
+			<SiteFormatGate loading={<p>Loading settings</p>}>
+				<SizedScreen />
+			</SiteFormatGate>
+		</QueryClientProvider>,
+	)
+
+	expect(await screen.findByText('Page sizes unknown')).toBeInTheDocument()
+	await new Promise((resolve) => setTimeout(resolve, QUIET))
+
+	expect(screen.getByText('Page sizes unknown')).toBeInTheDocument()
+	expect(screen.queryByText('Loading settings')).not.toBeInTheDocument()
 	expect(asked).toBe(1)
 })
 
