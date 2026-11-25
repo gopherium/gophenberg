@@ -173,10 +173,11 @@ A field someone else saved after you opened it keeps your edits too.
 It says so and offers **Load saved version**, which works as it does
 for [the group](#where-a-group-appears).
 
-**Move**, **Rules**, the arrows and the trash save on their own,
-without the header **Save**. **Move** is off while the field, or a
-field inside it, holds edits not saved. **Rules** is off while the
-field itself holds them. Save or discard the edits first.
+**Move**, **Rules**, and the arrows and the trash in a field's row
+save on their own, without the header **Save**. **Move** is off while
+the field, or a field inside it, holds edits not saved. **Rules** is
+off while the field itself holds them. Save or discard the edits
+first.
 
 ## The settings
 
@@ -197,14 +198,17 @@ list, such as Add Post, and never reaches an item that already exists.
 
 A choice field lists its answers under **Choices**. Each answer has
 a **Value**, which is what gets stored, and a **Label**, which is
-what the editor reads. A field listing no answers takes whatever is
-typed, so add them first. **Many values** lets an item hold several
-answers, in a box you add them into. **Allow custom** lets the field
-take answers outside its list. A Many values box, a Radio group and
-a Checkbox group each grow an Other box for typing one. A Select or
-a Button group offers no way to type, so pick another presentation
-when you need one. **Allow empty** adds a None entry that clears the
-field.
+what the editor reads. **Add choice** adds an empty answer at the
+end. The arrows beside an answer move it up or down, and its trash
+removes it. These changes wait for the header **Save**. When you
+save, an answer missing its Value or its Label is dropped. A field
+listing no answers takes whatever is typed, so add them first.
+**Many values** lets an item hold several answers, in a box you add
+them into. **Allow custom** lets the field take answers outside its
+list. A Many values box, a Radio group and a Checkbox group each
+grow an Other box for typing one. A Select or a Button group offers
+no way to type, so pick another presentation when you need one.
+**Allow empty** adds a None entry that clears the field.
 
 **Longest**, **Lowest** and **Highest** are limits. Longest stops
 your typing. A number outside Lowest or Highest, and an answer a
