@@ -37,6 +37,11 @@ msgstr ""
 msgid "\"%s\" was not moved to the trash, because its changes could not be saved."
 msgstr ""
 
+msgid "%(count)s field"
+msgid_plural "%(count)s fields"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%(field)s address"
 msgstr ""
 

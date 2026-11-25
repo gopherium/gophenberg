@@ -115,6 +115,28 @@ async function openIn(fields: HTMLElement, label: string) {
 	return part
 }
 
+test.each([
+	{ locale: 'es-ES', list: 'Grupos de campos', counts: ['1 campo', '0 campos', '2 campos'] },
+	{ locale: 'fr-FR', list: 'Groupes de champs', counts: ['1 champ', '0 champ', '2 champs'] },
+])('writes how many fields each group holds in the Field Groups list in $locale', async (said) => {
+	const SOLE = { ...DETAILS, id: 5, key: 'sole', title: 'Sole', position: 3, fields: [SUBTITLE] }
+	listing([SOLE, EXTRAS, DETAILS])
+	server.use(
+		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),
+	)
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: said.list })
+
+	const written = [SOLE, EXTRAS, DETAILS].map(
+		(group) =>
+			(within(table).getByRole('row', { name: new RegExp(group.title) }) as HTMLTableRowElement).cells[2].textContent,
+	)
+	expect(written).toEqual(said.counts)
+})
+
 test.each(READERS)('heads the fields table with Label, Kind, API name and Actions in $locale', async (said) => {
 	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
 

@@ -816,6 +816,13 @@ msgid " or "
 msgstr " o "
 
 #, fuzzy
+msgid "%(count)s field"
+msgid_plural "%(count)s fields"
+msgstr[0] "%(count)s campo"
+msgstr[1] "%(count)s de campos"
+msgstr[2] "%(count)s campos"
+
+#, fuzzy
 msgid "%(field)s does not match the format its field asks for. Check it and save again."
 msgstr "%(field)s no tiene el formato que su campo requiere. Revísalo y guarda de nuevo."
 
