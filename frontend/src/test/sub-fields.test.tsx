@@ -67,25 +67,25 @@ test('shows no sub field row while their container is closed, and a table of the
 	expect(form.compareDocumentPosition(held) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
-test('puts a container its Rules under its form, then its sub fields, Add field and Close field', async () => {
+test('puts a container its tabs in its form, then its sub fields, Add field and Close field', async () => {
 	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 	await userEvent.type(within(part).getAllByRole('textbox', { name: 'Label' })[0], ' line')
 
+	const form = within(part).getAllByRole('textbox', { name: 'Label' })[0].closest('form') as HTMLFormElement
 	const shown = [
-		within(part).getAllByRole('textbox', { name: 'Label' })[0].closest('form') as HTMLFormElement,
-		within(part).getByRole('button', { name: 'Rules showing Author' }),
+		form,
 		subFieldsOf(part, 'Author'),
 		within(part).getByRole('button', { name: 'Add field to Author' }),
 		within(part).getByRole('button', { name: 'Close field' }),
 		within(part).getByRole('button', { name: 'Discard changes' }),
 	]
 
+	expect(form).toContainElement(within(part).getByRole('tab', { name: 'Conditional logic' }))
 	const following = shown.slice(1).map((node, at) => shown[at].compareDocumentPosition(node))
 	expect(following.map((position) => (position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0)).toEqual([
-		true,
 		true,
 		true,
 		true,

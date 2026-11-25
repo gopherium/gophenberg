@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { ChoicesEditor } from './ChoicesEditor'
-import { FieldConditions } from './FieldConditions'
+import { ConditionsTabName, conditionSources, FieldConditions } from './FieldConditions'
 import { TickBox } from './fieldControls'
 import { fieldDraftOf, rebasedField, settingPart } from './fieldDraft'
 import { fieldAt } from './fieldNotes'
@@ -38,6 +38,9 @@ import type { ContentField, ContentType } from './types'
 
 /** The shapes of the settings whose box shows the server's words under it. */
 const BOXED: SettingControl['shape'][] = ['text', 'number']
+
+/** The tab of an open field: one a setting shows in, or the one holding its rules. */
+type FieldTab = SettingTab | 'conditions'
 
 /** Where an open field stands, what it reads, and the parts the table hands it. */
 interface OpenFieldProps extends Reporter {
@@ -59,7 +62,7 @@ interface OpenFieldProps extends Reporter {
 /**
  * Renders the open part of a field.
  * @param props - Where the field stands, what it reads, the page's work on its fields, and the parts it holds.
- * @returns What the last save left, the form in tabs, Rules, the fields it holds, then the buttons closing it.
+ * @returns What the last save left, the form in tabs, the fields it holds, then the buttons closing it.
  */
 export function OpenField(props: OpenFieldProps) {
 	const { field, path, work } = props
@@ -82,20 +85,12 @@ export function OpenField(props: OpenFieldProps) {
 					top={!path.includes('.')}
 					types={props.types}
 					groups={props.groups}
+					siblings={props.siblings}
 					readOnly={work.saving}
 					onDraft={(next) => work.onDraft(path, next)}
 				/>
 				<button type="submit" hidden />
 			</form>
-			<FieldConditions
-				group={props.group}
-				field={field}
-				siblings={props.siblings}
-				path={path}
-				held={held !== undefined}
-				onDone={props.onDone}
-				onRefused={props.onRefused}
-			/>
 			{props.nested}
 			<FieldActions {...props} held={held !== undefined} />
 		</Stack>
@@ -236,6 +231,8 @@ interface TabsProps {
 	top: boolean
 	types: ContentType[]
 	groups: FieldGroup[]
+	/** The fields standing beside it, which its rules may read. */
+	siblings: ContentField[]
 	readOnly: boolean
 	onDraft: (next: FieldDraft) => void
 }
@@ -244,13 +241,15 @@ interface TabsProps {
 type TabProps = TabsProps & { offered: SettingControl[] }
 
 /**
- * Returns the tab an open field shows, moved to the tab of the setting a new rejection names.
+ * Returns the tab an open field shows, moved to the tab of the setting a new rejection names, and to General once
+ * Conditional logic goes.
  * @param offered - The settings the field's kind takes.
  * @param rejected - Why the last save was rejected, none while no rejection stands.
+ * @param ruled - Whether the field offers its Conditional logic tab.
  * @returns The tab shown and what shows another.
  */
-function useShownTab(offered: SettingControl[], rejected: Rejection | undefined) {
-	const [tab, setTab] = useState<SettingTab>('general')
+function useShownTab(offered: SettingControl[], rejected: Rejection | undefined, ruled: boolean) {
+	const [tab, setTab] = useState<FieldTab>('general')
 	const [seen, setSeen] = useState(rejected)
 	if (seen !== rejected) {
 		setSeen(rejected)
@@ -259,26 +258,37 @@ function useShownTab(offered: SettingControl[], rejected: Rejection | undefined)
 			setTab(boxed.tab)
 		}
 	}
-	return { tab, show: (next: SettingTab) => setTab(next) }
+	if (tab === 'conditions' && !ruled) {
+		setTab('general')
+	}
+	return { tab, show: (next: FieldTab) => setTab(next) }
 }
 
 /**
- * Renders the tabs of an open field, leaving out Validation when its kind holds nothing to check.
- * @param props - The field, its draft, what its last save left, whether it stands at the top, what it reads, and what
- * changes the draft.
+ * Renders the tabs of an open field, leaving out Validation when its kind holds nothing to check and Conditional logic
+ * while no sibling can be read.
+ * @param props - The field, its draft, what its last save left, whether it stands at the top, what it reads, its
+ * siblings, and what changes the draft.
  * @returns The tabs.
  */
 function FieldTabs(props: TabsProps) {
 	const offered = settingsOffered(props.draft.base)
-	const shown = useShownTab(offered, props.note?.rejected)
+	const sources = conditionSources(props.siblings, props.draft.base)
+	const ruled = sources.length > 0
+	const shown = useShownTab(offered, props.note?.rejected, ruled)
 	const validates = requirable(props.draft.base.kind) || offered.some((setting) => setting.tab === 'validation')
 	return (
-		<Tabs.Root value={shown.tab} onValueChange={(value: SettingTab) => shown.show(value)}>
+		<Tabs.Root value={shown.tab} onValueChange={(value: FieldTab) => shown.show(value)}>
 			<Stack direction="column" gap="lg">
 				<Tabs.List variant="minimal">
 					<Tabs.Tab value="general">{__('General', 'gophenberg')}</Tabs.Tab>
 					{validates && <Tabs.Tab value="validation">{__('Validation', 'gophenberg')}</Tabs.Tab>}
 					<Tabs.Tab value="presentation">{__('Presentation', 'gophenberg')}</Tabs.Tab>
+					{ruled && (
+						<Tabs.Tab value="conditions">
+							<ConditionsTabName draft={props.draft} />
+						</Tabs.Tab>
+					)}
 				</Tabs.List>
 				<Tabs.Panel value="general" className="godmin-form">
 					<GeneralTab {...props} offered={offered} />
@@ -291,6 +301,17 @@ function FieldTabs(props: TabsProps) {
 				<Tabs.Panel value="presentation" className="godmin-form">
 					<PresentationTab {...props} offered={offered} />
 				</Tabs.Panel>
+				{ruled && (
+					<Tabs.Panel value="conditions" className="godmin-form">
+						<FieldConditions
+							draft={props.draft}
+							sources={sources}
+							readOnly={props.readOnly}
+							onDraft={props.onDraft}
+						/>
+						<LostLine note={props.note} part={settingPart('conditions')} />
+					</Tabs.Panel>
+				)}
 			</Stack>
 		</Tabs.Root>
 	)

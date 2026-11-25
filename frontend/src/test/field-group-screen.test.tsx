@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { buttonClasses } from '@gopherium/godmin/testing'
 import { formatDate } from '@gopherium/gottext'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -828,35 +827,6 @@ test('takes the stale notice away once the draft is undone', async () => {
 	await userEvent.type(title, 'Article details')
 
 	expect(within(main).queryByRole('alert')).not.toBeInTheDocument()
-})
-
-test('names each rule set in words above its conditions', async () => {
-	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
-	renderAt('/field-groups/3')
-	const main = await pageTitled('Article details')
-	const details = detailsOf(main)
-	const add = within(details).getByRole('button', { name: 'Add rule set' })
-	await waitFor(() => expect(add).not.toHaveAttribute('aria-disabled', 'true'))
-
-	await userEvent.click(add)
-
-	for (const name of ['Rule set 1', 'Rule set 2']) {
-		expect(within(within(details).getByRole('group', { name })).getByText(name)).toBeInTheDocument()
-	}
-})
-
-test('keeps the rule buttons at their own width, the one adding a condition compact', async () => {
-	server.use(http.get('/api/groups/params', () => HttpResponse.json(SOURCES)))
-	renderAt('/field-groups/3')
-	const main = await pageTitled('Article details')
-	const details = detailsOf(main)
-
-	const condition = within(details).getByRole('button', { name: 'Add condition' })
-	const ruleSet = within(details).getByRole('button', { name: 'Add rule set' })
-
-	expect([...condition.classList]).toEqual(buttonClasses('outline', 'compact'))
-	expect(condition.parentElement).toHaveStyle({ alignItems: 'start' })
-	expect(ruleSet.parentElement).toHaveStyle({ alignItems: 'start' })
 })
 
 test('heads the add field form with its own section title', async () => {

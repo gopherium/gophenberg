@@ -300,7 +300,7 @@ test('shows an open field in tabs, its API name and kind as text and a note on r
 	const part = await openField(main, 'Reading time')
 
 	const tabs = within(part).getAllByRole('tab')
-	expect(tabs.map((tab) => tab.textContent)).toEqual(['General', 'Validation', 'Presentation'])
+	expect(tabs.map((tab) => tab.textContent)).toEqual(['General', 'Validation', 'Presentation', 'Conditional logic'])
 	expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
 	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Reading time')
 	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription(

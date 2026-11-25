@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
-import { operatorLabel } from '../content/RulesDialog'
 import { groupsQueryKey } from '../content/groups'
+import { operatorLabel } from '../content/RuleSets'
 import type { FieldGroup } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
+import { expectRuleSets } from './ruleSets'
 import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
@@ -286,10 +287,88 @@ test('drops the whole set when its last condition goes', async () => {
 	const details = await openRules()
 
 	const rule = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
-	await userEvent.click(within(rule).getByRole('button', { name: 'Remove' }))
+	await userEvent.click(within(rule).getByRole('button', { name: 'Remove rule 1 of set 1' }))
 	await save()
 
 	await waitFor(() => expect(sent.body).toEqual({ location: [] }))
+})
+
+test('moves the focus to the rule taking a removed rule\'s place, then to the set and to Add rule set', async () => {
+	listing({
+		...ON_POSTS,
+		location: [
+			[
+				{ source: 'content_type', operator: '==', value: 'post' },
+				{ source: 'content_type', operator: '==', value: 'recipe' },
+			],
+			[{ source: 'content_type', operator: '==', value: 'recipe' }],
+		],
+	})
+	renderAt('/field-groups')
+	const details = await openRules()
+
+	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 1' }))
+	const taking = within(details).getByRole('group', { name: 'Rule 1 of set 1' })
+	expect(taking).toHaveFocus()
+	await waitFor(() => expect(within(taking).getByRole('combobox', { name: 'Value' })).toHaveTextContent('Recipes'))
+	expect(within(details).queryByRole('group', { name: 'Rule 2 of set 1' })).not.toBeInTheDocument()
+	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 1' }))
+	expect(within(details).getByRole('group', { name: 'Rule set 1' })).toHaveFocus()
+	expect(within(details).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
+	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 1' }))
+
+	expect(within(details).getByRole('button', { name: 'Add rule set' })).toHaveFocus()
+})
+
+test('moves the focus to the rule before once the trash takes away the last rule of a set', async () => {
+	listing({
+		...ON_POSTS,
+		location: [
+			[
+				{ source: 'content_type', operator: '==', value: 'post' },
+				{ source: 'content_type', operator: '==', value: 'recipe' },
+			],
+		],
+	})
+	renderAt('/field-groups')
+	const details = await openRules()
+
+	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 2 of set 1' }))
+
+	expect(within(details).getByRole('group', { name: 'Rule 1 of set 1' })).toHaveFocus()
+	expect(within(details).queryByRole('group', { name: 'Rule 2 of set 1' })).not.toBeInTheDocument()
+})
+
+test('moves the focus to the set before once the trash empties the last set', async () => {
+	listing({
+		...ON_POSTS,
+		location: [
+			[{ source: 'content_type', operator: '==', value: 'post' }],
+			[{ source: 'content_type', operator: '==', value: 'recipe' }],
+		],
+	})
+	renderAt('/field-groups')
+	const details = await openRules()
+
+	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 2' }))
+
+	expect(within(details).getByRole('group', { name: 'Rule set 1' })).toHaveFocus()
+	expect(within(details).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
+})
+
+test('leaves the focus where it sits as an add button or a trash that never took it is pressed', async () => {
+	renderAt('/field-groups')
+	const details = await openRules()
+	const title = within(details).getByRole('textbox', { name: 'Title' })
+	act(() => title.focus())
+
+	fireEvent.click(within(details).getByRole('button', { name: 'Add condition' }))
+	expect(within(details).getByRole('group', { name: 'Rule 2 of set 1' })).toBeInTheDocument()
+	expect(title).toHaveFocus()
+	fireEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 1' }))
+
+	expect(within(details).queryByRole('group', { name: 'Rule 2 of set 1' })).not.toBeInTheDocument()
+	expect(title).toHaveFocus()
 })
 
 test('sends the stamp the group held when the draft began, even after the groups are read again', async () => {
@@ -512,7 +591,7 @@ test('edits only the set the rule belongs to', async () => {
 	const details = await openRules()
 
 	const second = within(details).getByRole('group', { name: 'Rule 1 of set 2' })
-	await userEvent.click(within(second).getByRole('button', { name: 'Remove' }))
+	await userEvent.click(within(second).getByRole('button', { name: 'Remove rule 1 of set 2' }))
 	await save()
 
 	await waitFor(() =>
@@ -632,7 +711,26 @@ test('leaves the rule untouched when the source picked offers no value', async (
 test('names every condition an operator stands for', () => {
 	expect(operatorLabel('==')).toBe('is')
 	expect(operatorLabel('!=')).toBe('is not')
+	expect(operatorLabel('<')).toBe('is below')
+	expect(operatorLabel('>')).toBe('is above')
+	expect(operatorLabel('contains')).toBe('holds')
+	expect(operatorLabel('empty')).toBe('is empty')
+	expect(operatorLabel('not_empty')).toBe('holds anything')
 	expect(operatorLabel('~=')).toBe('~=')
+	expect(operatorLabel('constructor')).toBe('constructor')
+})
+
+test('names each rule set above its rules and each rule by its place, each add button at its own width', async () => {
+	renderAt('/field-groups')
+	const details = await openRules()
+	const add = within(details).getByRole('button', { name: 'Add rule set' })
+	await waitFor(() => expect(add).not.toHaveAttribute('aria-disabled', 'true'))
+
+	await userEvent.click(add)
+	const second = within(details).getByRole('group', { name: 'Rule set 2' })
+	await userEvent.click(within(second).getByRole('button', { name: 'Add condition' }))
+
+	expectRuleSets(details, [1, 2])
 })
 
 const MAKER = {
@@ -722,7 +820,7 @@ test('keeps every rule and Linked from picker read only while the rules are save
 	expectReadOnly(details)
 	expect(within(details).getByRole('combobox', { name: 'Through' })).toHaveAttribute('aria-readonly', 'true')
 	expect(within(details).getByRole('checkbox', { name: 'Active' })).toHaveAttribute('aria-readonly', 'true')
-	for (const name of ['Add condition', 'Remove', 'Add rule set']) {
+	for (const name of ['Add condition', /^Remove rule \d+ of set \d+$/, 'Add rule set']) {
 		for (const button of within(details).getAllByRole('button', { name })) {
 			expect(button).toHaveAttribute('aria-disabled', 'true')
 		}

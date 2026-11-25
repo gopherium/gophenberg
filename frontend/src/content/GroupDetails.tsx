@@ -17,7 +17,7 @@ import {
 	StaleWriteError,
 	staleGroupMessage,
 } from './groups'
-import { LinkedSources, namedSources, RulesBody } from './RulesDialog'
+import { LinkedSources, LocationRules } from './LocationRules'
 import type { DraftPart, GroupDraft } from './groupDraft'
 import type { FieldGroup } from './groups'
 import type { ContentType } from './types'
@@ -219,9 +219,10 @@ export function GroupDetails(props: GroupDetailsProps) {
 				/>
 				<SectionTitle>{__('Location rules', 'gophenberg')}</SectionTitle>
 				{details.lost.includes('location') && <Text variant="body-sm">{changedElsewhere()}</Text>}
-				<RulesBody
+				<LocationRules
 					draft={draft.location}
-					sources={namedSources(sources.data ?? [], props.types)}
+					sources={sources.data ?? []}
+					types={props.types}
 					failed={sources.isError}
 					readOnly={props.saving}
 					onDraft={(location) => details.edit({ ...draft, location })}

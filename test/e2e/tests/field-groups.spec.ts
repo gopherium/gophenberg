@@ -129,15 +129,27 @@ async function labelCellLines(page: Page) {
 }
 
 /**
- * Returns whether a row of controls wraps and stays inside its holder, and how far a box up to it runs sideways.
+ * Returns the group of the rule row a trash takes away.
+ * @param trash - The trash of the row.
+ * @returns The row's group.
+ */
+function ruleOf(trash: Locator): Locator {
+	return trash.locator('xpath=ancestor::*[@role="group"][1]')
+}
+
+/**
+ * Returns whether a row of controls wraps and stays inside its tab panel or region, and how far a box up to it runs
+ * sideways.
  * @param row - The row of controls.
  * @returns Whether it takes more than one line, whether every control sits inside the holder, and the widest overrun.
  */
 async function fitOf(row: Locator) {
 	return row.evaluate((node) => {
-		const holder = node.closest('[role="region"], [role="dialog"]') as HTMLElement
+		const holder = node.closest('[role="tabpanel"], [role="region"]') as HTMLElement
 		const edges = holder.getBoundingClientRect()
-		const controls = [...node.children].map((control) => control.getBoundingClientRect())
+		const controls = [...node.querySelectorAll('[role="combobox"], input, button')]
+			.filter((control) => control.closest('[aria-hidden="true"]') === null)
+			.map((control) => control.getBoundingClientRect())
 		let sideways = holder.scrollWidth - holder.clientWidth
 		for (let held = node; held !== holder; held = held.parentElement as HTMLElement) {
 			sideways = Math.max(sideways, held.scrollWidth - held.clientWidth)
@@ -433,7 +445,7 @@ test('keeps each button and badge beside a label on one line, in a container too
 	}
 })
 
-test('wraps a location rule and a field condition on a phone, every control inside the details and the dialog', async ({
+test('wraps a location rule and a field condition on a phone, every control inside the details and the tab', async ({
 	page,
 }) => {
 	const group = await groupOfItsOwn(page, 'Apprenticeship')
@@ -444,7 +456,8 @@ test('wraps a location rule and a field condition on a phone, every control insi
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
 	const details = main.getByRole('region', { name: 'Field group settings' })
-	const rule = details.getByRole('group', { name: 'Rule 1 of set 1' })
+	const rule = ruleOf(details.getByRole('button', { name: 'Remove rule 1 of set 1' }))
+	await expect(rule).toHaveAccessibleName('Rule 1 of set 1')
 	await expect(rule.getByRole('combobox', { name: 'Value' })).toHaveText(`Apprenticeships ${RUN}`)
 	expect.soft(await fitOf(rule), 'the rule row fits the details').toEqual({
 		wrapped: true,
@@ -453,11 +466,28 @@ test('wraps a location rule and a field condition on a phone, every control insi
 	})
 
 	const summary = await openField(page, 'Summary')
-	await summary.getByRole('button', { name: 'Rules showing Summary' }).click()
-	const dialog = page.getByRole('dialog', { name: 'Rules showing Summary' })
-	await expect(dialog.getByRole('textbox', { name: 'Value' })).toHaveValue('Two hours')
-	const condition = dialog.getByRole('button', { name: 'Remove', exact: true }).locator('xpath=..')
+	const tab = summary.getByRole('tab', { name: /^Conditional logic/ })
+	await expect(tab.getByText('Active', { exact: true })).toBeVisible()
+	await expect(tab).toHaveAccessibleName('Conditional logic Active')
+	await tab.click()
+	const rules = summary.getByRole('tabpanel', { name: /^Conditional logic/ })
+	await expect(rules.getByRole('textbox', { name: 'Value' })).toHaveValue('Two hours')
+	const condition = ruleOf(rules.getByRole('button', { name: 'Remove rule 1 of set 1' }))
+	await expect(condition).toHaveAccessibleName('Rule 1 of set 1')
 	await expect
-		.poll(() => fitOf(condition), { message: 'the condition row fits the dialog' })
+		.poll(() => fitOf(condition), { message: 'the condition row fits the tab at 390' })
 		.toEqual({ wrapped: true, inside: true, sideways: 0 })
+	await expect
+		.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), {
+			message: 'the open field with its four tabs leaves the page unscrolled at 390',
+		})
+		.toBe(0)
+
+	await page.setViewportSize(DESKTOP)
+	await expect
+		.poll(async () => {
+			const { inside, sideways } = await fitOf(condition)
+			return { inside, sideways }
+		}, { message: 'the condition row fits the tab at 1280' })
+		.toEqual({ inside: true, sideways: 0 })
 })

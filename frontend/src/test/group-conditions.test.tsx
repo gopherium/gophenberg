@@ -1,14 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { badgeClasses } from '@gopherium/godmin/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
+import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { openField, showTab } from './groupFieldsFixtures'
-import { renderAt } from './render'
-import { expectReadOnly, waitBusy } from './typeFixtures'
+import { fieldRow, openField, openFields, saveOf, showTab, toggleOf } from './groupFieldsFixtures'
+import { renderAt, renderRoutedAt } from './render'
+import { expectRuleSets } from './ruleSets'
+import { siteSettings } from './siteSettings'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
+
+const READ_STAMP = '2026-08-01T10:00:00Z'
+
+const OTHER_SAVE_STAMP = '2026-08-02T09:00:00Z'
+
+/** A time limit far shorter than any test. */
+const SHORT_LIMIT = 20
+
+/** The name every Conditional logic tab starts with, whether or not it carries its badge. */
+const RULES_TAB = /^Conditional logic/
+
+/** The name of the trash on the first rule of the first rule set. */
+const FIRST_TRASH = 'Remove rule 1 of set 1'
 
 const POST_TYPE = {
 	key: 'post',
@@ -31,8 +49,8 @@ const ON_SALE = {
 	kind: 'boolean',
 	many: false,
 	required: false,
-	created_at: '2026-08-01T10:00:00Z',
-	updated_at: '2026-08-01T10:00:00Z',
+	created_at: READ_STAMP,
+	updated_at: READ_STAMP,
 }
 
 const SALE_NOTE = { ...ON_SALE, key: 'sale-note', label: 'Sale note', kind: 'text' }
@@ -47,32 +65,62 @@ const DETAILS = {
 	position: 1,
 	active: true,
 	fields: [ON_SALE, SALE_NOTE, PHOTO],
-	created_at: '2026-08-01T10:00:00Z',
-	updated_at: '2026-08-01T10:00:00Z',
+	created_at: READ_STAMP,
+	updated_at: READ_STAMP,
+}
+
+/** The rule showing a field while On sale is ticked. */
+const WHILE_ON_SALE = { source: 'on-sale', operator: '==', value: 'true' }
+
+/** The rule showing a field while On sale is not ticked. */
+const WHILE_NOT_ON_SALE = { source: 'on-sale', operator: '!=', value: 'true' }
+
+const CYCLE = 'The rules on sale-note lead back to sale-note itself, so nothing can decide whether to show it. '
+	+ 'Point one of them at another field.'
+
+/**
+ * Serves the article details group holding the given fields.
+ * @param fields - The fields the group holds.
+ */
+function serve(fields: unknown[]) {
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields }] })))
 }
 
 /**
- * Opens the page of the article details group from its title on the list.
- * @returns The main work of the page.
+ * Shows the Conditional logic tab of an open field.
+ * @param part - The row holding the open part.
+ * @returns The panel holding the field's rules.
  */
-async function openFields() {
-	const table = await screen.findByRole('region', { name: 'Field Groups' })
-	await userEvent.click(within(table).getByRole('link', { name: 'Article details' }))
-	const main = screen.getByRole('main')
-	await within(main).findByRole('heading', { level: 2, name: 'Article details' })
-	return main
+async function showRules(part: HTMLElement) {
+	await userEvent.click(within(part).getByRole('tab', { name: RULES_TAB }))
+	return within(part).getByRole('tabpanel', { name: RULES_TAB })
 }
 
 /**
- * Opens the named field in place, then its conditions dialog.
- * @param named - The field whose conditions to open.
- * @returns The conditions dialog.
+ * Opens the page of the group, the named field in place, then its Conditional logic tab.
+ * @param named - The field whose rules to show.
+ * @returns The main work of the page, the row holding the open part and the panel holding the rules.
  */
-async function openConditions(named: string) {
-	const fields = await openFields()
-	const part = await openField(fields, named)
-	await userEvent.click(within(part).getByRole('button', { name: `Rules showing ${named}` }))
-	return screen.findByRole('dialog', { name: `Rules showing ${named}` })
+async function openRules(named: string) {
+	const main = await openFields()
+	const part = await openField(main, named)
+	return { main, part, panel: await showRules(part) }
+}
+
+/**
+ * Deletes the On sale field from its row, the groups served without it once it went.
+ * @param main - The main work of the page.
+ */
+async function deleteOnSale(main: HTMLElement) {
+	server.use(
+		http.delete('/api/groups/3/fields/on-sale', () => {
+			serve([SALE_NOTE])
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+	await userEvent.click(within(main).getByRole('button', { name: 'Delete On sale' }))
+	const warning = await screen.findByRole('alertdialog', { name: 'Delete "On sale"?' })
+	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
 }
 
 /**
@@ -91,135 +139,329 @@ function recordingEdits(): unknown[] {
 }
 
 /**
- * Returns the Save button in the header of the group's page.
- * @param main - The main work of the page.
- * @returns The Save button.
+ * Returns the body the header Save sends for a field whose settings alone moved.
+ * @param settings - The settings the field holds.
+ * @param label - The label the field holds.
+ * @returns The body.
  */
-function saveOf(main: HTMLElement) {
-	return within(main).getByRole('button', { name: 'Save' })
-}
-
-/**
- * Records the body of the next field settings write.
- * @returns The recorder holding what was sent.
- */
-function recordingSettings(): { sent: unknown } {
-	const held: { sent: unknown } = { sent: undefined }
-	server.use(
-		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
-			held.sent = await request.json()
-			return HttpResponse.json(SALE_NOTE)
-		}),
-	)
-	return held
+function editOf(settings: Record<string, unknown>, label = 'Sale note') {
+	return { label, required: false, settings, updated_at: READ_STAMP }
 }
 
 beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE] })))
-	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [DETAILS] })))
+	serve(DETAILS.fields)
 	server.use(
 		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),
 	)
 })
 
-test('offers the siblings a rule may read, leaving the field itself out', async () => {
-	renderAt('/field-groups')
-
-	const dialog = await openConditions('Sale note')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	const sources = within(dialog).getByRole('combobox', { name: 'Source' })
-	expect(within(sources).getByText('On sale')).toBeInTheDocument()
-})
-
-test('offers no rules on a field whose siblings cannot be read', async () => {
-	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [PHOTO] }] })))
-	renderAt('/field-groups')
-
-	const dialog = await openFields()
-
-	const part = await openField(dialog, 'Photo')
-	expect(within(part).queryByRole('button', { name: 'Rules showing Photo' })).not.toBeInTheDocument()
-	expect(within(part).getByRole('button', { name: 'Close field' })).toBeInTheDocument()
-})
-
-test('holds Rules back while the field holds unsaved changes, naming why beside it', async () => {
+test('offers a Conditional logic tab last on a field whose sibling a rule can read, its rules in a form', async () => {
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Sale note')
-	const rules = within(part).getByRole('button', { name: 'Rules showing Sale note' })
-	expect(rules).not.toHaveAttribute('aria-disabled', 'true')
-	expect(within(part).queryByText('Unsaved changes')).toBeNull()
 
+	const tabs = within(part).getAllByRole('tab')
+	expect(tabs.map((tab) => tab.textContent)).toEqual(['General', 'Validation', 'Presentation', 'Conditional logic'])
+	const panel = await showRules(part)
+	expect(panel).toHaveClass('godmin-form')
+	expect(within(panel).getByText('Without a rule this field always shows.')).toBeInTheDocument()
+})
+
+test('offers no Conditional logic tab while no sibling can be read, but one on the sibling reading it', async () => {
+	const author = { ...ON_SALE, key: 'author', label: 'Author', kind: 'relation', relates_to: 'post' }
+	serve([PHOTO, author])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const part = await openField(main, 'Photo')
+	const reading = await openField(main, 'Author')
+
+	expect(within(part).queryByRole('tab', { name: RULES_TAB })).toBeNull()
+	expect(within(part).getByRole('button', { name: 'Close field' })).toBeInTheDocument()
+	expect(within(reading).getByRole('tab', { name: RULES_TAB })).toBeInTheDocument()
+})
+
+test('reads the siblings of a sub field only, never the fields beside its container', async () => {
+	const fee = { ...SALE_NOTE, key: 'fee', label: 'Fee' }
+	const crew = { ...ON_SALE, key: 'crew', label: 'Crew', kind: 'section', fields: [fee] }
+	serve([ON_SALE, crew])
+	renderAt('/field-groups')
+	const main = await openFields()
+	const container = await openField(main, 'Crew')
+
+	const part = await openField(main, 'Fee')
+
+	expect(within(part).queryByRole('tab', { name: RULES_TAB })).toBeNull()
+	expect(within(container).getAllByRole('tab', { name: RULES_TAB })).toHaveLength(1)
+})
+
+test('shows General once the last sibling a rule reads is deleted while Conditional logic is shown', async () => {
+	serve([ON_SALE, SALE_NOTE])
+	renderAt('/field-groups')
+	const { main, part } = await openRules('Sale note')
+
+	await deleteOnSale(main)
+
+	await waitFor(() => expect(within(part).queryByRole('tab', { name: RULES_TAB })).toBeNull())
+	expect(within(part).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Sale note')
+})
+
+test('keeps General shown once a sibling a rule reads is added after the last one went', async () => {
+	const summary = { ...SALE_NOTE, key: 'summary', label: 'Summary' }
+	serve([ON_SALE, SALE_NOTE])
+	server.use(
+		http.post('/api/groups/3/fields', () => {
+			serve([SALE_NOTE, summary])
+			return HttpResponse.json(summary, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const { main, part } = await openRules('Sale note')
+	await deleteOnSale(main)
+	await waitFor(() => expect(within(part).queryByRole('tab', { name: RULES_TAB })).toBeNull())
+
+	const add = within(main).getByRole('button', { name: 'Add field' })
+	await userEvent.type(within(add.closest('form') as HTMLFormElement).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(add)
+
+	expect(await within(part).findByRole('tab', { name: RULES_TAB })).toHaveAttribute('aria-selected', 'false')
+	expect(within(part).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+})
+
+test('offers no Rules button and no rules dialog on an open field', async () => {
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const part = await openField(main, 'Sale note')
+
+	expect(within(part).queryByRole('button', { name: /Rules/ })).toBeNull()
+	expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+test('names the Conditional logic tab Active while the field holds stored rules, and no other tab', async () => {
+	serve([ON_SALE, { ...SALE_NOTE, settings: { conditions: [[WHILE_ON_SALE]] } }])
+	renderAt('/field-groups')
+	const main = await openFields()
+	const ruled = await openField(main, 'Sale note')
+	const plain = await openField(main, 'On sale')
+
+	const tab = within(ruled).getByRole('tab', { name: RULES_TAB })
+	expect([...within(tab).getByText('Active').classList]).toEqual(badgeClasses('stable'))
+	expect(within(ruled).getAllByText('Active')).toHaveLength(1)
+	expect(within(plain).getByRole('tab', { name: RULES_TAB })).toHaveTextContent(/^Conditional logic$/)
+})
+
+test('puts Active on the tab once the draft holds a rule, and takes it away once the last rule goes', async () => {
+	renderAt('/field-groups')
+	const { part, panel } = await openRules('Sale note')
+	const tab = within(part).getByRole('tab', { name: RULES_TAB })
+	expect(within(tab).queryByText('Active')).toBeNull()
+
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	expect(within(tab).getByText('Active')).toBeInTheDocument()
+
+	await userEvent.click(within(panel).getByRole('button', { name: FIRST_TRASH }))
+	expect(within(tab).queryByText('Active')).toBeNull()
+})
+
+test('sends a drafted rule in the field\'s one request from the header Save, beside its other edits', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const { main, part, panel } = await openRules('Sale note')
+
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await showTab(part, 'General')
 	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(saveOf(main))
 
-	expect(rules).toHaveAttribute('aria-disabled', 'true')
-	expect(within(part).getByText('Unsaved changes')).toBeInTheDocument()
-	await userEvent.click(rules)
-	expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).toBeNull()
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[WHILE_ON_SALE]] }, 'Sale note line')]))
 })
 
-test('stores a rule showing a field while a sibling holds', async () => {
-	const held = recordingSettings()
+test('keeps the settings the tab does not touch', async () => {
+	serve([ON_SALE, { ...SALE_NOTE, settings: { instructions: 'Fill me in' } }])
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'true' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([editOf({ instructions: 'Fill me in', conditions: [[WHILE_ON_SALE]] })]),
 	)
 })
 
-test('keeps the settings the rules dialog does not touch', async () => {
-	const noted = { ...SALE_NOTE, settings: { instructions: 'Fill me in' } }
-	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [ON_SALE, noted] }] })))
-	const held = recordingSettings()
+test('marks the field changed once a rule is drafted, and unchanged once the rule is taken away again', async () => {
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	expect(saveOf(main)).not.toHaveAttribute('aria-disabled', 'true')
+	const label = (await fieldRow(main, 'Sale note') as HTMLTableRowElement).cells[0]
+	expect(within(label).getByText('Unsaved changes')).toBeInTheDocument()
 
-	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: {
-				instructions: 'Fill me in',
-				conditions: [[{ source: 'on-sale', operator: '==', value: 'true' }]],
-			},
-			updated_at: '2026-08-01T10:00:00Z',
+	await userEvent.click(within(panel).getByRole('button', { name: FIRST_TRASH }))
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	expect(within(label).queryByText('Unsaved changes')).toBeNull()
+})
+
+test('asks before the page is left while only a drafted rule is held', async () => {
+	const { router } = renderRoutedAt('/field-groups')
+	const { main, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+
+	const trail = within(main).getByRole('navigation', { name: 'Breadcrumbs' })
+	await userEvent.click(within(trail).getByRole('link', { name: 'Field Groups' }))
+
+	expect(await screen.findByRole('alertdialog', { name: 'Discard changes?' })).toBeInTheDocument()
+	expect(router.state.location.pathname).toBe('/field-groups/3')
+})
+
+test('takes a drafted rule back on Discard changes, the stored rules shown once the field opens again', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const { main, part, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+
+	await userEvent.click(within(part).getByRole('button', { name: 'Discard changes' }))
+	await userEvent.click(toggleOf(await fieldRow(main, 'Sale note'), 'Sale note'))
+
+	const reopened = await showRules(part)
+	expect(within(reopened).getByText('Without a rule this field always shows.')).toBeInTheDocument()
+	expect(within(part).getByRole('tab', { name: RULES_TAB })).toHaveTextContent(/^Conditional logic$/)
+	expect(saveOf(main)).toHaveAttribute('aria-disabled', 'true')
+	expect(sent).toEqual([])
+})
+
+test('takes a stored rule away, sending the settings without it', async () => {
+	serve([ON_SALE, { ...SALE_NOTE, settings: { conditions: [[WHILE_ON_SALE]] } }])
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const { main, panel } = await openRules('Sale note')
+
+	await userEvent.click(within(panel).getByRole('button', { name: FIRST_TRASH }))
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sent).toEqual([editOf({})]))
+})
+
+test('takes away the rule whose trash is pressed, the focus on the rule taking its place', async () => {
+	const sent = recordingEdits()
+	renderAt('/field-groups')
+	const { main, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add condition' }))
+	const second = within(panel).getByRole('group', { name: 'Rule 2 of set 1' })
+	await userEvent.click(within(second).getByRole('combobox', { name: 'Condition' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'is not' }))
+
+	await userEvent.click(within(panel).getByRole('button', { name: FIRST_TRASH }))
+
+	const taking = within(panel).getByRole('group', { name: 'Rule 1 of set 1' })
+	expect(taking).toHaveFocus()
+	expect(within(taking).getByRole('combobox', { name: 'Condition' })).toHaveTextContent('is not')
+	expect(within(panel).queryByRole('group', { name: 'Rule 2 of set 1' })).not.toBeInTheDocument()
+	await userEvent.click(saveOf(main))
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[WHILE_NOT_ON_SALE]] })]))
+})
+
+test('moves the focus to the rule before, the set before, then Add rule set as trashes empty them', async () => {
+	renderAt('/field-groups')
+	const { panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add condition' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+
+	await userEvent.click(within(panel).getByRole('button', { name: 'Remove rule 2 of set 1' }))
+	expect(within(panel).getByRole('group', { name: 'Rule 1 of set 1' })).toHaveFocus()
+	await userEvent.click(within(panel).getByRole('button', { name: 'Remove rule 1 of set 2' }))
+	expect(within(panel).getByRole('group', { name: 'Rule set 1' })).toHaveFocus()
+	await userEvent.click(within(panel).getByRole('button', { name: FIRST_TRASH }))
+
+	expect(within(panel).getByRole('button', { name: 'Add rule set' })).toHaveFocus()
+	expect(within(panel).getByText('Without a rule this field always shows.')).toBeInTheDocument()
+})
+
+test('moves the focus into the rule set and the rule its add buttons make', async () => {
+	renderAt('/field-groups')
+	const { panel } = await openRules('Sale note')
+
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	expect(within(panel).getByRole('group', { name: 'Rule set 1' })).toHaveFocus()
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add condition' }))
+
+	expect(within(panel).getByRole('group', { name: 'Rule 2 of set 1' })).toHaveFocus()
+})
+
+test('keeps a drafted rule after a rejected save, naming why above the tabs, and sends it again', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ error: 'loop', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 })
 		}),
 	)
-})
-
-test('takes a rule row away again', async () => {
-	const held = recordingSettings()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, part, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Value' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'No' }))
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Remove' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() => expect(held.sent).toEqual({ settings: {}, updated_at: '2026-08-01T10:00:00Z' }))
+	expect(await findToast(`Could not save Sale note. ${CYCLE}`)).toBeInTheDocument()
+	expect(within(part).getByRole('alert')).toHaveTextContent(CYCLE)
+	expect(toggleOf(await fieldRow(main, 'Sale note'), 'Sale note')).toHaveAttribute('aria-expanded', 'true')
+	expect(within(panel).getByRole('combobox', { name: 'Value' })).toHaveTextContent('No')
+	await userEvent.click(saveOf(main))
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toEqual(sent[0])
+	expect(sent[1]).toEqual(editOf({ conditions: [[{ ...WHILE_ON_SALE, value: 'false' }]] }))
 })
 
-test('says a field stands on no rules until one is added', async () => {
+test('keeps a drafted rule after a stale save, and marks the rules the saved version won', async () => {
+	const theirs = { ...SALE_NOTE, settings: { conditions: [[WHILE_NOT_ON_SALE]] }, updated_at: OTHER_SAVE_STAMP }
+	server.use(
+		http.patch('/api/groups/3/fields/:key', () => {
+			serve([ON_SALE, theirs, PHOTO])
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
 	renderAt('/field-groups')
+	const { main, part, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(saveOf(main))
+	await within(part).findByRole('button', { name: 'Load saved version' })
+	expect(within(panel).getByRole('combobox', { name: 'Condition' })).toHaveTextContent(/^is$/)
 
-	const dialog = await openConditions('Sale note')
+	await userEvent.click(within(part).getByRole('button', { name: 'Load saved version' }))
 
-	expect(within(dialog).getByText('Without a rule this field always shows.')).toBeInTheDocument()
+	await waitFor(() => expect(within(part).queryByRole('button', { name: 'Load saved version' })).toBeNull())
+	expect(within(panel).getByRole('combobox', { name: 'Condition' })).toHaveTextContent('is not')
+	expect(within(panel).getByText('Changed elsewhere too. Your edit was not kept.')).toBeInTheDocument()
 })
 
-const CYCLE = 'The rules on sale-note lead back to sale-note itself, so nothing can decide whether to show it. '
-	+ 'Point one of them at another field.'
+test('stops a rule save past the time limit the site serves, keeping the drafted rule', async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+		),
+		http.patch('/api/groups/3/fields/sale-note', () => new Promise<never>(() => {})),
+	)
+	renderAt('/field-groups')
+	const { main, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
 
-test('keeps every rule of a field read only while its rules are saved', async () => {
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast('Could not save Sale note. The field groups could not be reached.')).toBeInTheDocument()
+	expect(within(panel).getByRole('group', { name: 'Rule 1 of set 1' })).toBeInTheDocument()
+})
+
+test('keeps every rule of a field read only while the header Save runs', async () => {
 	const answer = gate()
 	server.use(
 		http.patch('/api/groups/3/fields/:key', async () => {
@@ -228,384 +470,214 @@ test('keeps every rule of a field read only while its rules are saved', async ()
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitBusy(dialog, 'Save rules')
+	await userEvent.click(saveOf(main))
+	await waitBusy(main, 'Save')
 
-	expectReadOnly(dialog)
-	for (const name of ['Remove', 'Add condition', 'Add rule set']) {
-		expect(within(dialog).getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
+	expectReadOnly(panel)
+	for (const name of [FIRST_TRASH, 'Add condition', 'Add rule set']) {
+		expect(within(panel).getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
 	}
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+	await waitFor(() => expect(saveOf(main)).not.toHaveClass(/__is-loading\b/))
 })
 
-test('says inside the open rules dialog why the rules were turned away', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/:key', () =>
-			HttpResponse.json({ error: 'loop', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 }),
-		),
-	)
+test('offers the siblings a rule may read, leaving the field itself out', async () => {
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
 
-	expect(await within(dialog).findByText(CYCLE)).toBeInTheDocument()
-	expect(screen.getAllByText(CYCLE)).toHaveLength(1)
-	expect(screen.getByRole('dialog', { name: 'Rules showing Sale note' })).toBe(dialog)
-})
-
-/**
- * Reopens the conditions of Sale note while the fields dialog stays open.
- * @returns The conditions dialog.
- */
-async function reopenConditions() {
-	await userEvent.click(screen.getByRole('button', { name: 'Rules showing Sale note' }))
-	return screen.findByRole('dialog', { name: 'Rules showing Sale note' })
-}
-
-test('keeps a refused rules draft in the open dialog for another save after a 422 response', async () => {
-	const sent: unknown[] = []
-	server.use(
-		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
-			sent.push(await request.json())
-			return HttpResponse.json({ error: 'refused', code: 'rule_cycle' }, { status: 422 })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Value' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'No' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	expect(await within(dialog).findByText('refused')).toBeInTheDocument()
-
-	expect(screen.getByRole('dialog', { name: 'Rules showing Sale note' })).toBe(dialog)
-	expect(within(dialog).getByRole('combobox', { name: 'Value' })).toHaveTextContent('No')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toEqual(sent[0])
-	expect(sent[1]).toEqual({
-		settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'false' }]] },
-		updated_at: '2026-08-01T10:00:00Z',
-	})
-})
-
-test('starts the rules over on the field read afresh after a stale write', async () => {
-	const sent: unknown[] = []
-	let held = { ...SALE_NOTE, settings: {} }
-	server.use(
-		http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [ON_SALE, held, PHOTO] }] })),
-		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
-			const body = (await request.json()) as { settings: Record<string, unknown>; updated_at: string }
-			sent.push(body)
-			if (body.updated_at !== held.updated_at) {
-				return HttpResponse.json(
-					{ error: 'content: conflicting update', code: 'content_stale_update' },
-					{ status: 409 },
-				)
-			}
-			held = { ...held, settings: body.settings, updated_at: '2026-08-03T09:00:00Z' }
-			return HttpResponse.json(held)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	const other = { conditions: [[{ source: 'on-sale', operator: '!=', value: 'true' }]] }
-	held = { ...held, settings: other, updated_at: '2026-08-02T09:00:00Z' }
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
-
-	const reopened = await reopenConditions()
-	expect(within(reopened).getByRole('combobox', { name: 'Condition' })).toHaveTextContent('is not')
-	await userEvent.click(within(reopened).getByRole('button', { name: 'Save rules' }))
-
-	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toEqual({ settings: other, updated_at: '2026-08-02T09:00:00Z' })
-	await waitFor(() => expect(held.updated_at).toBe('2026-08-03T09:00:00Z'))
-})
-
-test('starts the rules over from the stored ones once a refused draft is cancelled', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/:key', () =>
-			HttpResponse.json({ error: 'refused', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 }),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	expect(await within(dialog).findByText(CYCLE)).toBeInTheDocument()
-	expect(within(dialog).getByRole('combobox', { name: 'Source' })).toHaveTextContent('On sale')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
-	const cancelled = await reopenConditions()
-	expect(within(cancelled).getByText('Without a rule this field always shows.')).toBeInTheDocument()
-})
-
-test('starts from stored rules after a successful retry from the open dialog', async () => {
-	let attempts = 0
-	server.use(
-		http.patch('/api/groups/3/fields/:key', () => {
-			attempts++
-			return attempts === 1
-				? HttpResponse.json({ error: 'refused' }, { status: 500 })
-				: HttpResponse.json(SALE_NOTE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	expect(await within(dialog).findByText('refused')).toBeInTheDocument()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
-	const saved = await reopenConditions()
-	expect(within(saved).getByText('Without a rule this field always shows.')).toBeInTheDocument()
-	expect(attempts).toBe(2)
+	const sources = within(panel).getByRole('combobox', { name: 'Source' })
+	expect(within(sources).getByText('On sale')).toBeInTheDocument()
 })
 
 test('carries a rule onto another source, starting its condition afresh', async () => {
 	const price = { ...ON_SALE, key: 'price', label: 'Price', kind: 'number' }
-	server.use(
-		http.get('/api/groups', () =>
-			HttpResponse.json({ items: [{ ...DETAILS, fields: [ON_SALE, price, SALE_NOTE] }] }),
-		),
-	)
-	const held = recordingSettings()
+	serve([ON_SALE, price, SALE_NOTE])
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Source' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Source' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Price' }))
-	await userEvent.type(within(dialog).getByRole('spinbutton', { name: 'Value' }), '10')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.type(within(panel).getByRole('spinbutton', { name: 'Value' }), '10')
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'price', operator: '==', value: '10' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([editOf({ conditions: [[{ source: 'price', operator: '==', value: '10' }]] })]),
 	)
 })
 
 test('carries a rule onto another condition and another value', async () => {
-	const held = recordingSettings()
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Condition' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Condition' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'is not' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Value' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Value' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'No' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'on-sale', operator: '!=', value: 'false' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[{ ...WHILE_NOT_ON_SALE, value: 'false' }]] })]))
 })
 
 test('holds a second condition in the same rule set', async () => {
-	const kind = { ...ON_SALE, key: 'kind', label: 'Kind', kind: 'choice', settings: { choices: [
-		{ value: 'book', label: 'Book' },
-	] } }
-	server.use(
-		http.get('/api/groups', () =>
-			HttpResponse.json({ items: [{ ...DETAILS, fields: [ON_SALE, kind, SALE_NOTE] }] }),
-		),
-	)
-	const held = recordingSettings()
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add condition' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add condition' }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: {
-				conditions: [[
-					{ source: 'on-sale', operator: '==', value: 'true' },
-					{ source: 'on-sale', operator: '==', value: 'true' },
-				]],
-			},
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[WHILE_ON_SALE, WHILE_ON_SALE]] })]))
 })
 
 test('offers the choices a choice source holds', async () => {
 	const kind = { ...ON_SALE, key: 'kind', label: 'Kind', kind: 'choice', settings: { choices: [
 		{ value: 'book', label: 'Book' },
 	] } }
-	server.use(
-		http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [kind, SALE_NOTE] }] })),
-	)
+	serve([kind, SALE_NOTE])
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
 
-	const values = within(dialog).getByRole('combobox', { name: 'Value' })
+	const values = within(panel).getByRole('combobox', { name: 'Value' })
 	expect(within(values).getByText('Book')).toBeInTheDocument()
 })
 
-test('takes a typed value for a source that offers no choices', async () => {
-	const held = recordingSettings()
-	server.use(
-		http.get('/api/groups', () =>
-			HttpResponse.json({ items: [{ ...DETAILS, fields: [{ ...ON_SALE, kind: 'text' }, SALE_NOTE] }] }),
-		),
-	)
+test('takes a typed value for a source that offers no choices, Enter in it running the header Save', async () => {
+	serve([{ ...ON_SALE, kind: 'text' }, SALE_NOTE])
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Value' }), 'yes')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.type(within(panel).getByRole('textbox', { name: 'Value' }), 'yes{Enter}')
 
-	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'yes' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[{ ...WHILE_ON_SALE, value: 'yes' }]] })]))
 })
 
 test('asks for no value beside an operator that needs none', async () => {
-	const held = recordingSettings()
-	server.use(
-		http.get('/api/groups', () =>
-			HttpResponse.json({ items: [{ ...DETAILS, fields: [{ ...ON_SALE, kind: 'text' }, SALE_NOTE] }] }),
-		),
-	)
+	serve([{ ...ON_SALE, kind: 'text' }, SALE_NOTE])
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Condition' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Condition' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'is empty' }))
 
-	expect(within(dialog).queryByRole('textbox', { name: 'Value' })).not.toBeInTheDocument()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	expect(within(panel).queryByRole('textbox', { name: 'Value' })).not.toBeInTheDocument()
+	await userEvent.click(saveOf(main))
 	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'on-sale', operator: 'empty', value: '' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([editOf({ conditions: [[{ source: 'on-sale', operator: 'empty', value: '' }]] })]),
 	)
 })
 
 test('edits one rule set without disturbing the other', async () => {
-	const held = recordingSettings()
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	const second = within(dialog).getByRole('group', { name: 'Rule set 2' })
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	const second = within(panel).getByRole('group', { name: 'Rule set 2' })
 	await userEvent.click(within(second).getByRole('button', { name: 'Add condition' }))
 	const rows = within(second).getAllByRole('combobox', { name: 'Condition' })
 	await userEvent.click(rows[1] as HTMLElement)
 	await userEvent.click(await screen.findByRole('option', { name: 'is not' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: {
-				conditions: [
-					[{ source: 'on-sale', operator: '==', value: 'true' }],
-					[
-						{ source: 'on-sale', operator: '==', value: 'true' },
-						{ source: 'on-sale', operator: '!=', value: 'true' },
-					],
-				],
-			},
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([editOf({ conditions: [[WHILE_ON_SALE], [WHILE_ON_SALE, WHILE_NOT_ON_SALE]] })]),
 	)
 })
 
 test('takes one rule set away without disturbing the other', async () => {
-	const held = recordingSettings()
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
+	const { main, panel } = await openRules('Sale note')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	const first = within(dialog).getByRole('group', { name: 'Rule set 1' })
-	await userEvent.click(within(first).getByRole('button', { name: 'Remove' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	const second = within(panel).getByRole('group', { name: 'Rule set 2' })
+	await userEvent.click(within(second).getByRole('combobox', { name: 'Condition' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'is not' }))
+	const first = within(panel).getByRole('group', { name: 'Rule set 1' })
+	await userEvent.click(within(first).getByRole('button', { name: FIRST_TRASH }))
+	await userEvent.click(saveOf(main))
 
-	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'true' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
-	)
+	await waitFor(() => expect(sent).toEqual([editOf({ conditions: [[WHILE_NOT_ON_SALE]] })]))
 })
 
-test('leaves the stored rules alone when the dialog is cancelled', async () => {
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
-})
-
-test('falls back to a sibling it can read when a stored rule names one it cannot', async () => {
-	const noted = {
-		...SALE_NOTE,
-		settings: { conditions: [[{ source: 'vanished', operator: '~', value: 'x' }]] },
-	}
-	server.use(
-		http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [ON_SALE, noted] }] })),
-	)
+test('shows a stored rule naming a sibling it cannot read as stored, with no condition to choose from', async () => {
+	serve([ON_SALE, { ...SALE_NOTE, settings: { conditions: [[{ source: 'vanished', operator: '~', value: 'x' }]] } }])
 	renderAt('/field-groups')
 
-	const dialog = await openConditions('Sale note')
+	const { panel } = await openRules('Sale note')
 
-	const sources = within(dialog).getByRole('combobox', { name: 'Source' })
+	const sources = within(panel).getByRole('combobox', { name: 'Source' })
 	expect(within(sources).getByText('vanished')).toBeInTheDocument()
-	const operators = within(dialog).getByRole('combobox', { name: 'Condition' })
+	const operators = within(panel).getByRole('combobox', { name: 'Condition' })
 	expect(within(operators).getByText('~')).toBeInTheDocument()
+	expect(within(panel).getByRole('combobox', { name: 'Value' })).toHaveTextContent('x')
+	await userEvent.click(operators)
+	expect(await screen.findByRole('listbox')).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'is' })).not.toBeInTheDocument()
+})
+
+test('names each rule set above its rules and each rule by its place, each add button at its own width', async () => {
+	renderAt('/field-groups')
+	const { panel } = await openRules('Sale note')
+
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	const second = within(panel).getByRole('group', { name: 'Rule set 2' })
+	await userEvent.click(within(second).getByRole('button', { name: 'Add condition' }))
+
+	expectRuleSets(panel, [1, 2])
+})
+
+test('names the conditions and the values of a rule in the language the admin reads as the rules open', async () => {
+	renderAt('/field-groups')
+	const part = await openField(await openFields(), 'Sale note')
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	await userEvent.click(within(part).getByRole('tab', { name: RULES_TAB }))
+	const panel = within(part).getByRole('tabpanel')
+	await userEvent.click(within(panel).getByRole('button', { name: 'Añadir conjunto de reglas' }))
+	await userEvent.click(within(panel).getByRole('combobox', { name: 'Condición' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'no es' }))
+
+	expect(within(panel).getByRole('combobox', { name: 'Condición' })).toHaveTextContent('no es')
+	expect(within(panel).getByRole('combobox', { name: 'Valor' })).toHaveTextContent('Sí')
 })
 
 test('stores the rules of a field standing inside a container', async () => {
 	const paid = { ...ON_SALE, key: 'paid', label: 'Paid' }
 	const fee = { ...SALE_NOTE, key: 'fee', label: 'Fee' }
 	const crew = { ...ON_SALE, key: 'crew', label: 'Crew', kind: 'section', fields: [paid, fee] }
-	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [crew] }] })))
-	const held = recordingSettings()
+	serve([crew])
+	const sent = recordingEdits()
 	renderAt('/field-groups')
-	const fields = await openFields()
-	await openField(fields, 'Crew')
+	const main = await openFields()
+	await openField(main, 'Crew')
 
-	const part = await openField(fields, 'Fee')
-	await userEvent.click(within(part).getByRole('button', { name: 'Rules showing Fee' }))
-	const dialog = await screen.findByRole('dialog', { name: 'Rules showing Fee' })
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	const panel = await showRules(await openField(main, 'Fee'))
+	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(held.sent).toEqual({
-			settings: { conditions: [[{ source: 'paid', operator: '==', value: 'true' }]] },
-			updated_at: '2026-08-01T10:00:00Z',
-		}),
+		expect(sent).toEqual([editOf({ conditions: [[{ ...WHILE_ON_SALE, source: 'paid' }]] }, 'Fee')]),
 	)
 })
 
