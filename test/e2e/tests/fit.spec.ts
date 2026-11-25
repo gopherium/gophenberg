@@ -163,6 +163,19 @@ async function lineMiddleOf(element: Locator) {
 }
 
 /**
+ * Returns how many lines the words inside an element take.
+ * @param element - The element holding the words.
+ * @returns The number of lines.
+ */
+async function linesOf(element: Locator) {
+	return element.evaluate((node) => {
+		const words = document.createRange()
+		words.selectNodeContents(node)
+		return new Set([...words.getClientRects()].map((line) => Math.round(line.top))).size
+	})
+}
+
+/**
  * Returns how far down the viewport the middle of an element sits.
  * @param element - The element to measure.
  * @returns The middle in pixels from the top of the viewport.
@@ -170,6 +183,18 @@ async function lineMiddleOf(element: Locator) {
 async function middleOf(element: Locator) {
 	const box = await element.boundingBox()
 	return (box?.y ?? 0) + (box?.height ?? 0) / 2
+}
+
+/**
+ * Returns how far the table region holding an element scrolls sideways.
+ * @param element - The element inside a godmin table region.
+ * @returns The overflow of the region in pixels.
+ */
+async function sidewaysOf(element: Locator) {
+	return element.evaluate((node) => {
+		const region = node.closest('.godmin-table-scroll') as HTMLElement
+		return region.scrollWidth - region.clientWidth
+	})
 }
 
 /**
@@ -267,28 +292,74 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 	expect(grouped.canvas, 'the page of a group spills the canvas').toBeLessThanOrEqual(0)
 })
 
-test('sets the words of a row level with its compact buttons in the field groups list and the fields table, at 1280 and 390', async ({
+test('sets the field count of a group level with its Move up button in the field groups table at 1280', async ({
 	page,
 }) => {
 	const group = await groupOfItsOwn(page)
+	const second = await page.request.post(`/api/groups/${group}/fields`, {
+		data: { key: 'width', label: 'Width', kind: 'text', many: false, required: false },
+	})
+	expect(second.status()).toBe(201)
 	const title = `${LONG_TITLE} ${RUN}`
+	await page.setViewportSize(LAPTOP)
+
+	await page.goto('/admin/field-groups')
+	const listed = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+	const up = listed.getByRole('button', { name: `Move ${title} up`, exact: true })
+	await expect(up).toBeVisible()
+
+	const written = listed.getByText('2 fields', { exact: true })
+	const count = Math.abs((await lineMiddleOf(written)) - (await middleOf(up)))
+	expect(count, 'the field count sits level with Move up at 1280').toBeLessThanOrEqual(LEVEL_SLACK)
+	expect(await linesOf(written), 'the field count takes one line at 1280').toBe(1)
+	expect(await sidewaysOf(listed), 'the field groups table scrolls sideways at 1280').toBe(0)
+})
+
+test('lists the field groups at 390 with the count under the title, the header hidden and nothing scrolling sideways', async ({
+	page,
+}) => {
+	await groupOfItsOwn(page)
+	const title = `${LONG_TITLE} ${RUN}`
+
+	await page.goto('/admin/field-groups')
+	const listed = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+	const link = listed.getByRole('link', { name: title, exact: true })
+	await expect(listed.getByRole('button', { name: `Move ${title} up`, exact: true })).toBeVisible()
+
+	const count = await listed.getByText('1 field', { exact: true }).boundingBox()
+	const named = await link.boundingBox()
+	expect(count?.y ?? 0, 'the field count sits under the title at 390').toBeGreaterThanOrEqual(
+		(named?.y ?? 0) + (named?.height ?? 0),
+	)
+	expect(await sidewaysOf(listed), 'the field groups list scrolls sideways at 390').toBe(0)
+	const header = await listed.evaluate((node) => {
+		const box = (node.closest('table') as HTMLTableElement).tHead?.getBoundingClientRect()
+		return { width: box?.width, height: box?.height }
+	})
+	expect(header, 'the column headers hide from sight at 390').toEqual({ width: 1, height: 1 })
+})
+
+test('lists the fields of a group page at 1280 and 390, the label level with the trash and the API name under them', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
 
 	for (const size of [LAPTOP, PHONE]) {
 		await page.setViewportSize(size)
-		await page.goto('/admin/field-groups')
-		const listed = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
-		const up = listed.getByRole('button', { name: `Move ${title} up`, exact: true })
-		await expect(up).toBeVisible()
-		const count = Math.abs((await lineMiddleOf(listed.getByText('1', { exact: true }))) - (await middleOf(up)))
-		expect(count, `the field count sits level with Move up at ${size.width}`).toBeLessThanOrEqual(LEVEL_SLACK)
-
 		await page.goto(`/admin/field-groups/${group}`)
 		const fields = page.getByRole('main').getByRole('region', { name: 'Fields' })
 		const row = fields.getByRole('row').filter({ has: page.getByText('Measure', { exact: true }) })
 		const trash = row.getByRole('button', { name: 'Delete Measure', exact: true })
 		await expect(trash).toBeVisible()
-		const key = Math.abs((await lineMiddleOf(row.getByText('measure', { exact: true }))) - (await middleOf(trash)))
-		expect(key, `the API name sits level with the trash at ${size.width}`).toBeLessThanOrEqual(LEVEL_SLACK)
+
+		const label = Math.abs((await lineMiddleOf(row.getByText('Measure', { exact: true }))) - (await middleOf(trash)))
+		expect(label, `the label sits level with the trash at ${size.width}`).toBeLessThanOrEqual(LEVEL_SLACK)
+		const key = await row.getByText('measure', { exact: true }).boundingBox()
+		const bin = await trash.boundingBox()
+		expect(key?.y ?? 0, `the API name sits under the trash at ${size.width}`).toBeGreaterThanOrEqual(
+			(bin?.y ?? 0) + (bin?.height ?? 0),
+		)
+		expect(await sidewaysOf(row), `the fields table scrolls sideways at ${size.width}`).toBe(0)
 	}
 })
 

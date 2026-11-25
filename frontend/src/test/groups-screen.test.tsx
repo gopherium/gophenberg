@@ -106,8 +106,9 @@ test('lists every group with where it appears and how many fields it holds', asy
 
 	const details = within(table).getByRole('row', { name: /Article details/ })
 	expect(within(details).getByText('Posts')).toBeInTheDocument()
-	expect(within(details).getByText('1')).toBeInTheDocument()
+	expect(within(details).getByText('1 field')).toBeInTheDocument()
 	expect(within(table).getByText('Extras')).toBeInTheDocument()
+	expect(within(within(table).getByRole('row', { name: /Extras/ })).getByText('0 fields')).toBeInTheDocument()
 })
 
 test('writes how many fields a group holds in the site format', async () => {
@@ -119,7 +120,7 @@ test('writes how many fields a group holds in the site format', async () => {
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 
 	const details = within(table).getByRole('row', { name: /Article details/ })
-	expect(within(details).getByText('१')).toBeInTheDocument()
+	expect(within(details).getByText('१ field')).toBeInTheDocument()
 })
 
 test('draws one compact solid header button beside compact outline ones, as WordPress does', async () => {
@@ -228,16 +229,37 @@ test('keeps the Fields button for a plugin group alone, a site group opening its
 	expect(within(site).queryByRole('button', { name: 'Fields' })).not.toBeInTheDocument()
 })
 
-test('wraps the actions of a group row so its buttons keep their words whole', async () => {
+test('marks the Actions column as the actions of each row and keeps the words of its buttons whole', async () => {
 	renderAt('/field-groups')
 
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
+	expect(within(table).getByRole('columnheader', { name: 'Actions' })).toHaveClass('godmin-table__actions')
 	const actions = within(row).getByRole('button', { name: 'Deactivate' }).parentElement
-	expect(actions).toHaveStyle({ flexWrap: 'wrap' })
+	expect(actions?.closest('td')).toHaveClass('godmin-table__actions')
+	expect(actions).not.toHaveStyle({ flexWrap: 'wrap' })
 	expect(actions).toHaveClass('gophenberg-groups__actions')
 	expect(declarations('.gophenberg-groups__actions button')).toEqual({ 'overflow-wrap': 'normal' })
+})
+
+test('keeps the field count of a group on one line', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const [, , count] = cellBoxes(within(table).getByRole('row', { name: /Article details/ }))
+
+	expect(count).toHaveClass('gophenberg-groups__count')
+	expect(declarations('.gophenberg-groups__count')).toEqual({ 'white-space': 'nowrap' })
+})
+
+test('leaves the Status box empty for an active site group no other group shadows', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const [, , , status] = cellBoxes(within(table).getByRole('row', { name: /Extras/ }))
+
+	expect(status).toBeEmptyDOMElement()
 })
 
 test('puts the first line of each cell of a group row in the cell box', async () => {
@@ -253,7 +275,7 @@ test('puts the first line of each cell of a group row in the cell box', async ()
 	const [title, placed, count, status, actions] = boxes as HTMLElement[]
 	expect(title).toContainElement(within(declared).getByText('Article details'))
 	expect(placed).toContainElement(within(declared).getByText('Posts'))
-	expect(count).toContainElement(within(declared).getByText('1'))
+	expect(count).toContainElement(within(declared).getByText('1 field'))
 	expect(status).toContainElement(within(declared).getByText('Inactive'))
 	expect(status).toContainElement(within(declared).getByText('From events'))
 	for (const button of within(declared).getAllByRole('button')) {

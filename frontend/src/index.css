@@ -55,6 +55,10 @@
 	overflow-wrap: normal;
 }
 
+.gophenberg-groups__count {
+	white-space: nowrap;
+}
+
 .gophenberg-field-group__created {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }

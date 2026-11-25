@@ -220,7 +220,7 @@ test('walks from the list to a group page by its title, adds a field there and c
 
 	await expect(page).toHaveURL(/\/admin\/field-groups$/)
 	const row = list.getByRole('row', { name: new RegExp(group.title) })
-	await expect(row.getByRole('cell', { name: '1', exact: true })).toBeVisible()
+	await expect(row.getByRole('cell', { name: '1 field', exact: true })).toBeVisible()
 })
 
 test('opens a group page from its typed address and names an address no group holds', async ({ page }) => {
