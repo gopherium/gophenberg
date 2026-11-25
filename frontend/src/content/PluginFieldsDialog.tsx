@@ -37,7 +37,7 @@ export function PluginFieldsDialog(props: { held: FieldGroup; origin: string }) 
 	const [open, setOpen] = useState(false)
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
+			<Button variant="outline" size="compact" onClick={() => setOpen(true)}>
 				{__('Fields', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>

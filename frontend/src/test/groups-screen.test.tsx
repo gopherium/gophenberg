@@ -16,6 +16,7 @@ import { NO_FIELDS } from './groupFieldsFixtures'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
 import { declarations } from './stylesheet'
+import { cellBoxes } from './tableCells'
 import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
@@ -237,6 +238,43 @@ test('wraps the actions of a group row so its buttons keep their words whole', a
 	expect(actions).toHaveStyle({ flexWrap: 'wrap' })
 	expect(actions).toHaveClass('gophenberg-groups__actions')
 	expect(declarations('.gophenberg-groups__actions button')).toEqual({ 'overflow-wrap': 'normal' })
+})
+
+test('puts the first line of each cell of a group row in the cell box', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events', active: false }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	const boxes = cellBoxes(declared)
+	expect(boxes).not.toContain(null)
+	const [title, placed, count, status, actions] = boxes as HTMLElement[]
+	expect(title).toContainElement(within(declared).getByText('Article details'))
+	expect(placed).toContainElement(within(declared).getByText('Posts'))
+	expect(count).toContainElement(within(declared).getByText('1'))
+	expect(status).toContainElement(within(declared).getByText('Inactive'))
+	expect(status).toContainElement(within(declared).getByText('From events'))
+	for (const button of within(declared).getAllByRole('button')) {
+		expect(actions).toContainElement(button)
+	}
+	const [link, , , , own] = cellBoxes(site)
+	expect(link).toContainElement(within(site).getByRole('link', { name: 'Extras' }))
+	expect(own).toContainElement(within(site).getByRole('button', { name: 'Delete' }))
+})
+
+test('draws every button of a group row compact, as tall as the cell box', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	const buttons = within(table).getAllByRole('button')
+
+	expect(buttons).toHaveLength(8)
+	for (const button of buttons) {
+		expect([...button.classList]).toEqual(expect.arrayContaining(buttonClasses('outline', 'compact')))
+	}
 })
 
 test('shows the fields a plugin declared without offering to change them', async () => {

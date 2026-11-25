@@ -397,26 +397,34 @@ function GroupRow(
 	return (
 		<tr>
 			<GroupTitle held={held} declared={declared} />
-			<td>{placementOf(held.location, props.types)}</td>
-			<td>{formatNumber(held.fields.length)}</td>
 			<td>
-				<Stack direction="row" gap="xs">
-					{!held.active && <Badge intent="none">{__('Inactive', 'gophenberg')}</Badge>}
-					{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
-					{declared && (
-						<Badge>{sprintf(__('From %(plugin)s', 'gophenberg'), { plugin: origin })}</Badge>
-					)}
-				</Stack>
+				<div className="godmin-table__cell">{placementOf(held.location, props.types)}</div>
 			</td>
 			<td>
-				<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-groups__actions">
-					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
-					{declared && <PluginFieldsDialog held={held} origin={origin} />}
-					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
-						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
-					</Button>
-					{!declared && <RemoveGroup held={held} onDone={props.onDone} onRefused={props.onRefused} />}
-				</Stack>
+				<div className="godmin-table__cell">{formatNumber(held.fields.length)}</div>
+			</td>
+			<td>
+				<div className="godmin-table__cell">
+					<Stack direction="row" gap="xs">
+						{!held.active && <Badge intent="none">{__('Inactive', 'gophenberg')}</Badge>}
+						{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
+						{declared && (
+							<Badge>{sprintf(__('From %(plugin)s', 'gophenberg'), { plugin: origin })}</Badge>
+						)}
+					</Stack>
+				</div>
+			</td>
+			<td>
+				<div className="godmin-table__cell">
+					<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-groups__actions">
+						<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
+						{declared && <PluginFieldsDialog held={held} origin={origin} />}
+						<Button variant="outline" size="compact" onClick={() => edit.mutate({ active: !held.active })}>
+							{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
+						</Button>
+						{!declared && <RemoveGroup held={held} onDone={props.onDone} onRefused={props.onRefused} />}
+					</Stack>
+				</div>
 			</td>
 		</tr>
 	)
@@ -430,13 +438,15 @@ function GroupRow(
 function GroupTitle(props: { held: FieldGroup; declared: boolean }) {
 	return (
 		<td className="godmin-table__title">
-			{props.declared ? (
-				props.held.title
-			) : (
-				<Link to="/field-groups/$groupId" params={{ groupId: String(props.held.id) }}>
-					{props.held.title}
-				</Link>
-			)}
+			<div className="godmin-table__cell">
+				{props.declared ? (
+					props.held.title
+				) : (
+					<Link to="/field-groups/$groupId" params={{ groupId: String(props.held.id) }}>
+						{props.held.title}
+					</Link>
+				)}
+			</div>
 		</td>
 	)
 }
@@ -470,6 +480,7 @@ function MoveGroup(props: {
 				label={sprintf(__('Move %(group)s up', 'gophenberg'), { group: props.held.title })}
 				icon={upIcon}
 				variant="outline"
+				size="compact"
 				disabled={props.pending || props.at === 0}
 				onClick={() => props.onMove(carried(-1))}
 			/>
@@ -477,6 +488,7 @@ function MoveGroup(props: {
 				label={sprintf(__('Move %(group)s down', 'gophenberg'), { group: props.held.title })}
 				icon={downIcon}
 				variant="outline"
+				size="compact"
 				disabled={props.pending || props.at === props.order.length - 1}
 				onClick={() => props.onMove(carried(1))}
 			/>
@@ -499,7 +511,7 @@ function RemoveGroup(props: Reporter & { held: FieldGroup }) {
 	)
 	return (
 		<>
-			<Button variant="outline" onClick={() => setAsking(true)}>
+			<Button variant="outline" size="compact" onClick={() => setAsking(true)}>
 				{__('Delete', 'gophenberg')}
 			</Button>
 			{asking ? (

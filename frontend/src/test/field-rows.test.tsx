@@ -24,6 +24,8 @@ import {
 	toggleOf,
 } from './groupFieldsFixtures'
 import { renderAt } from './render'
+import { declarations } from './stylesheet'
+import { cellBoxes } from './tableCells'
 
 const ORDER_REJECTED = { error: 'content: the order has to name every field', code: 'field_order' }
 
@@ -136,6 +138,65 @@ test('holds the label button, then Move and the badges outside it, and no other 
 	}
 	const required = within(labelCell(await fieldRow(main, 'Reading time'))).getByText('Required')
 	expect(toggleOf(await fieldRow(main, 'Reading time'), 'Reading time')).not.toContainElement(required)
+})
+
+test('puts the first line of each cell of a field in the cell box, Move and the badges under the box', async () => {
+	const emptyContainer = { ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [] }
+	listing([{ ...DETAILS, fields: [SUBTITLE, READING_TIME, emptyContainer] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const row = await fieldRow(main, 'Reading time')
+
+	const boxes = cellBoxes(row)
+	expect(boxes).not.toContain(null)
+	const [label, kind, key, actions] = boxes as HTMLElement[]
+	expect(label).toContainElement(toggleOf(row, 'Reading time'))
+	const move = within(labelCell(row)).getByRole('button', { name: 'Move Reading time elsewhere' })
+	expect(label).not.toContainElement(move)
+	expect(label).not.toContainElement(within(labelCell(row)).getByText('Required'))
+	expect(kind).toContainElement(within(row).getByText('Number'))
+	expect(key).toContainElement(within(row).getByText('reading-time'))
+	expect(actions).toContainElement(within(row).getByRole('button', { name: 'Delete Reading time' }))
+})
+
+test('lets the label wrap and keeps Move and the badges under it on one line each', async () => {
+	const emptyContainer = { ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [] }
+	listing([{ ...DETAILS, fields: [SUBTITLE, READING_TIME, emptyContainer] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const row = await fieldRow(main, 'Reading time')
+
+	const lines = within(labelCell(row)).getByRole('button', { name: 'Move Reading time elsewhere' }).parentElement
+	expect(lines).toHaveClass('gophenberg-fields__label')
+	expect(lines).toContainElement(within(labelCell(row)).getByText('Required'))
+	expect(lines).not.toContainElement(toggleOf(row, 'Reading time'))
+	expect(declarations('.gophenberg-fields__label *')).toEqual({ 'white-space': 'nowrap' })
+})
+
+test('puts the first line of each cell of a sub field in the cell box and gives the open row no box', async () => {
+	const role = { ...SUBTITLE, key: 'role', label: 'Role' }
+	const team = { ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [role] }
+	listing([{ ...DETAILS, fields: [SUBTITLE, team] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const part = await openField(main, 'Team')
+
+	const inside = await fieldRow(main, 'Role')
+	const boxes = cellBoxes(inside)
+	expect(boxes).not.toContain(null)
+	const [label, kind, key, actions] = boxes as HTMLElement[]
+	expect(label).toContainElement(toggleOf(inside, 'Role'))
+	expect(kind).toContainElement(within(inside).getByText('Text'))
+	expect(key).toContainElement(within(inside).getByText('role'))
+	expect(actions).toContainElement(within(inside).getByRole('button', { name: 'Delete Role' }))
+	expect(part).toContainElement(inside)
+	expect(cellBoxes(part)).toEqual([null])
+	const plain = partOf(await fieldRow(main, 'Subtitle'))
+	expect(cellBoxes(plain)).toEqual([null])
+	expect(plain.querySelector('.godmin-table__cell')).toBeNull()
 })
 
 test('draws the label as a toggle with a chevron and the open part as one cell across the table', async () => {

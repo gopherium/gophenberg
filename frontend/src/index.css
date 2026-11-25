@@ -47,8 +47,7 @@
 	overflow: hidden;
 }
 
-.gophenberg-fields__label > :not(.godmin-table__toggle),
-.gophenberg-fields__label > :not(.godmin-table__toggle) * {
+.gophenberg-fields__label * {
 	white-space: nowrap;
 }
 

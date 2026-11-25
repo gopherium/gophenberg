@@ -16,6 +16,9 @@ const UNBREAKABLE = 'W'.repeat(60)
 
 const RUN = Math.random().toString(36).slice(2, 8)
 
+/** How far apart, in pixels, the middle of a line of words and the middle of a button beside it may sit. */
+const LEVEL_SLACK = 1
+
 const LONG_NAME = Array.from({ length: 11 }, () => 'Maria Perez').join(' ')
 
 const madeGroups: number[] = []
@@ -146,6 +149,30 @@ async function edgesOf(element: Locator) {
 }
 
 /**
+ * Returns how far down the viewport the middle of the first line of words inside an element sits.
+ * @param element - The element holding the words.
+ * @returns The middle of the first line in pixels from the top of the viewport.
+ */
+async function lineMiddleOf(element: Locator) {
+	return element.evaluate((node) => {
+		const words = document.createRange()
+		words.selectNodeContents(node)
+		const [line] = [...words.getClientRects()]
+		return line.top + line.height / 2
+	})
+}
+
+/**
+ * Returns how far down the viewport the middle of an element sits.
+ * @param element - The element to measure.
+ * @returns The middle in pixels from the top of the viewport.
+ */
+async function middleOf(element: Locator) {
+	const box = await element.boundingBox()
+	return (box?.y ?? 0) + (box?.height ?? 0) / 2
+}
+
+/**
  * Returns how far the document and the canvas overflow the screen.
  * @param page - The page to measure.
  * @returns The overflow of each region in pixels.
@@ -238,6 +265,31 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 	const grouped = await spills(page)
 	expect(grouped.document, 'the page of a group spills the document').toBeLessThanOrEqual(0)
 	expect(grouped.canvas, 'the page of a group spills the canvas').toBeLessThanOrEqual(0)
+})
+
+test('sets the words of a row level with its compact buttons in the field groups list and the fields table, at 1280 and 390', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
+	const title = `${LONG_TITLE} ${RUN}`
+
+	for (const size of [LAPTOP, PHONE]) {
+		await page.setViewportSize(size)
+		await page.goto('/admin/field-groups')
+		const listed = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+		const up = listed.getByRole('button', { name: `Move ${title} up`, exact: true })
+		await expect(up).toBeVisible()
+		const count = Math.abs((await lineMiddleOf(listed.getByText('1', { exact: true }))) - (await middleOf(up)))
+		expect(count, `the field count sits level with Move up at ${size.width}`).toBeLessThanOrEqual(LEVEL_SLACK)
+
+		await page.goto(`/admin/field-groups/${group}`)
+		const fields = page.getByRole('main').getByRole('region', { name: 'Fields' })
+		const row = fields.getByRole('row').filter({ has: page.getByText('Measure', { exact: true }) })
+		const trash = row.getByRole('button', { name: 'Delete Measure', exact: true })
+		await expect(trash).toBeVisible()
+		const key = Math.abs((await lineMiddleOf(row.getByText('measure', { exact: true }))) - (await middleOf(trash)))
+		expect(key, `the API name sits level with the trash at ${size.width}`).toBeLessThanOrEqual(LEVEL_SLACK)
+	}
 })
 
 test('keeps the posts table in its card at 1280 beside a long title and the widest date, its actions in view and its listed fields in reach', async ({

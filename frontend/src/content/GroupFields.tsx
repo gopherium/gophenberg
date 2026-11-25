@@ -418,23 +418,29 @@ function FieldRows(props: Reporter & FieldsWork & Level & Placed) {
 					</LabelCell>
 				</td>
 				<td>
-					<Badge intent="stable">{pickedLabel(field)}</Badge>
+					<div className="godmin-table__cell">
+						<Badge intent="stable">{pickedLabel(field)}</Badge>
+					</div>
 				</td>
 				<td>
-					<code>{field.key}</code>
+					<div className="godmin-table__cell">
+						<code>{field.key}</code>
+					</div>
 				</td>
 				<td className="godmin-table__actions">
-					<RowControls
-						at={props.at}
-						count={props.count}
-						labels={{
-							moveUp: sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label }),
-							moveDown: sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label }),
-							remove: deleteName(field),
-						}}
-						onMove={props.onMove}
-						onRemove={() => setDeleting(true)}
-					/>
+					<div className="godmin-table__cell">
+						<RowControls
+							at={props.at}
+							count={props.count}
+							labels={{
+								moveUp: sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label }),
+								moveDown: sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label }),
+								remove: deleteName(field),
+							}}
+							onMove={props.onMove}
+							onRemove={() => setDeleting(true)}
+						/>
+					</div>
 					{deleting && (
 						<DeleteConfirm
 							group={props.held.id}
@@ -503,26 +509,28 @@ interface LabelProps extends Reporter {
 }
 
 /**
- * Renders the Label cell of a field: its label as the toggle opening the field, then Move and its badges.
+ * Renders the Label cell of a field: its label as the toggle opening the field in the cell box, then Move and badges.
  * @param props - Where the field stands, the field, its path, its badges, the toggle, and what to report.
  * @returns The cell's content.
  */
 function LabelCell(props: LabelProps) {
 	const { field } = props
 	return (
-		<Stack direction="column" gap="xs" align="start" className="gophenberg-fields__label">
-			{props.children}
-			<CarryField
-				group={props.group}
-				field={field}
-				path={props.path}
-				groups={props.groups}
-				held={props.drafted}
-				onDone={props.onDone}
-				onRefused={props.onRefused}
-			/>
-			<FieldBadges field={field} drafted={props.drafted} shadowed={props.shadowed} />
-		</Stack>
+		<>
+			<div className="godmin-table__cell">{props.children}</div>
+			<Stack direction="column" gap="xs" align="start" className="gophenberg-fields__label">
+				<CarryField
+					group={props.group}
+					field={field}
+					path={props.path}
+					groups={props.groups}
+					held={props.drafted}
+					onDone={props.onDone}
+					onRefused={props.onRefused}
+				/>
+				<FieldBadges field={field} drafted={props.drafted} shadowed={props.shadowed} />
+			</Stack>
+		</>
 	)
 }
 
