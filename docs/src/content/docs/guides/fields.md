@@ -60,6 +60,10 @@ table, one row per field, in three columns:
   field's value by this key, and so does the
   [content API](/reference/content-api/).
 
+Where the table has less than 640 pixels of room, such as beside the
+group's settings on a laptop or on a phone, each field shows as one
+item instead, with its kind and API name under its label.
+
 A group with no fields yet says so where the table would be.
 
 To add a field, use **Add a field** under the table. Type a
