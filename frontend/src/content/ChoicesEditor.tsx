@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Fieldset, InputControl } from '@gophenberg/frontend-sdk'
 import { RepeatRows } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
@@ -50,8 +50,8 @@ export function ChoicesEditor(props: {
 	const pairs = shown.rows
 	const bound = readOnly ? pairs.length : undefined
 	return (
-		<Stack direction="column" gap="sm">
-			<Text variant="body-sm">{__('Choices', 'gophenberg')}</Text>
+		<Fieldset.Root>
+			<Fieldset.Legend>{__('Choices', 'gophenberg')}</Fieldset.Legend>
 			<RepeatRows
 				rows={pairs}
 				onChange={(next) => {
@@ -91,6 +91,6 @@ export function ChoicesEditor(props: {
 				min={bound}
 				max={bound}
 			/>
-		</Stack>
+		</Fieldset.Root>
 	)
 }

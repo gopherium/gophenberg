@@ -126,6 +126,16 @@ test('names each choice row as a group by its place, holding its value and label
 	expect(within(part).queryByRole('group', { name: 'Choice 4' })).not.toBeInTheDocument()
 })
 
+test('holds every choice row and Add choice in one group named Choices', async () => {
+	const { part } = await openStyle(STORED_PAIRS)
+
+	const choices = within(part).getByRole('group', { name: 'Choices' })
+
+	expect(within(choices).getAllByRole('group', { name: /^Choice \d$/ })).toHaveLength(STORED_PAIRS.length)
+	expect(within(choices).getByRole('button', { name: 'Add choice' })).toBeInTheDocument()
+	expect(within(part).getAllByText('Choices')).toHaveLength(1)
+})
+
 test('moves a pair down and up with its arrows and stores the new order', async () => {
 	const held = recordingStyle()
 	const { main, part } = await openStyle(STORED_PAIRS)
