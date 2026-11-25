@@ -17,9 +17,15 @@ const AUTHOR = { ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', f
 
 const STYLE = { ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }
 
+/** The rule showing a field while the reading time is above five. */
+const WHILE_ABOVE_FIVE = { source: READING_TIME.key, operator: '>', value: '5' }
+
+/** The subtitle shown by a stored rule on the reading time. */
+const RULED_SUBTITLE = { ...SUBTITLE, settings: { conditions: [[WHILE_ABOVE_FIVE]] } }
+
 serveFieldGroups()
 
-/** The words of the fields table, an open field, its choice rows and the header Save in each shipped locale. */
+/** The words of the fields table, an open field, its rules and choices, and the header Save in each shipped locale. */
 const READERS = [
 	{
 		locale: 'es-ES',
@@ -28,7 +34,11 @@ const READERS = [
 		empty: 'Todavía no hay campos',
 		add: 'Añade un campo para guardar más datos de los elementos en los que aparece este grupo.',
 		label: 'Etiqueta',
-		tabs: ['General', 'Validación', 'Presentación'],
+		tabs: ['General', 'Validación', 'Presentación', 'Lógica condicional'],
+		ruled: /^Lógica condicional/,
+		active: 'Activa',
+		rule: 'Regla 1 del conjunto 1',
+		trash: 'Quitar la regla 1 del conjunto 1',
 		close: 'Cerrar campo',
 		discard: 'Descartar los cambios',
 		listed: 'Mostrar en la lista',
@@ -52,7 +62,11 @@ const READERS = [
 		empty: "Aucun champ pour l'instant",
 		add: "Ajoutez un champ pour enregistrer plus d'informations sur les éléments où ce groupe apparaît.",
 		label: 'Libellé',
-		tabs: ['Général', 'Validation', 'Présentation'],
+		tabs: ['Général', 'Validation', 'Présentation', 'Logique conditionnelle'],
+		ruled: /^Logique conditionnelle/,
+		active: 'Active',
+		rule: "Règle 1 de l'ensemble 1",
+		trash: "Retirer la règle 1 de l'ensemble 1",
 		close: 'Fermer le champ',
 		discard: 'Abandonner les modifications',
 		listed: 'Afficher dans la liste',
@@ -132,6 +146,28 @@ test.each(READERS)('names the box putting a field in the admin list on Presentat
 	await userEvent.click(within(part).getByRole('tab', { name: said.tabs[2] }))
 
 	expect(within(part).getByRole('checkbox', { name: said.listed })).toBeInTheDocument()
+})
+
+test.each(READERS)('names the Conditional logic tab Active while the field holds a rule in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	const tab = within(part).getByRole('tab', { name: said.ruled })
+
+	expect(tab).toHaveTextContent(said.tabs[3] + said.active)
+	expect(within(tab).getByText(said.active)).toBeInTheDocument()
+})
+
+test.each(READERS)('names a rule row and its trash by their place on Conditional logic in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	await userEvent.click(within(part).getByRole('tab', { name: said.ruled }))
+
+	const rule = within(part).getByRole('group', { name: said.rule })
+	expect(within(rule).getByRole('button', { name: said.trash })).toBeInTheDocument()
 })
 
 test.each(READERS)('names the sub fields of a container and the edits its delete loses in $locale', async (said) => {

@@ -964,6 +964,10 @@ msgid "Condition"
 msgstr "Condición"
 
 #, fuzzy
+msgid "Conditional logic"
+msgstr "Lógica condicional"
+
+#, fuzzy
 msgid "Content type"
 msgstr "Tipo de contenido"
 
@@ -1144,20 +1148,12 @@ msgid "Radio group"
 msgstr "Grupo de botones de radio"
 
 #, fuzzy
-msgid "Remove"
-msgstr "Quitar"
-
-#, fuzzy
 msgid "Remove choice"
 msgstr "Quitar la opción"
 
 #, fuzzy
-msgid "Rules"
-msgstr "Reglas"
-
-#, fuzzy
-msgid "Save rules"
-msgstr "Guardar las reglas"
+msgid "Remove rule %(number)s of set %(set)s"
+msgstr "Quitar la regla %(number)s del conjunto %(set)s"
 
 #, fuzzy
 msgid "Saved %(done)s of %(asked)s change."
@@ -1325,10 +1321,6 @@ msgstr "no es"
 #, fuzzy
 msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
 msgstr "%(field)s necesita al menos %(limit)s filas. Añade una y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s shows by its rules now."
-msgstr "%(field)s ahora se muestra según sus reglas."
 
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
@@ -1505,10 +1497,6 @@ msgstr "Quitar %(name)s"
 #, fuzzy
 msgid "Remove row"
 msgstr "Quitar fila"
-
-#, fuzzy
-msgid "Rules showing %(field)s"
-msgstr "Reglas que muestran %(field)s"
 
 #, fuzzy
 msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
@@ -2947,6 +2935,11 @@ msgstr "Activo"
 msgctxt "field group"
 msgid "Status"
 msgstr "Estado"
+
+#, fuzzy
+msgctxt "conditional logic"
+msgid "Active"
+msgstr "Activa"
 
 #, fuzzy
 msgctxt "action label"

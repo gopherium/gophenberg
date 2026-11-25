@@ -82,9 +82,6 @@ msgstr ""
 msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
 msgstr ""
 
-msgid "%(field)s shows by its rules now."
-msgstr ""
-
 msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
 msgstr ""
 
@@ -608,6 +605,9 @@ msgid "Closed"
 msgstr ""
 
 msgid "Condition"
+msgstr ""
+
+msgid "Conditional logic"
 msgstr ""
 
 msgid "Content"
@@ -1461,9 +1461,6 @@ msgstr ""
 msgid "Reload the admin"
 msgstr ""
 
-msgid "Remove"
-msgstr ""
-
 msgid "Remove %(name)s"
 msgstr ""
 
@@ -1474,6 +1471,9 @@ msgid "Remove choice"
 msgstr ""
 
 msgid "Remove row"
+msgstr ""
+
+msgid "Remove rule %(number)s of set %(set)s"
 msgstr ""
 
 msgid "Rename"
@@ -1503,12 +1503,6 @@ msgstr ""
 msgid "Rule set %(number)s"
 msgstr ""
 
-msgid "Rules"
-msgstr ""
-
-msgid "Rules showing %(field)s"
-msgstr ""
-
 msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
 msgstr ""
 
@@ -1516,9 +1510,6 @@ msgid "Save"
 msgstr ""
 
 msgid "Save draft"
-msgstr ""
-
-msgid "Save rules"
 msgstr ""
 
 msgid "Saved"
@@ -2306,6 +2297,10 @@ msgstr ""
 
 msgctxt "column"
 msgid "Date"
+msgstr ""
+
+msgctxt "conditional logic"
+msgid "Active"
 msgstr ""
 
 msgctxt "content type"
