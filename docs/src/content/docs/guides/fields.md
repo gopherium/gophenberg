@@ -41,7 +41,8 @@ the only source today.
 
 Rules are arranged in sets. Every condition in a set has to be true
 at once, so **Add condition** narrows a set, and any one set being
-true is enough, so **Add rule set** widens it.
+true is enough, so **Add rule set** widens it. The trash icon at the
+end of a rule takes it away. A set left with no rule goes with it.
 
 A group with no rules at all appears nowhere, and the list says
 **Nowhere** beside it.
@@ -140,17 +141,20 @@ label again to close it. Several fields can stay open at once.
 An open field sorts its settings into three tabs, **General**,
 **Validation** and **Presentation**. [The settings](#the-settings)
 says what each tab holds. A kind with nothing to check, such as
-Linked from, has no Validation tab.
+Linked from, has no Validation tab. A fourth tab,
+**Conditional logic**, holds the rules that decide when the field
+shows. It appears only while a rule has a field beside it to read, as
+[Showing a field by rule](#showing-a-field-by-rule) explains.
 
 General starts with the **Label**. Changing it renames the field and
 moves nothing stored under it. Under the label, General shows what is
 fixed once the field exists, such as its API name and its kind.
 
-Under the tabs sit **Rules**, which
-[Showing a field by rule](#showing-a-field-by-rule) explains, and
-**Close field**. Closing a field keeps your edits. Its row shows
-**Unsaved changes** while it holds them. **Discard changes** drops
-the edits and closes the field.
+Under the tabs, a section or a repeater lists its own fields and
+**Add field**, and a flexible content field lists its layouts and
+**Add layout**. **Close field** comes last. Closing a field keeps your
+edits. Its row shows **Unsaved changes** while it holds them.
+**Discard changes** drops the edits and closes the field.
 
 ## Saving fields
 
@@ -173,10 +177,9 @@ A field someone else saved after you opened it keeps your edits too.
 It says so and offers **Load saved version**, which works as it does
 for [the group](#where-a-group-appears).
 
-**Move**, **Rules**, and the arrows and the trash in a field's row
-save on their own, without the header **Save**. **Move** is off while
-the field, or a field inside it, holds edits not saved. **Rules** is
-off while the field itself holds them. Save or discard the edits
+**Move**, the arrows and the trash in a field's row save on their
+own, without the header **Save**. **Move** is off while the field, or
+a field inside it, holds edits not saved. Save or discard the edits
 first.
 
 ## The settings
@@ -353,13 +356,27 @@ own, so neither can be required.
 
 ## Showing a field by rule
 
-A field can wait until another field says so. Open it, press
-**Rules** and add a condition: pick a field, pick a comparison, pick
-or type a value. The field then shows only while the rule holds, and
-the editor hides it the moment you change what it reads.
+A field can wait until another field says so. Open it and choose its
+last tab, **Conditional logic**. Press **Add rule set** and a rule
+appears. Pick its **Source**, the field it reads, then its
+**Condition**, then pick or type its **Value**. A condition such as
+*is empty* takes no value. The field then shows only while the rule
+holds, and the editor hides it the moment you change what it reads.
 
-Add more conditions to one set and every one of them has to hold. Add
-a second set and the field shows when either set holds.
+The sets are named **Rule set 1**, **Rule set 2** and so on.
+**Add condition** adds a rule to its set, and every rule in a set has
+to hold. **Add rule set** adds another set, and the field shows when
+any one set holds. The trash icon at the end of a rule takes it away.
+A set left with no rule goes with it.
+
+While the field holds a rule, the tab's name carries an **Active**
+badge. It shows as soon as you add the rule, before you save. A field
+with no rule always shows, and the tab says so.
+
+Rules wait for the header **Save**, like every other setting.
+Changing them shows **Unsaved changes** on the field's row, and
+**Discard changes** puts the saved rules back. Save sends the rules
+with the field's other edits, and they save or fail together.
 
 A rule reads the fields standing beside it. A field at the top of a
 group reads the group's other fields, and a field inside a section or
@@ -372,6 +389,11 @@ date, choice, media or link field, a link only for whether it is
 filled. A relation, a container and a **Linked from** field can
 each be shown by a rule but never read by one, so they are not
 offered when you pick what a rule reads.
+
+So **Source** offers only the fields beside this one that a rule can
+read. A field inside a section or a repeater offers the other fields
+inside that same container, and nothing outside it. A field with no
+such field beside it has no Conditional logic tab.
 
 What a hidden field already holds stays where it is. Turn the switch
 back on and the value is still there. While the field is hidden its
