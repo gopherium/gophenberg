@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { badgeClasses } from '@gopherium/godmin/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -22,7 +21,7 @@ const OTHER_SAVE_STAMP = '2026-08-02T09:00:00Z'
 /** A time limit far shorter than any test. */
 const SHORT_LIMIT = 20
 
-/** The name every Conditional logic tab starts with, whether or not it carries its badge. */
+/** The name every Conditional logic tab starts with, whether or not it carries its dot. */
 const RULES_TAB = /^Conditional logic/
 
 /** The name of the trash on the first rule of the first rule set. */
@@ -248,7 +247,7 @@ test('names the Conditional logic tab Active while the field holds stored rules,
 	const plain = await openField(main, 'On sale')
 
 	const tab = within(ruled).getByRole('tab', { name: RULES_TAB })
-	expect([...within(tab).getByText('Active').classList]).toEqual(badgeClasses('stable'))
+	expect([...within(tab).getByText('Active').classList]).toEqual(['gophenberg-conditions__active'])
 	expect(within(ruled).getAllByText('Active')).toHaveLength(1)
 	expect(within(plain).getByRole('tab', { name: RULES_TAB })).toHaveTextContent(/^Conditional logic$/)
 })

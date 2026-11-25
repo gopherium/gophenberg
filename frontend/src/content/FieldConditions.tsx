@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Stack } from '@gophenberg/frontend-sdk'
+import { Stack } from '@gophenberg/frontend-sdk'
 import { __, _x } from '@wordpress/i18n'
 
 import { conditionsOf, multipleOf, operatorsFor } from './conditions'
@@ -77,7 +77,7 @@ function ruledSettings(settings: Record<string, unknown>, rules: ConditionRule[]
 }
 
 /**
- * Renders the name of the Conditional logic tab, with the Active badge while the draft holds a rule.
+ * Renders the name of the Conditional logic tab, with the Active dot while the draft holds a rule.
  * @param props - The draft held.
  * @returns The tab's name.
  */
@@ -86,7 +86,7 @@ export function ConditionsTabName(props: { draft: FieldDraft }) {
 		<Stack direction="row" gap="sm" align="center" render={<span />}>
 			{__('Conditional logic', 'gophenberg')}
 			{draftedRules(props.draft).length > 0 && (
-				<Badge intent="stable">{_x('Active', 'conditional logic', 'gophenberg')}</Badge>
+				<span className="gophenberg-conditions__active">{_x('Active', 'conditional logic', 'gophenberg')}</span>
 			)}
 		</Stack>
 	)

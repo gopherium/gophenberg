@@ -467,7 +467,13 @@ test('wraps a location rule and a field condition on a phone, every control insi
 
 	const summary = await openField(page, 'Summary')
 	const tab = summary.getByRole('tab', { name: /^Conditional logic/ })
-	await expect(tab.getByText('Active', { exact: true })).toBeVisible()
+	const active = tab.getByText('Active', { exact: true })
+	await expect
+		.poll(async () => {
+			const box = await active.boundingBox()
+			return box && { width: box.width, height: box.height }
+		}, { message: 'the Active mark draws as a dot at 390' })
+		.toEqual({ width: 8, height: 8 })
 	await expect(tab).toHaveAccessibleName('Conditional logic Active')
 	await tab.click()
 	const rules = summary.getByRole('tabpanel', { name: /^Conditional logic/ })

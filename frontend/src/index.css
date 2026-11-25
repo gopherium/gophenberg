@@ -63,6 +63,19 @@
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
+.gophenberg-conditions__active {
+	display: inline-block;
+	flex-shrink: 0;
+	inline-size: 6px;
+	block-size: 6px;
+	overflow: hidden;
+	border: 1px solid var(--wpds-color-stroke-surface-success-strong);
+	border-radius: 50%;
+	background-color: var(--wpds-color-background-surface-success);
+	text-indent: 100%;
+	white-space: nowrap;
+}
+
 .gophenberg-updates__check {
 	padding: 0;
 	border: 0;
