@@ -2,6 +2,8 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { ConfirmDialog } from '@gopherium/godmin'
+import { AuthGate, createAuthQueryClient } from '@gopherium/react-auth'
+import { defaultUser, seedSession } from '@gopherium/react-auth/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -34,12 +36,13 @@ function neverAnswered(): Promise<never> {
 }
 
 /**
- * Renders the admin host around the given tree, with a fresh query client.
+ * Renders the admin host around the given tree, with a fresh query client unless one is given.
  * @param children - The tree to host.
+ * @param client - The query client the tree reads through.
  */
-function renderHosted(children: ReactNode) {
+function renderHosted(children: ReactNode, client = new QueryClient()) {
 	render(
-		<QueryClientProvider client={new QueryClient()}>
+		<QueryClientProvider client={client}>
 			<AdminHost>{children}</AdminHost>
 		</QueryClientProvider>,
 	)
@@ -77,6 +80,35 @@ test('gives up on a dialog write once the time the site serves runs out', async 
 
 	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
 	expect(screen.getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-disabled', 'true')
+})
+
+test('gives up on a dialog write once the time the site serves runs out after a sign-in', async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+		),
+	)
+	const client = createAuthQueryClient({ queries: { retry: false, staleTime: Infinity } })
+	seedSession(client, null)
+	renderHosted(
+		<AuthGate
+			loginScreen={(onLogin) => (
+				<button type="button" onClick={() => void onLogin(defaultUser)}>
+					Log In
+				</button>
+			)}
+		>
+			<SiteFormatGate loading={null}>
+				<HangingConfirm />
+			</SiteFormatGate>
+		</AuthGate>,
+		client,
+	)
+
+	await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+
+	expect(await screen.findByText(NO_ANSWER)).toBeVisible()
 })
 
 test('waits on a dialog write as long as it takes while the site settings are not loaded yet', async () => {

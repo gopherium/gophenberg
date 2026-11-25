@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useSyncExternalStore } from 'react'
 
 import { fetchListSettings } from './api'
+import type { ListSettings } from './api'
 
 /** The query naming the settings every list follows. */
 const listSettingsQueryKey = ['list-settings'] as const
@@ -22,17 +24,14 @@ export function useListSettings() {
 }
 
 /**
- * Reads the settings every list follows once a screen loaded them, never asking the server itself.
- * @returns The list settings query, whose data is the settings once a screen loaded them.
- */
-function useLoadedListSettings() {
-	return useQuery({ queryKey: listSettingsQueryKey, queryFn: fetchListSettings, staleTime: 'static', enabled: false })
-}
-
-/**
  * Returns the time limit a busy write gets, the one the site serves once a screen loaded its settings.
  * @returns The time limit in milliseconds, Infinity while the settings are not loaded.
  */
 export function useWriteTimeout(): number {
-	return useLoadedListSettings().data?.dialog_write_timeout_milliseconds ?? Infinity
+	const client = useQueryClient()
+	const subscribe = useCallback((changed: () => void) => client.getQueryCache().subscribe(changed), [client])
+	return useSyncExternalStore(
+		subscribe,
+		() => client.getQueryData<ListSettings>(listSettingsQueryKey)?.dialog_write_timeout_milliseconds ?? Infinity,
+	)
 }
