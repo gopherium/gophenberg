@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
@@ -141,28 +142,32 @@ func TestDatabaseWaitTriesAgainUntilTheDatabaseAnswers(t *testing.T) {
 
 func TestDatabaseWaitStopsOnceTheWaitRunsOut(t *testing.T) {
 	t.Parallel()
-	var logged bytes.Buffer
-	calls := 0
 
-	err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
-		t.Context(), pingAnswering(1<<30, errRefused, &calls), testLogger(&logged))
+	synctest.Test(t, func(t *testing.T) {
+		var logged bytes.Buffer
+		calls := 0
 
-	want := "the database did not answer within 50ms, the time GOPHENBERG_DATABASE_WAIT allows: "
-	if err == nil || !strings.HasPrefix(err.Error(), want) {
-		t.Errorf("await() = %v, want %q", err, want)
-	}
-	if !errors.Is(err, syscall.ECONNREFUSED) {
-		t.Errorf("await() = %v, want the last failure kept", err)
-	}
-	if calls < 2 || calls > 6 {
-		t.Errorf("await() pinged %d times, want from 2 to 6, one ping and one after each pause of 10ms in 50ms", calls)
-	}
-	if held := strings.Count(logged.String(), waitingLine); held != 1 {
-		t.Errorf("logged %q, holding the wait %d times, want once", logged.String(), held)
-	}
-	if strings.Contains(logged.String(), answeredLine) {
-		t.Errorf("logged %q, want no answer logged", logged.String())
-	}
+		err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
+			t.Context(), pingAnswering(1<<30, errRefused, &calls), testLogger(&logged))
+
+		want := "the database did not answer within 50ms, the time GOPHENBERG_DATABASE_WAIT allows: "
+		if err == nil || !strings.HasPrefix(err.Error(), want) {
+			t.Errorf("await() = %v, want %q", err, want)
+		}
+		if !errors.Is(err, syscall.ECONNREFUSED) {
+			t.Errorf("await() = %v, want the last failure kept", err)
+		}
+		if calls != 5 {
+			t.Errorf("await() pinged %d times, want 5, one at the start and one after each pause of 10ms ending before 50ms",
+				calls)
+		}
+		if held := strings.Count(logged.String(), waitingLine); held != 1 {
+			t.Errorf("logged %q, holding the wait %d times, want once", logged.String(), held)
+		}
+		if strings.Contains(logged.String(), answeredLine) {
+			t.Errorf("logged %q, want no answer logged", logged.String())
+		}
+	})
 }
 
 func TestDatabaseWaitOfZeroStopsAtTheFirstFailure(t *testing.T) {
@@ -254,37 +259,43 @@ func TestDatabaseWaitBoundsEachTryByTheTimeTheWaitHasLeft(t *testing.T) {
 
 func TestDatabaseWaitEndsATryThatHangsOnceTheWaitRunsOut(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	began := time.Now()
 
-	err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
-		ctx, pingHanging, testLogger(&bytes.Buffer{}))
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		began := time.Now()
 
-	took := time.Since(began)
-	wantRanOut(t, err, "50ms")
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("await() = %v, want the hanging try's failure kept", err)
-	}
-	if took > 300*time.Millisecond {
-		t.Errorf("await() took %v, want it to end soon after its wait of 50ms", took)
-	}
+		err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
+			ctx, pingHanging, testLogger(&bytes.Buffer{}))
+
+		took := time.Since(began)
+		wantRanOut(t, err, "50ms")
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("await() = %v, want the hanging try's failure kept", err)
+		}
+		if took != 50*time.Millisecond {
+			t.Errorf("await() took %v, want it to end at the end of its wait of 50ms", took)
+		}
+	})
 }
 
 func TestDatabaseWaitNeverTakesAnAnswerThatComesAfterTheWait(t *testing.T) {
 	t.Parallel()
-	late := func(context.Context) error {
-		time.Sleep(100 * time.Millisecond)
-		return nil
-	}
 
-	err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
-		t.Context(), late, testLogger(&bytes.Buffer{}))
+	synctest.Test(t, func(t *testing.T) {
+		late := func(context.Context) error {
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		}
 
-	wantRanOut(t, err, "50ms")
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("await() = %v, want the wait's end kept as the failure", err)
-	}
+		err := databaseWait{limit: 50 * time.Millisecond, interval: 10 * time.Millisecond}.await(
+			t.Context(), late, testLogger(&bytes.Buffer{}))
+
+		wantRanOut(t, err, "50ms")
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("await() = %v, want the wait's end kept as the failure", err)
+		}
+	})
 }
 
 func TestDatabaseWaitPingsNoMoreOnceItsLastPauseReachesTheWaitsEnd(t *testing.T) {
