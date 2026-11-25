@@ -1197,6 +1197,10 @@ msgid "Checkbox group"
 msgstr "Groupe de cases à cocher"
 
 #, fuzzy
+msgid "Choice %(number)s"
+msgstr "Choix %(number)s"
+
+#, fuzzy
 msgid "Choices"
 msgstr "Choix"
 
@@ -1349,8 +1353,20 @@ msgid "Move %(group)s up"
 msgstr "Monter %(group)s"
 
 #, fuzzy
+msgid "Move choice down"
+msgstr "Descendre le choix"
+
+#, fuzzy
+msgid "Move choice up"
+msgstr "Monter le choix"
+
+#, fuzzy
 msgid "Move the field"
 msgstr "Déplacer le champ"
+
+#, fuzzy
+msgid "No choices yet."
+msgstr "Aucun choix pour l'instant."
 
 #, fuzzy
 msgid "No fields yet"
@@ -1379,6 +1395,10 @@ msgstr "Groupe de boutons radio"
 #, fuzzy
 msgid "Remove"
 msgstr "Retirer"
+
+#, fuzzy
+msgid "Remove choice"
+msgstr "Retirer le choix"
 
 #, fuzzy
 msgid "Rules"

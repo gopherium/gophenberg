@@ -574,6 +574,9 @@ msgstr ""
 msgid "Checking the new version…"
 msgstr ""
 
+msgid "Choice %(number)s"
+msgstr ""
+
 msgid "Choices"
 msgstr ""
 
@@ -1208,6 +1211,12 @@ msgstr ""
 msgid "Move %(name)s up"
 msgstr ""
 
+msgid "Move choice down"
+msgstr ""
+
+msgid "Move choice up"
+msgstr ""
+
 msgid "Move every address"
 msgstr ""
 
@@ -1239,6 +1248,9 @@ msgid "No"
 msgstr ""
 
 msgid "No active plugins"
+msgstr ""
+
+msgid "No choices yet."
 msgstr ""
 
 msgid "No description"
@@ -1456,6 +1468,9 @@ msgid "Remove %(name)s"
 msgstr ""
 
 msgid "Remove %(title)s"
+msgstr ""
+
+msgid "Remove choice"
 msgstr ""
 
 msgid "Remove row"

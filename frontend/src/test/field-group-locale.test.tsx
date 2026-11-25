@@ -15,9 +15,11 @@ const BYLINE = { ...SUBTITLE, key: 'byline', label: 'Byline' }
 
 const AUTHOR = { ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [BYLINE] }
 
+const STYLE = { ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }
+
 serveFieldGroups()
 
-/** The words of the fields table, an open field and the header Save on a group's page in each shipped locale. */
+/** The words of the fields table, an open field, its choice rows and the header Save in each shipped locale. */
 const READERS = [
 	{
 		locale: 'es-ES',
@@ -33,6 +35,9 @@ const READERS = [
 		inside: 'Subcampos de Author',
 		remove: 'Borrar Author',
 		lostToo: 'También se pierden los cambios sin guardar dentro de Author.',
+		choice: 'Opción 1',
+		choiceButtons: ['Subir la opción', 'Bajar la opción', 'Quitar la opción'],
+		noChoices: 'Todavía no hay opciones.',
 		save: 'Guardar',
 		ran: [
 			'Cambios guardados: 1 de 2.',
@@ -54,6 +59,9 @@ const READERS = [
 		inside: 'Sous-champs de Author',
 		remove: 'Supprimer Author',
 		lostToo: 'Les modifications non enregistrées dans Author sont aussi perdues.',
+		choice: 'Choix 1',
+		choiceButtons: ['Monter le choix', 'Descendre le choix', 'Retirer le choix'],
+		noChoices: "Aucun choix pour l'instant.",
 		save: 'Enregistrer',
 		ran: [
 			'Modifications enregistrées : 1 sur 2.',
@@ -137,6 +145,23 @@ test.each(READERS)('names the sub fields of a container and the edits its delete
 	await userEvent.click(within(fields).getByRole('button', { name: said.remove }))
 
 	expect(await screen.findByRole('alertdialog')).toHaveTextContent(said.lostToo)
+})
+
+test.each(READERS)('names a choice row by its place and its move and remove buttons in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [{ ...STYLE, settings: { choices: [{ value: 'ipa', label: 'IPA' }] } }] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const part = await openIn(fields, STYLE.label)
+
+	const row = within(part).getByRole('group', { name: said.choice })
+	said.choiceButtons.forEach((name) => expect(within(row).getByRole('button', { name })).toBeInTheDocument())
+})
+
+test.each(READERS)('says a choice field holds no choices yet in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [STYLE] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const part = await openIn(fields, STYLE.label)
+
+	expect(within(part).getByText(said.noChoices)).toBeInTheDocument()
 })
 
 test.each(READERS)('counts what the header Save stored and names the field it could not in $locale', async (said) => {
