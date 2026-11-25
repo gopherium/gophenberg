@@ -373,9 +373,10 @@ to hold. **Add rule set** adds another set, and the field shows when
 any one set holds. The trash icon at the end of a rule takes it away.
 A set left with no rule goes with it.
 
-While the field holds a rule, the tab's name carries an **Active**
-badge. It shows as soon as you add the rule, before you save. A field
-with no rule always shows, and the tab says so.
+While the field holds a rule, a small green dot sits after the tab's
+name, and a screen reader reads it as **Active**. It shows as soon as
+you add the rule, before you save. A field with no rule always shows,
+and the tab says so.
 
 Rules wait for the header **Save**, like every other setting.
 Changing them shows **Unsaved changes** on the field's row, and
