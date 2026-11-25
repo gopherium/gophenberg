@@ -54,6 +54,7 @@ export {
 	Checkbox,
 	Collapsible,
 	Dialog,
+	Fieldset,
 	Icon,
 	IconButton,
 	InputControl,
