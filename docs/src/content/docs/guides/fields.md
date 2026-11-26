@@ -71,7 +71,9 @@ To add a field, use **Add a field** under the table. Type a
 the key from the label, so a field called Sold On is stored under
 `sold-on`. The key and the entry you picked are fixed once the field
 exists, so an Email field stays an email box. A new field starts
-optional. Open it to set it up.
+optional. Open it to set it up. An add that gets no answer within the
+site's [time limit](/self-hosting/configuration/#the-variables) fails,
+and the label you typed stays in the box.
 
 **Move** sits under a field's label, then badges such as
 **Required**. At the end of each row, the up and down arrows move the
@@ -154,11 +156,14 @@ General starts with the **Label**. Changing it renames the field and
 moves nothing stored under it. Under the label, General shows what is
 fixed once the field exists, such as its API name and its kind.
 
-Under the tabs, a section or a repeater lists its own fields and
-**Add field**, and a flexible content field lists its layouts and
-**Add layout**. **Close field** comes last. Closing a field keeps your
-edits. Its row shows **Unsaved changes** while it holds them.
-**Discard changes** drops the edits and closes the field.
+Under the tabs, a section, a repeater or a layout lists the fields it
+holds under **Sub fields**, then its own **Add a field** form. A
+flexible content field lists its layouts under **Layouts**, then an
+**Add a layout** form.
+[Fields inside fields](#fields-inside-fields) says how both work.
+**Close field** comes last. Closing a field keeps your edits. Its row
+shows **Unsaved changes** while it holds them. **Discard changes**
+drops the edits and closes the field.
 
 ## Saving fields
 
@@ -261,21 +266,54 @@ author build a page as a hero, then a quote, then another hero, in
 whatever order the page needs. Each row carries only the fields of
 the layout it picked.
 
-Open a section or a repeater and press **Add field** to declare a
-field inside it. The fields inside sit in a table of their own, with
-the same columns, under the container's tabs. A field inside opens,
-saves and moves up or down the same way as one at the top. Two
-containers may each hold a field of the same name, because a field is
-named inside the container that holds it. One container holds each
-name once, so a second field of that name inside it is rejected.
+In the fields table, a closed section, repeater or layout lists the
+labels of the fields it holds in small text under its kind. A closed
+Team repeater holding a Name and a Role reads *Name, Role* there. A
+closed flexible content field lists its layouts the same way. A label
+you change shows there once you press **Save**. The line hides while
+the container is open, because its own table then lists the same
+fields. A closed container inside it still lists its own.
 
-A flexible content field takes layouts rather than fields, so it
-offers **Add layout** instead. Press it to name a layout. Then open
-that layout in the flexible field's table and press **Add field** to
-declare what its rows carry. Two layouts may each hold a field of the
-same name for the same reason two containers may. A layout stands
-nowhere but inside a flexible content field, and a field stands
-nowhere directly under one.
+Open a section, a repeater or a layout to see the fields it holds.
+Under the container's tabs, **Sub fields** lists them in a table of
+their own, with the same columns. A container holding no fields yet
+says so in place of the table. A field inside opens, saves and moves
+up or down the same way as one at the top.
+
+To declare a field inside, use the container's own **Add a field**
+form, under its sub fields. Type a **Label**, pick a **Kind** and
+press **Add field**, or press Enter in the Label box. The Kind list
+offers only the kinds that may stand inside. The field is stored at
+once, without the header **Save**, and edits you have not saved stay
+as they are. Its row stays closed and the form clears. After Enter
+the focus stays in the Label box, so you can type the next label
+straight away. After a click it stays on the button.
+
+A screen reader names the form and its button after the container,
+such as Add field to Team, so neither sounds like the group's own
+**Add field**. Two containers may each hold a field of the same name,
+because a field is named inside the container that holds it. One
+container holds each name once, so a second field of that name inside
+it is rejected. The label you typed stays in the box, so you can
+change it and try again. An add that gets no answer within the site's
+[time limit](/self-hosting/configuration/#the-variables) fails the
+same way and keeps the label too.
+
+A flexible content field takes layouts rather than fields. Open it
+and **Layouts** lists its layouts in a table. A flexible content
+field holding none yet says so instead. An **Add a layout** form
+comes next. Type the layout's **Label** and press
+**Add layout**. A layout is the only kind the field takes, so the form
+asks no Kind. The new layout is stored at once, and its row stays
+closed.
+
+A layout opens like any other row. Its Validation tab holds its own
+**Fewest rows** and **Most rows**. Under its tabs sit its own
+**Sub fields** and its own **Add a field** form, where you declare
+what its rows carry. Two layouts may each hold a field of the same
+name for the same reason two containers may. A layout stands nowhere
+but inside a flexible content field, and a field stands nowhere
+directly under one.
 
 **Fewest rows** and **Most rows** bound how many rows a repeater or a
 flexible content field takes. Set them on a layout instead and they
