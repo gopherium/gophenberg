@@ -142,12 +142,16 @@ func (u siteUpdates) Start(ctx context.Context, asked server.UpdateStart) error 
 }
 
 // Overview returns what the admin shows: what the checks stored, this binary, its server, install, whether an update
-// runs and the next check. It reads whether an update runs after the job, so a job an update that started meanwhile
-// wrote never stands beside a flag read before it.
+// runs and the next check. It reads whether an update runs both before and after the job and names one running when
+// either read found it, so neither an update that ended nor one that started during the read of the job leaves that
+// job beside a flag saying no update runs.
 func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, error) {
+	updating, updatingErr := u.updating(ctx)
 	result, resultErr := u.Result(ctx)
 	install, installErr := updater.ReadOverview(u.install)
-	updating, updatingErr := u.updating(ctx)
+	if updatingErr == nil && !updating {
+		updating, updatingErr = u.updating(ctx)
+	}
 	next, nextErr := u.nextCheck(ctx)
 	major, majorErr := u.major(ctx)
 	if err := errors.Join(resultErr, installErr, updatingErr, nextErr, majorErr); err != nil {

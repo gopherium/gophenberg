@@ -188,11 +188,23 @@ export function heldRun(
  * @returns True once the update stopped short of its switch with nothing left to run it.
  */
 function leftBehind(run: UpdateRun, seen: Seen): boolean {
-	const { overview } = seen
-	if (seen.failing || overview.updating || overview.running !== run.from) {
+	if (!stoppedOn(run.from, seen)) {
 		return false
 	}
-	return UNDER_WAY.includes(ownStep(run, overview))
+	return UNDER_WAY.includes(ownStep(run, seen.overview))
+}
+
+/**
+ * Reports whether the overview read tells that no update runs while the version an update started from still runs.
+ * @param from - The version the update started from.
+ * @param seen - The overview last read and whether the read failed.
+ * @returns True when the read arrived, names no update running and the version before still runs.
+ */
+function stoppedOn(from: string, seen: Seen): boolean {
+	if (seen.failing) {
+		return false
+	}
+	return !seen.overview.updating && seen.overview.running === from
 }
 
 /**

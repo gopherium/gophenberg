@@ -41,8 +41,8 @@ func Lock(ctx context.Context, db *sql.DB) (func(), error) {
 	}, nil
 }
 
-// LockHeld reports whether a session holds the update lock on db, as while update:apply runs in another process, without
-// taking it, so a start that comes at the same time never finds it held by the read.
+// LockHeld reports whether a session holds the update lock on db, as while update:apply runs in another process,
+// without taking it, so a start that comes at the same time never finds it held by the read.
 func LockHeld(ctx context.Context, db *sql.DB) (bool, error) {
 	var held bool
 	if err := db.QueryRowContext(ctx, heldQuery).Scan(&held); err != nil {

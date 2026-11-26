@@ -355,6 +355,57 @@ func TestSiteUpdatesOverviewSaysWhetherAnUpdateRunsNow(t *testing.T) {
 	}
 }
 
+// readingSettings is a site setting store in memory that runs meanwhile on its first read, as an update that starts or
+// ends while the overview reads what the checks stored.
+type readingSettings struct {
+	heldSettings
+	once      sync.Once
+	meanwhile func()
+}
+
+// Lookup runs meanwhile on the first read, then returns the value stored under key.
+func (r *readingSettings) Lookup(ctx context.Context, key string) (string, bool, error) {
+	r.once.Do(r.meanwhile)
+	return r.heldSettings.Lookup(ctx, key)
+}
+
+func TestSiteUpdatesOverviewSaysAnUpdateRunsWhenItStartsOrEndsDuringTheReadOfTheJob(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		running   bool
+		meanwhile func(t *testing.T, admin *adminUpdates)
+	}{
+		"an update that ends": {running: true, meanwhile: func(_ *testing.T, admin *adminUpdates) { admin.free() }},
+		"an update that starts": {meanwhile: func(t *testing.T, admin *adminUpdates) {
+			if !admin.take() {
+				t.Error("take() = false on a serve run with no update, want the update under way")
+			}
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			updates := officialUpdates(t)
+			admin := idleUpdates(t)
+			updates.admin = admin
+			if test.running && !admin.take() {
+				t.Fatal("take() = false on a serve run with no update, want the update under way")
+			}
+			updates.store = &readingSettings{
+				heldSettings: heldSettings{values: map[string]string{}},
+				meanwhile:    func() { test.meanwhile(t, admin) },
+			}
+
+			overview, err := updates.Overview(t.Context())
+
+			if err != nil || !overview.Updating {
+				t.Errorf("Overview() as %s during the read of the job = %t, %v, want true", name, overview.Updating, err)
+			}
+		})
+	}
+}
+
 func TestSiteUpdatesOverviewSaysAnUpdateRunsWhileAnotherProcessHoldsTheUpdateLock(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {

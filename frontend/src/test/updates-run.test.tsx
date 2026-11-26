@@ -491,12 +491,15 @@ test.each([
 	['the start check', patchWentBack],
 	['the rollback unit', patchRolledBack],
 ])('follows a retry the start answers as running, showing no ending until it stops', async (_by, wentBack) => {
+	const running = { ...wentBack, updating: true }
 	const site = siteAnswering(wentBack)
-	acceptStarts({ ...wentBack, updating: true })
+	acceptStarts(running)
 	renderAt('/update-core')
+	await screen.findByRole('button', { name: REINSTALL })
 
+	void site(running)
 	await confirmUpdate(REINSTALL)
-	await readTwice(site, { ...wentBack, updating: true })
+	await readTwice(site, running)
 
 	await underWay('Downloading Gophenberg 0.20.1…')
 	expect(screen.queryByText(/Gophenberg went back to/)).toBeNull()
