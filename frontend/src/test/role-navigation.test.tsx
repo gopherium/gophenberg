@@ -110,6 +110,13 @@ test('returns a role named admin that carries no capability from a deep link the
 	await waitFor(() => expect(screen.queryByRole('heading', { name: 'Users' })).toBeNull())
 })
 
+test('answers an address no route serves under a gated screen by opening the default list', async () => {
+	renderAt('/users/nowhere', holding('author', []))
+
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
+	expect(screen.queryByRole('heading', { name: 'Route not found' })).toBeNull()
+})
+
 test('answers a deep link into the new user form the same way', async () => {
 	renderAt('/users/new', holding('editor', [CHANGE_OTHERS_WORK]))
 
