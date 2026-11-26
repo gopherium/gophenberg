@@ -18,6 +18,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/cron"
 	"github.com/gopherium/gophenberg/internal/cron/crontest"
 	"github.com/gopherium/gophenberg/internal/server"
+	"github.com/gopherium/gophenberg/internal/testdb"
 	"github.com/gopherium/gophenberg/internal/update"
 	"github.com/gopherium/gophenberg/internal/updater"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -329,6 +330,105 @@ func TestSiteUpdatesOverviewNamesWhatTheChecksStoredBesideThisBinaryAndItsInstal
 	}
 	if overview.NextCheck == nil || !overview.NextCheck.Equal(next) {
 		t.Errorf("Overview() names the next check %v, want %v", overview.NextCheck, next)
+	}
+}
+
+func TestSiteUpdatesOverviewSaysWhetherAnUpdateRunsNow(t *testing.T) {
+	t.Parallel()
+
+	updates := officialUpdates(t)
+	updates.admin = idleUpdates(t)
+
+	idle, err := updates.Overview(t.Context())
+	if err != nil || idle.Updating {
+		t.Errorf("Overview() with no update under way = %t, %v, want false", idle.Updating, err)
+	}
+	if !updates.admin.take() {
+		t.Fatal("take() = false on a serve run with no update, want the update under way")
+	}
+	defer updates.admin.free()
+
+	running, err := updates.Overview(t.Context())
+
+	if err != nil || !running.Updating {
+		t.Errorf("Overview() while an update runs = %t, %v, want true", running.Updating, err)
+	}
+}
+
+// readingSettings is a site setting store in memory that runs meanwhile on its first read, as an update that starts or
+// ends while the overview reads what the checks stored.
+type readingSettings struct {
+	heldSettings
+	once      sync.Once
+	meanwhile func()
+}
+
+// Lookup runs meanwhile on the first read, then returns the value stored under key.
+func (r *readingSettings) Lookup(ctx context.Context, key string) (string, bool, error) {
+	r.once.Do(r.meanwhile)
+	return r.heldSettings.Lookup(ctx, key)
+}
+
+func TestSiteUpdatesOverviewSaysAnUpdateRunsWhenItStartsOrEndsDuringTheReadOfTheJob(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		running   bool
+		meanwhile func(t *testing.T, admin *adminUpdates)
+	}{
+		"an update that ends": {running: true, meanwhile: func(_ *testing.T, admin *adminUpdates) { admin.free() }},
+		"an update that starts": {meanwhile: func(t *testing.T, admin *adminUpdates) {
+			if !admin.take() {
+				t.Error("take() = false on a serve run with no update, want the update under way")
+			}
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			updates := officialUpdates(t)
+			admin := idleUpdates(t)
+			updates.admin = admin
+			if test.running && !admin.take() {
+				t.Fatal("take() = false on a serve run with no update, want the update under way")
+			}
+			updates.store = &readingSettings{
+				heldSettings: heldSettings{values: map[string]string{}},
+				meanwhile:    func() { test.meanwhile(t, admin) },
+			}
+
+			overview, err := updates.Overview(t.Context())
+
+			if err != nil || !overview.Updating {
+				t.Errorf("Overview() as %s during the read of the job = %t, %v, want true", name, overview.Updating, err)
+			}
+		})
+	}
+}
+
+func TestSiteUpdatesOverviewSaysAnUpdateRunsWhileAnotherProcessHoldsTheUpdateLock(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping database test in short mode")
+	}
+
+	db := testdb.Open(t, emptyDatabaseURL(t))
+	updates := officialUpdates(t)
+	updates.admin = idleUpdates(t)
+	updates.admin.job.DB = db
+	release, err := updater.Lock(t.Context(), db)
+	if err != nil {
+		t.Fatalf("Lock() = %v, want the update lock taken as update:apply takes it", err)
+	}
+
+	held, err := updates.Overview(t.Context())
+
+	if err != nil || !held.Updating {
+		t.Errorf("Overview() while update:apply holds the lock = %t, %v, want true", held.Updating, err)
+	}
+	release()
+	if freed, err := updates.Overview(t.Context()); err != nil || freed.Updating {
+		t.Errorf("Overview() once update:apply let go = %t, %v, want false", freed.Updating, err)
 	}
 }
 

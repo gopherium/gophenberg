@@ -28,6 +28,7 @@ export async function updatesAnswered(client: QueryClient, status: 'success' | '
 export const upToDate = {
 	running: '0.20.0',
 	can_update: true,
+	updating: false,
 	refused: [] as string[],
 	job: null,
 	backups: { kept: 2, limit: 3, newest: '2026-10-21T14:02:00Z' },
@@ -63,12 +64,22 @@ function patchJob(step: string) {
 }
 
 /**
- * Returns the overview a site answers while the update to the patch release stands at a step.
+ * Returns the overview a site answers while the update to the patch release stands at a step, an update running in
+ * the server at each step before its switch.
  * @param step - The step the update stands at.
  * @returns The overview, the version before the update still running.
  */
 export function patchAt(step: string) {
-	return { ...patchWaiting, job: patchJob(step) }
+	return { ...patchWaiting, updating: ['download', 'stage', 'backup'].includes(step), job: patchJob(step) }
+}
+
+/**
+ * Returns the overview a site answers once a server that stopped left the update to the patch release at a step.
+ * @param step - The step the update was left at.
+ * @returns The overview, which names no update running.
+ */
+export function patchLeftAt(step: string) {
+	return { ...patchAt(step), updating: false }
 }
 
 /**

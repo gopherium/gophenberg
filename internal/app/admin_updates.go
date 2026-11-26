@@ -54,6 +54,16 @@ func (a *adminUpdates) take() bool {
 	return true
 }
 
+// updating reports whether an update runs now, from its start until the server stops for its switch, false on none.
+func (a *adminUpdates) updating() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.busy
+}
+
 // free marks that no update runs, so the end of the serve run stops waiting for it.
 func (a *adminUpdates) free() {
 	a.mu.Lock()

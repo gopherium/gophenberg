@@ -129,7 +129,7 @@ func TestUpdatesGetAnswersTheStoredResultBesideTheInstall(t *testing.T) {
 	want := map[string]any{
 		"running": "0.20.0", "running_postgresql": 15.0, "can_update": true, "refused": []any{"0.20.5"}, "job": nil,
 		"backups": map[string]any{"kept": 1.0, "limit": 3.0, "newest": nil}, "next_check": "2026-10-22T21:12:00Z",
-		"failed_at": nil, "error": "",
+		"failed_at": nil, "error": "", "updating": false,
 	}
 	for name, value := range want {
 		if held, found := fields[name]; !found || !reflect.DeepEqual(held, value) {

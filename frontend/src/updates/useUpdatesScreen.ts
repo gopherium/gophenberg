@@ -112,6 +112,7 @@ export function useUpdatesScreen(): UpdatesScreenState {
 
 	/**
 	 * Starts the update asked for, then follows it from the overview the start answered, reading it again when refused.
+	 * A read still under way when the start answers is dropped, as it may tell of the server before the start.
 	 * @param asked - The version to update to and whether to retry it.
 	 */
 	async function start(asked: UpdateStart) {
@@ -120,6 +121,7 @@ export function useUpdatesScreen(): UpdatesScreenState {
 			void client.invalidateQueries({ queryKey: updatesQueryKey })
 			throw cause
 		})
+		await client.cancelQueries({ queryKey: updatesQueryKey })
 		setWaited(false)
 		setRun(startedRun(asked, before, answered))
 		client.setQueryData(updatesQueryKey, answered)

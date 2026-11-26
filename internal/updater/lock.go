@@ -14,6 +14,12 @@ const (
 	lockQuery = "SELECT pg_try_advisory_lock(hashtext('core.update'))"
 	// unlockQuery lets go of the update lock the session holds.
 	unlockQuery = "SELECT pg_advisory_unlock(hashtext('core.update'))"
+	// heldQuery reads whether a session holds the update lock on the database, without taking it: the lock of a
+	// bigint key stands in pg_locks with the high half of the key in classid and the low half in objid.
+	heldQuery = `SELECT EXISTS (SELECT 1 FROM pg_locks
+		WHERE locktype = 'advisory' AND granted AND objsubid = 1
+		AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+		AND ((classid::bigint << 32) | objid::bigint) = hashtext('core.update')::bigint)`
 )
 
 // ErrUpdateRuns stops a job while another update holds the update lock.
@@ -33,6 +39,16 @@ func Lock(ctx context.Context, db *sql.DB) (func(), error) {
 		_, _ = conn.ExecContext(context.WithoutCancel(ctx), unlockQuery)
 		_ = conn.Close()
 	}, nil
+}
+
+// LockHeld reports whether a session holds the update lock on db, as while update:apply runs in another process,
+// without taking it, so a start that comes at the same time never finds it held by the read.
+func LockHeld(ctx context.Context, db *sql.DB) (bool, error) {
+	var held bool
+	if err := db.QueryRowContext(ctx, heldQuery).Scan(&held); err != nil {
+		return false, fmt.Errorf("updater: read the update lock: %w", err)
+	}
+	return held, nil
 }
 
 // tryLock takes the update lock on conn, refusing while another session holds it.

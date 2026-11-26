@@ -141,13 +141,20 @@ func (u siteUpdates) Start(ctx context.Context, asked server.UpdateStart) error 
 	return u.admin.start(ctx, asked)
 }
 
-// Overview returns what the admin shows: what the checks stored, this binary, its server, install and the next check.
+// Overview returns what the admin shows: what the checks stored, this binary, its server, install, whether an update
+// runs and the next check. It reads whether an update runs both before and after the job and names one running when
+// either read found it, so neither an update that ended nor one that started during the read of the job leaves that
+// job beside a flag saying no update runs.
 func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, error) {
+	updating, updatingErr := u.updating(ctx)
 	result, resultErr := u.Result(ctx)
 	install, installErr := updater.ReadOverview(u.install)
+	if updatingErr == nil && !updating {
+		updating, updatingErr = u.updating(ctx)
+	}
 	next, nextErr := u.nextCheck(ctx)
 	major, majorErr := u.major(ctx)
-	if err := errors.Join(resultErr, installErr, nextErr, majorErr); err != nil {
+	if err := errors.Join(resultErr, installErr, updatingErr, nextErr, majorErr); err != nil {
 		return server.UpdatesOverview{}, err
 	}
 	reason := updater.CannotUpdate(u.install, u.stamp)
@@ -155,8 +162,21 @@ func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, erro
 	return server.UpdatesOverview{
 		Result:   withRunningPostgreSQL(withoutReachedOffer(result, running), major),
 		Overview: withoutReachedFailure(install, running),
-		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
+		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, Updating: updating,
+		NextCheck: next,
 	}, nil
+}
+
+// updating reports whether an update runs now: one an administrator started in this server, or update:apply in another
+// process holding the update lock on the site database.
+func (u siteUpdates) updating(ctx context.Context) (bool, error) {
+	if u.admin.updating() {
+		return true, nil
+	}
+	if u.admin == nil || u.admin.job.DB == nil {
+		return false, nil
+	}
+	return updater.LockHeld(ctx, u.admin.job.DB)
 }
 
 // withRunningPostgreSQL returns result with its offer compared to major, the PostgreSQL server that runs now.
