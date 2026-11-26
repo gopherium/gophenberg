@@ -421,6 +421,9 @@ msgstr ""
 msgid "Add a field to store more about the items this group shows on."
 msgstr ""
 
+msgid "Add a layout"
+msgstr ""
+
 msgid "Add block"
 msgstr ""
 
@@ -1090,6 +1093,12 @@ msgstr ""
 msgid "Last checked on %(date)s at %(time)s."
 msgstr ""
 
+msgid "Layouts"
+msgstr ""
+
+msgid "Layouts of %(field)s"
+msgstr ""
+
 msgid "Leave empty if decorative."
 msgstr ""
 
@@ -1273,6 +1282,9 @@ msgstr ""
 msgid "No items yet"
 msgstr ""
 
+msgid "No layouts yet."
+msgstr ""
+
 msgid "No mail server is configured. Deliver the activation link by hand."
 msgstr ""
 
@@ -1307,6 +1319,9 @@ msgid "No private items"
 msgstr ""
 
 msgid "No published items"
+msgstr ""
+
+msgid "No sub fields yet."
 msgstr ""
 
 msgid "No theme arrived with this upload. Choose a zip file and try again."
@@ -1617,6 +1632,9 @@ msgid "Steps of"
 msgstr ""
 
 msgid "Stop nesting"
+msgstr ""
+
+msgid "Sub fields"
 msgstr ""
 
 msgid "Sub fields of %(field)s"

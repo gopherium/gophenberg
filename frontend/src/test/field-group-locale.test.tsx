@@ -7,7 +7,16 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { expect, onTestFinished, test } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
-import { DETAILS, EXTRAS, listing, READING_TIME, serveFieldGroups, SUBTITLE } from './groupFieldsFixtures'
+import {
+	DETAILS,
+	EXTRAS,
+	FEATURES,
+	HERO,
+	listing,
+	READING_TIME,
+	serveFieldGroups,
+	SUBTITLE,
+} from './groupFieldsFixtures'
 import { renderAt } from './render'
 import { findToast } from './typeFixtures'
 
@@ -25,7 +34,7 @@ const RULED_SUBTITLE = { ...SUBTITLE, settings: { conditions: [[WHILE_ABOVE_FIVE
 
 serveFieldGroups()
 
-/** The words of the fields table, an open field, its rules and choices, and the header Save in each shipped locale. */
+/** The words of the fields table, the parts of an open field, and the header Save in each shipped locale. */
 const READERS = [
 	{
 		locale: 'es-ES',
@@ -43,6 +52,13 @@ const READERS = [
 		discard: 'Descartar los cambios',
 		listed: 'Mostrar en la lista',
 		inside: 'Subcampos de Author',
+		subFields: ['Subcampos', 'Añadir un campo'],
+		addField: { words: 'Añadir campo', name: 'Añadir campo a Author' },
+		noSubFields: 'Todavía no hay subcampos.',
+		layouts: ['Diseños', 'Añadir un diseño'],
+		layoutsOf: 'Diseños de Features',
+		addLayout: { words: 'Añadir diseño', name: 'Añadir diseño a Features' },
+		noLayouts: 'Todavía no hay diseños.',
 		remove: 'Borrar Author',
 		lostToo: 'También se pierden los cambios sin guardar dentro de Author.',
 		choice: 'Opción 1',
@@ -71,6 +87,13 @@ const READERS = [
 		discard: 'Abandonner les modifications',
 		listed: 'Afficher dans la liste',
 		inside: 'Sous-champs de Author',
+		subFields: ['Sous-champs', 'Ajouter un champ'],
+		addField: { words: 'Ajouter un champ', name: 'Ajouter un champ à Author' },
+		noSubFields: "Aucun sous-champ pour l'instant.",
+		layouts: ['Dispositions', 'Ajouter une disposition'],
+		layoutsOf: 'Dispositions de Features',
+		addLayout: { words: 'Ajouter une disposition', name: 'Ajouter une disposition à Features' },
+		noLayouts: "Aucune disposition pour l'instant.",
 		remove: 'Supprimer Author',
 		lostToo: 'Les modifications non enregistrées dans Author sont aussi perdues.',
 		choice: 'Choix 1',
@@ -203,6 +226,45 @@ test.each(READERS)('names the sub fields of a container and the edits its delete
 	await userEvent.click(within(fields).getByRole('button', { name: said.remove }))
 
 	expect(await screen.findByRole('alertdialog')).toHaveTextContent(said.lostToo)
+})
+
+test.each(READERS)('heads the sub fields of an open container and the form adding one in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const container = await openIn(fields, AUTHOR.label)
+
+	const titles = within(container).getAllByRole('heading')
+
+	expect(titles.map((title) => title.textContent)).toEqual(said.subFields)
+	expect(within(container).getByRole('button', { name: said.addField.name })).toHaveTextContent(said.addField.words)
+})
+
+test.each(READERS)('says an open container holds no sub fields yet in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [{ ...AUTHOR, fields: [] }] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const container = await openIn(fields, AUTHOR.label)
+
+	expect(within(container).getByText(said.noSubFields)).toBeInTheDocument()
+})
+
+test.each(READERS)('heads the layouts of an open flexible content field and its add form in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const flexible = await openIn(fields, FEATURES.label)
+
+	const titles = within(flexible).getAllByRole('heading')
+
+	expect(titles.map((title) => title.textContent)).toEqual(said.layouts)
+	expect(within(flexible).getByRole('region', { name: said.layoutsOf })).toBeInTheDocument()
+	expect(within(flexible).getByRole('button', { name: said.addLayout.name })).toHaveTextContent(said.addLayout.words)
+})
+
+test.each(READERS)('says a flexible content field holds no layouts yet in $locale', async (said) => {
+	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
+	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const flexible = await openIn(fields, FEATURES.label)
+
+	expect(within(flexible).getByText(said.noLayouts)).toBeInTheDocument()
 })
 
 test.each(READERS)('names a choice row by its place and its move and remove buttons in $locale', async (said) => {

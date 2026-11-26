@@ -1160,6 +1160,10 @@ msgid "Add a field to store more about the items this group shows on."
 msgstr "Ajoutez un champ pour enregistrer plus d'informations sur les éléments où ce groupe apparaît."
 
 #, fuzzy
+msgid "Add a layout"
+msgstr "Ajouter une disposition"
+
+#, fuzzy
 msgid "Add choice"
 msgstr "Ajouter un choix"
 
@@ -1324,6 +1328,14 @@ msgid "Label"
 msgstr "Libellé"
 
 #, fuzzy
+msgid "Layouts"
+msgstr "Dispositions"
+
+#, fuzzy
+msgid "Layouts of %(field)s"
+msgstr "Dispositions de %(field)s"
+
+#, fuzzy
 msgid "Load saved version"
 msgstr "Charger la version enregistrée"
 
@@ -1382,6 +1394,14 @@ msgstr "Aucun choix pour l'instant."
 #, fuzzy
 msgid "No fields yet"
 msgstr "Aucun champ pour l'instant"
+
+#, fuzzy
+msgid "No layouts yet."
+msgstr "Aucune disposition pour l'instant."
+
+#, fuzzy
+msgid "No sub fields yet."
+msgstr "Aucun sous-champ pour l'instant."
 
 #, fuzzy
 msgid "Not %(type)s"
@@ -1445,6 +1465,10 @@ msgstr "Source"
 #, fuzzy
 msgid "Steps of"
 msgstr "Pas de"
+
+#, fuzzy
+msgid "Sub fields"
+msgstr "Sous-champs"
 
 #, fuzzy
 msgid "Sub fields of %(field)s"
