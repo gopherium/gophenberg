@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Collapsible, Icon, Stack, VisuallyHidden, downIcon, listIcon } from '@gophenberg/frontend-sdk'
+import { Badge, Collapsible, Icon, Stack, Text, VisuallyHidden, downIcon, listIcon } from '@gophenberg/frontend-sdk'
 import { ErrorNotice, ListEmpty, RowControls, SectionTitle, useToaster } from '@gopherium/godmin'
+import { formatList } from '@gopherium/gottext'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -13,9 +14,10 @@ import { DeleteConfirm, deleteName } from './DeleteField'
 import { holdsDraft } from './fieldDraft'
 import { CarryField } from './MoveField'
 import { OpenField } from './OpenField'
-import { pickedLabel } from './types'
+import { holdsFields, holdsLayouts, pickedLabel } from './types'
 import { useFieldOrder } from './useFieldOrder'
 import { typesQueryKey } from './nav'
+import type { FieldPlace } from './AddField'
 import type { FieldWork, FieldWrite, Reporter } from './fieldControls'
 import type { FieldGroup } from './groups'
 import type { ContentField, ContentType } from './types'
@@ -133,16 +135,26 @@ function FieldsBody(props: Reporter & FieldsWork) {
 				onDone={props.onDone}
 				onRefused={props.onRefused}
 			/>
-			<Stack direction="column" gap="sm">
-				<SectionTitle>{__('Add a field', 'gophenberg')}</SectionTitle>
-				<AddField
-					group={props.held.id}
-					types={props.types}
-					groups={props.groups}
-					onDone={props.onDone}
-					onRefused={props.onRefused}
-				/>
-			</Stack>
+			<AddSection
+				place={{ group: props.held.id, types: props.types, groups: props.groups }}
+				title={__('Add a field', 'gophenberg')}
+				onDone={props.onDone}
+				onRefused={props.onRefused}
+			/>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the section declaring a field: its title, then its form.
+ * @param props - Where the field is declared, the title and its level, and what to report.
+ * @returns The section.
+ */
+function AddSection(props: Reporter & { place: FieldPlace; title: string; level?: 2 | 3 }) {
+	return (
+		<Stack direction="column" gap="sm">
+			<SectionTitle level={props.level}>{props.title}</SectionTitle>
+			<AddField {...props.place} onDone={props.onDone} onRefused={props.onRefused} />
 		</Stack>
 	)
 }
@@ -418,9 +430,7 @@ function FieldRows(props: Reporter & FieldsWork & Level & Placed) {
 					</LabelCell>
 				</td>
 				<td>
-					<div className="godmin-table__cell">
-						<Badge intent="stable">{pickedLabel(field)}</Badge>
-					</div>
+					<KindCell field={field} open={open} />
 				</td>
 				<td>
 					<div className="godmin-table__cell">
@@ -469,7 +479,7 @@ function FieldRows(props: Reporter & FieldsWork & Level & Placed) {
 									siblings={props.fields}
 									work={work}
 									nested={
-										<SubFieldList
+										<SubFieldsPart
 											held={props.held}
 											groups={props.groups}
 											types={props.types}
@@ -483,8 +493,6 @@ function FieldRows(props: Reporter & FieldsWork & Level & Placed) {
 										/>
 									}
 									onClose={() => change(false)}
-									onDone={props.onDone}
-									onRefused={props.onRefused}
 								/>
 							</div>
 						</div>
@@ -535,6 +543,32 @@ function LabelCell(props: LabelProps) {
 }
 
 /**
+ * Renders the Kind cell of a field: its kind as a badge in the cell box, then the labels a closed container holds.
+ * @param props - The field and whether it stands open.
+ * @returns The cell's content.
+ */
+function KindCell(props: { field: ContentField; open: boolean }) {
+	const { field } = props
+	return (
+		<>
+			<div className="godmin-table__cell">
+				<Badge intent="stable">{pickedLabel(field)}</Badge>
+			</div>
+			{!props.open && field.fields.length > 0 && <Text variant="body-sm">{labelList(field.fields)}</Text>}
+		</>
+	)
+}
+
+/**
+ * Returns the labels of the fields a container holds as one list in the reader's language.
+ * @param fields - The fields the container holds, in order.
+ * @returns The joined labels.
+ */
+function labelList(fields: ContentField[]) {
+	return formatList(fields.map((held) => held.label))
+}
+
+/**
  * Renders the badges a field carries: Required, Unsaved changes while it holds a draft, and Shadowed.
  * @param props - The field, whether it or a field inside it holds a draft, and whether an earlier group serves its key.
  * @returns The badges, or nothing when the field carries none.
@@ -559,24 +593,90 @@ interface Container {
 	onEmpty: () => void
 }
 
+/** The words an open container shows around what it holds: its title, its region, its empty line and its add title. */
+interface PartWords {
+	title: string
+	region: string
+	empty: string
+	add: string
+}
+
 /**
- * Renders the region the sub fields of an open container scroll in, holding a table of the same rows.
+ * Returns the words an open container shows around what it holds, naming layouts inside a flexible content field.
+ * @param container - The open container.
+ * @returns The words.
+ */
+function partWords(container: ContentField): PartWords {
+	const named = { field: container.label }
+	if (holdsLayouts(container.kind)) {
+		return {
+			title: __('Layouts', 'gophenberg'),
+			region: sprintf(__('Layouts of %(field)s', 'gophenberg'), named),
+			empty: __('No layouts yet.', 'gophenberg'),
+			add: __('Add a layout', 'gophenberg'),
+		}
+	}
+	return {
+		title: __('Sub fields', 'gophenberg'),
+		region: sprintf(__('Sub fields of %(field)s', 'gophenberg'), named),
+		empty: __('No sub fields yet.', 'gophenberg'),
+		add: __('Add a field', 'gophenberg'),
+	}
+}
+
+/**
+ * Renders an open container's sub fields or layouts under their title, then the form adding one.
  * @param props - Where the fields stand, what the page holds for them, the container, its path, what takes the focus
  * once its last sub field left, and what to report.
- * @returns The region, or nothing while the container holds no field.
+ * @returns The part, or nothing for a field holding no fields.
  */
-function SubFieldList(props: Reporter & FieldsWork & Container) {
+function SubFieldsPart(props: Reporter & FieldsWork & Container) {
+	const { container } = props
+	if (!holdsFields(container.kind)) {
+		return null
+	}
+	const words = partWords(container)
+	return (
+		<Stack direction="column" gap="lg">
+			<Stack direction="column" gap="sm">
+				<SectionTitle>{words.title}</SectionTitle>
+				<SubFieldList {...props} words={words} />
+			</Stack>
+			<AddSection
+				place={{
+					group: props.held.id,
+					types: props.types,
+					path: props.path,
+					parent: container.kind,
+					container: container.label,
+				}}
+				title={words.add}
+				level={3}
+				onDone={props.onDone}
+				onRefused={props.onRefused}
+			/>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the region the sub fields or layouts of an open container scroll in, holding a table of the same rows.
+ * @param props - Where the fields stand, what the page holds for them, the container, its path, what takes the focus
+ * once its last sub field left, the words around them, and what to report.
+ * @returns The region, or the line saying the container holds none yet.
+ */
+function SubFieldList(props: Reporter & FieldsWork & Container & { words: PartWords }) {
 	const region = useRef<HTMLDivElement>(null)
 	const onGone = useFocusKept(region, props.container.fields, props.onEmpty)
 	if (props.container.fields.length === 0) {
-		return null
+		return <Text>{props.words.empty}</Text>
 	}
 	return (
 		<div
 			ref={region}
 			className="godmin-table-scroll"
 			role="region"
-			aria-label={sprintf(__('Sub fields of %(field)s', 'gophenberg'), { field: props.container.label })}
+			aria-label={props.words.region}
 			tabIndex={0}
 		>
 			<FieldTable

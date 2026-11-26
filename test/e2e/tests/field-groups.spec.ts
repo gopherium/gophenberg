@@ -104,6 +104,20 @@ async function sectionIn(page: Page, group: number, label: string, inside: strin
 }
 
 /**
+ * Declares a container in a group through the API, holding no fields yet.
+ * @param page - The page whose session declares it.
+ * @param group - The id of the group that holds it.
+ * @param label - The name of the container, its key made from it.
+ * @param kind - The kind of the container.
+ */
+async function containerIn(page: Page, group: number, label: string, kind: string) {
+	const answer = await page.request.post(`/api/groups/${group}/fields`, {
+		data: { key: label.toLowerCase(), label, kind, many: false, required: false },
+	})
+	expect(answer.status()).toBe(201)
+}
+
+/**
  * Returns the words of each button and badge beside the label in every Label cell, with the lines each takes.
  * @param page - The group page.
  * @returns The words and the count of lines of each.
@@ -388,6 +402,89 @@ test('puts the focus on the trash of the field taking the place of a deleted one
 
 	await expect(fieldRow(page, 'Duration')).toHaveCount(0)
 	await expect(fieldRow(page, 'Summary').getByRole('button', { name: 'Delete Summary' })).toBeFocused()
+})
+
+test('adds Name and Role inside an open repeater from its own form, each row closed and the form ready for the next', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page, 'Squad')
+	await containerIn(page, group.id, 'Team', 'repeater')
+	await page.goto(`/admin/field-groups/${group.id}`)
+
+	const team = await openField(page, 'Team')
+	await expect(team.getByText('No sub fields yet.', { exact: true })).toBeVisible()
+	const form = team.getByRole('form', { name: 'Add field to Team', exact: true })
+	const add = form.getByRole('button', { name: 'Add field to Team', exact: true })
+	const label = form.getByRole('textbox', { name: 'Label', exact: true })
+	await label.fill('Name')
+	await label.press('Enter')
+	await expect(page.locator('.godmin-toast', { hasText: 'Name declared.' })).toBeVisible()
+	const inside = team.getByRole('region', { name: 'Sub fields of Team' })
+	await expect(inside.getByRole('button', { name: 'Name', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	await expect(label).toHaveValue('')
+	await expect(label).toBeFocused()
+
+	await label.fill('Role')
+	await add.click()
+	await expect(page.locator('.godmin-toast', { hasText: 'Role declared.' })).toBeVisible()
+	await expect(inside.getByRole('button', { name: 'Role', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	await expect(label).toHaveValue('')
+	await expect(add).toBeFocused()
+	await expect(page.getByRole('dialog')).toHaveCount(0)
+	await page.reload()
+
+	const kept = (await openField(page, 'Team')).getByRole('region', { name: 'Sub fields of Team' })
+	const trashes = kept.getByRole('button', { name: /^Delete / })
+	await expect(trashes).toHaveCount(2)
+	await expect(trashes.first()).toHaveAccessibleName('Delete Name')
+	await expect(trashes.last()).toHaveAccessibleName('Delete Role')
+})
+
+test('adds a Hero layout from the form of an open flexible field, then a Title from the form of Hero', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page, 'Landing')
+	await containerIn(page, group.id, 'Features', 'flexible')
+	await page.goto(`/admin/field-groups/${group.id}`)
+
+	const features = await openField(page, 'Features')
+	await expect(features.getByRole('heading', { name: 'Layouts', exact: true })).toBeVisible()
+	await expect(features.getByText('No layouts yet.', { exact: true })).toBeVisible()
+	const asking = features.getByRole('form', { name: 'Add layout to Features', exact: true })
+	const layout = asking.getByRole('button', { name: 'Add layout to Features', exact: true })
+	await expect(asking.getByRole('combobox')).toHaveCount(0)
+	await asking.getByRole('textbox', { name: 'Label', exact: true }).fill('Hero')
+	await layout.click()
+	await expect(page.locator('.godmin-toast', { hasText: 'Hero declared.' })).toBeVisible()
+	const layouts = features.getByRole('region', { name: 'Layouts of Features' })
+	const toggle = layouts.getByRole('button', { name: 'Hero', exact: true })
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+	await toggle.click()
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+	const hero = layouts
+		.getByRole('row')
+		.filter({ has: page.getByRole('button', { name: 'Hero', exact: true }) })
+		.locator('xpath=following-sibling::tr[1]')
+	await hero.getByRole('tab', { name: 'Validation', exact: true }).click()
+	await expect(hero.getByRole('spinbutton', { name: 'Fewest rows', exact: true })).toBeVisible()
+	await expect(hero.getByRole('spinbutton', { name: 'Most rows', exact: true })).toBeVisible()
+	await expect(hero.getByText('No sub fields yet.', { exact: true })).toBeVisible()
+	const label = hero
+		.getByRole('form', { name: 'Add field to Hero', exact: true })
+		.getByRole('textbox', { name: 'Label', exact: true })
+	await label.fill('Title')
+	await label.press('Enter')
+	await expect(page.locator('.godmin-toast', { hasText: 'Title declared.' })).toBeVisible()
+	const inside = hero.getByRole('region', { name: 'Sub fields of Hero' })
+	await expect(inside.getByRole('button', { name: 'Title', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	await page.reload()
+
+	const kept = await openField(page, 'Features')
+	const reread = kept.getByRole('region', { name: 'Layouts of Features' })
+	await reread.getByRole('button', { name: 'Hero', exact: true }).click()
+	const held = kept.getByRole('region', { name: 'Sub fields of Hero' })
+	await expect(held.getByRole('button', { name: 'Title', exact: true })).toBeVisible()
 })
 
 test('keeps an open field inside its region on a phone, its open part padded 16px', async ({ page }) => {

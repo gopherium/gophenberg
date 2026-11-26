@@ -6,11 +6,13 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { useWriteTimeout } from '../settings/useListSettings'
+import { underLimit } from './groupSave'
 import { backlinkSettings, backlinkSources, createFieldInGroup, createSubField } from './groups'
 import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import { pluralOf } from './typeText'
-import { kindsInside, pickedKind, slugifyKey } from './types'
+import { holdsLayouts, kindsInside, pickedKind, slugifyKey } from './types'
 import type { Reporter } from './fieldControls'
 import type { BacklinkSources, FieldGroup } from './groups'
 import type { Choice } from './select'
@@ -23,6 +25,8 @@ export interface FieldPlace {
 	groups?: FieldGroup[]
 	path?: string
 	parent?: string
+	/** The label of the container, none at the top of the group. */
+	container?: string
 }
 
 /** A new field as its controls hold it, and the write declaring it. */
@@ -30,18 +34,48 @@ interface FieldDraft {
 	controls: ReactNode
 	blocked: boolean
 	pending: boolean
-	declare: (signal?: AbortSignal) => Promise<unknown>
+	declare: () => Promise<unknown>
 	said: string
 	clear: () => void
 }
 
+/** The words of the button declaring a field, and the name that tells it from the other add buttons. */
+interface AddWords {
+	words: string
+	/** The name of the form and its button, none at the top of the group, where the words name the button. */
+	name: string | undefined
+}
+
 /**
- * Renders the form declaring a new field at the top of the group, its controls in one row and its button after them.
- * @param props - The group, the groups a backlinks field reads, the types, and what to report.
- * @returns The form.
+ * Returns the words of the button declaring a field and its name, which names the container it stands in.
+ * @param place - Where the field is declared.
+ * @returns Add layout inside a flexible content field and Add field elsewhere, and the name.
+ */
+function addWords(place: FieldPlace): AddWords {
+	const { container } = place
+	if (container === undefined) {
+		return { words: __('Add field', 'gophenberg'), name: undefined }
+	}
+	if (holdsLayouts(place.parent)) {
+		return {
+			words: __('Add layout', 'gophenberg'),
+			name: sprintf(__('Add layout to %(field)s', 'gophenberg'), { field: container }),
+		}
+	}
+	return {
+		words: __('Add field', 'gophenberg'),
+		name: sprintf(__('Add field to %(field)s', 'gophenberg'), { field: container }),
+	}
+}
+
+/**
+ * Renders the form declaring a new field in the group or inside a container.
+ * @param props - The group, the groups a backlinks field reads, the types, the container, and what to report.
+ * @returns The form, named after its container inside one, its button reading Add layout in a flexible content field.
  */
 export function AddField(props: Reporter & FieldPlace) {
 	const draft = useFieldDraft(props)
+	const words = addWords(props)
 
 	/** Declares the field, empties its name once it landed, and reports how the write went. */
 	function declare() {
@@ -58,14 +92,20 @@ export function AddField(props: Reporter & FieldPlace) {
 	return (
 		<form
 			className="godmin-form godmin-form--inline"
+			aria-label={words.name}
 			onSubmit={(event) => {
 				event.preventDefault()
 				declare()
 			}}
 		>
 			<div className="godmin-form__row">{draft.controls}</div>
-			<Button type="submit" loading={draft.pending} disabled={draft.blocked || draft.pending}>
-				{__('Add field', 'gophenberg')}
+			<Button
+				type="submit"
+				aria-label={words.name}
+				loading={draft.pending}
+				disabled={draft.blocked || draft.pending}
+			>
+				{words.words}
 			</Button>
 		</form>
 	)
@@ -101,9 +141,10 @@ interface DraftChanges {
 /**
  * Holds the controls declaring a new field and the write that stores what they hold.
  * @param props - Where the field is declared.
- * @returns The controls, read only while the write runs, whether they may be sent yet, and the write.
+ * @returns The controls, read only while the write runs, whether they may be sent yet, and the timed write.
  */
-export function useFieldDraft(props: FieldPlace): FieldDraft {
+function useFieldDraft(props: FieldPlace): FieldDraft {
+	const limit = useWriteTimeout()
 	const [kinds] = useState(() => kindsInside(props.parent))
 	const targets = props.types.map((listed) => ({ label: pluralOf(listed), value: listed.key }))
 	const [holdings] = useState<Choice[]>([
@@ -125,11 +166,13 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 		sources: backlinkSources(props.groups ?? [], sourceKey, throughKey),
 	}
 	const add = useMutation({
-		mutationFn: (signal: AbortSignal | undefined) => {
+		mutationFn: () => {
 			const asked = askedField(draft)
-			return props.path === undefined
-				? createFieldInGroup(props.group, asked, signal)
-				: createSubField(props.group, props.path, asked, signal)
+			return underLimit(limit, (signal) =>
+				props.path === undefined
+					? createFieldInGroup(props.group, asked, signal)
+					: createSubField(props.group, props.path, asked, signal),
+			)
 		},
 	})
 	const change: DraftChanges = {
@@ -151,7 +194,7 @@ export function useFieldDraft(props: FieldPlace): FieldDraft {
 		),
 		blocked: draftBlocked(draft),
 		pending: add.isPending,
-		declare: (signal) => add.mutateAsync(signal),
+		declare: () => add.mutateAsync(),
 		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
 		clear: () => setLabel(''),
 	}
@@ -189,7 +232,7 @@ function askedField(draft: DraftAnswers): NewField {
 }
 
 /**
- * Renders the controls of a new field: its name, its kind, and what that kind asks for.
+ * Renders the controls of a new field: its name, its kind when there is a choice, and what that kind asks for.
  * @param props - What the controls hold, the choices they offer, what changes each, and whether they are read only.
  * @returns The controls.
  */
@@ -207,13 +250,15 @@ function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change
 				readOnly={readOnly}
 				onValueChange={change.label}
 			/>
-			<SelectControl
-				label={_x('Kind', 'field type', 'gophenberg')}
-				items={offers.kinds}
-				value={kind}
-				readOnly={readOnly}
-				onValueChange={(item) => change.kind(chosenOf(item, offers.kinds, kind))}
-			/>
+			{offers.kinds.length > 1 && (
+				<SelectControl
+					label={_x('Kind', 'field type', 'gophenberg')}
+					items={offers.kinds}
+					value={kind}
+					readOnly={readOnly}
+					onValueChange={(item) => change.kind(chosenOf(item, offers.kinds, kind))}
+				/>
+			)}
 			{relating && target !== undefined && (
 				<SelectControl
 					label={__('Points at', 'gophenberg')}

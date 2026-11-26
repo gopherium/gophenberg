@@ -9,6 +9,7 @@ import { expect, onTestFinished, test, vi } from 'vitest'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import {
+	addFormOf,
 	DETAILS,
 	EXTRAS,
 	FEATURES,
@@ -19,7 +20,11 @@ import {
 	SUBTITLE,
 } from './groupFieldsFixtures'
 import { renderAt } from './render'
-import { waitBusy } from './typeFixtures'
+import { siteSettings } from './siteSettings'
+import { findToast, waitBusy } from './typeFixtures'
+
+/** A time limit far shorter than any test. */
+const SHORT_LIMIT = 20
 
 serveFieldGroups()
 
@@ -109,16 +114,15 @@ test('asks nothing about Required on the add form, so a new field lands optional
 	await waitFor(() => expect(sent).toMatchObject({ key: 'summary', kind: 'text', required: false }))
 })
 
-test('asks nothing about Required in the dialog adding a field inside a container', async () => {
+test('asks nothing about Required on the form adding a field inside a container', async () => {
 	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }] }])
 	renderAt('/field-groups')
 	const dialog = await openFields()
 	const author = await openField(dialog, 'Author')
 
-	await userEvent.click(within(author).getByRole('button', { name: 'Add field to Author' }))
-	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
+	const adding = addFormOf(author, 'Author')
 
-	expect(within(adding).getByRole('combobox', { name: 'Kind' })).toBeInTheDocument()
+	expect(within(adding).getAllByRole('combobox')).toEqual([within(adding).getByRole('combobox', { name: 'Kind' })])
 	expect(within(adding).queryByLabelText(/Required/)).toBeNull()
 })
 
@@ -236,18 +240,17 @@ test('offers flexible content at the top of a group and no bare layout', async (
 	expect(screen.queryByRole('option', { name: 'Layout' })).not.toBeInTheDocument()
 })
 
-test('offers a layout alone inside a flexible content field', async () => {
+test('asks only the label of a layout inside a flexible content field, its button reading Add layout', async () => {
 	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
 	renderAt('/field-groups')
-	const dialog = await openFields()
-	const features = await openField(dialog, 'Features')
+	const main = await openFields()
+	const features = await openField(main, 'Features')
 
-	await userEvent.click(within(features).getByRole('button', { name: 'Add layout to Features' }))
-	const adding = await screen.findByRole('dialog', { name: 'Add layout to Features' })
-	await userEvent.click(within(adding).getByRole('combobox', { name: 'Kind' }))
+	const adding = addFormOf(features, 'Features', 'Add layout')
 
-	expect(await screen.findByRole('option', { name: 'Layout' })).toBeInTheDocument()
-	expect(screen.queryByRole('option', { name: 'Text' })).not.toBeInTheDocument()
+	expect(within(adding).queryByRole('combobox')).toBeNull()
+	expect(within(adding).getAllByRole('textbox')).toEqual([within(adding).getByRole('textbox', { name: 'Label' })])
+	expect(within(adding).getByRole('button', { name: 'Add layout to Features' }).textContent).toBe('Add layout')
 })
 
 const VANS = {
@@ -385,11 +388,28 @@ test('offers no linked from field inside a container', async () => {
 	const dialog = await openFields()
 	const author = await openField(dialog, 'Author')
 
-	await userEvent.click(within(author).getByRole('button', { name: 'Add field to Author' }))
-	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.click(within(adding).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(within(addFormOf(author, 'Author')).getByRole('combobox', { name: 'Kind' }))
 
+	expect(await screen.findByRole('option', { name: 'Text' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Linked from' })).not.toBeInTheDocument()
+})
+
+test("stops a field declared into the group past the site's time limit, keeping what its form holds", async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+		),
+		http.post('/api/groups/3/fields', () => new Promise<never>(() => {})),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	await userEvent.type(within(main).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	expect(await findToast('Could not add the field. The field groups could not be reached.')).toBeInTheDocument()
+	expect(within(main).getByRole('textbox', { name: 'Label' })).toHaveValue('Summary')
+	expect(within(main).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
 })
 
 test('keeps the label and the kind of a new field read only while it is declared', async () => {

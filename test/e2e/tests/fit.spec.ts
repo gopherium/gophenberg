@@ -186,6 +186,27 @@ async function middleOf(element: Locator) {
 }
 
 /**
+ * Returns where a line after the box of a table cell sits against the first line in that box and the cell's edge.
+ * @param element - The line after the cell box.
+ * @returns Whether it starts under the first line and level with its start, whether it ends inside the cell, and
+ * its font size.
+ */
+async function underCellBox(element: Locator) {
+	return element.evaluate((node) => {
+		const cell = node.closest('td') as HTMLElement
+		const first = (cell.querySelector('.godmin-table__cell > *') as HTMLElement).getBoundingClientRect()
+		const edge = cell.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(cell).paddingRight)
+		const box = node.getBoundingClientRect()
+		return {
+			under: Math.round(box.top) >= Math.round(first.bottom),
+			level: Math.round(box.left) === Math.round(first.left),
+			inside: Math.round(box.right) <= Math.round(edge),
+			size: getComputedStyle(node).fontSize,
+		}
+	})
+}
+
+/**
  * Returns how far the table region holding an element scrolls sideways.
  * @param element - The element inside a godmin table region.
  * @returns The overflow of the region in pixels.
@@ -361,6 +382,152 @@ test('lists the fields of a group page at 1280 and 390, the label level with the
 		)
 		expect(await sidewaysOf(row), `the fields table scrolls sideways at ${size.width}`).toBe(0)
 	}
+})
+
+test('lists the labels a closed container holds under its badge in the Kind cell at 1280 and 390, nothing scrolling sideways', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
+	const declared = [
+		{ above: '', key: 'team', label: 'Team', kind: 'repeater' },
+		{ above: '/team', key: 'name', label: 'Name', kind: 'text' },
+		{ above: '/team', key: 'role', label: 'Role', kind: 'text' },
+	]
+	for (const { above, key, label, kind } of declared) {
+		const made = await page.request.post(`/api/groups/${group}/fields${above}`, {
+			data: { key, label, kind, many: false, required: false },
+		})
+		expect(made.status(), `${label} is declared`).toBe(201)
+	}
+
+	for (const size of [LAPTOP, PHONE]) {
+		await page.setViewportSize(size)
+		await page.goto(`/admin/field-groups/${group}`)
+		const fields = page.getByRole('main').getByRole('region', { name: 'Fields', exact: true })
+		const row = fields.getByRole('row').filter({ has: page.getByRole('button', { name: 'Team', exact: true }) })
+		const labels = row.getByText('Name, Role', { exact: true })
+		await expect(labels, `the labels Team holds show at ${size.width}`).toBeVisible()
+
+		expect(await underCellBox(labels), `the labels sit under the badge in the Kind cell at ${size.width}`).toEqual({
+			under: true,
+			level: true,
+			inside: true,
+			size: '12px',
+		})
+		expect(await linesOf(labels), `the labels take one line at ${size.width}`).toBe(1)
+		expect(await sidewaysOf(row), `the fields table scrolls sideways at ${size.width}`).toBe(0)
+		const overflow = await spills(page)
+		expect(overflow.document, `the labels spill the document at ${size.width}`).toBeLessThanOrEqual(0)
+		expect(overflow.canvas, `the labels spill the canvas at ${size.width}`).toBeLessThanOrEqual(0)
+	}
+})
+
+test('keeps the form adding a field inside an open container in the page at 1280 and 390, nothing scrolling sideways', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
+	const team = await page.request.post(`/api/groups/${group}/fields`, {
+		data: { key: 'team', label: 'Team', kind: 'repeater', many: false, required: false },
+	})
+	expect(team.status()).toBe(201)
+
+	for (const size of [LAPTOP, PHONE]) {
+		await page.setViewportSize(size)
+		await page.goto(`/admin/field-groups/${group}`)
+		const fields = page.getByRole('main').getByRole('region', { name: 'Fields', exact: true })
+		const toggle = fields.getByRole('button', { name: 'Team', exact: true })
+		await toggle.click()
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+		const form = fields.getByRole('form', { name: 'Add field to Team', exact: true })
+		await expect(form, `the form adding a field to Team shows at ${size.width}`).toBeVisible()
+
+		const add = form.getByRole('button', { name: 'Add field to Team', exact: true })
+		const region = await edgesOf(fields)
+		const controls = [
+			{ name: 'the form', control: form },
+			{ name: 'Label', control: form.getByRole('textbox', { name: 'Label', exact: true }) },
+			{ name: 'Kind', control: form.getByRole('combobox', { name: 'Kind', exact: true }) },
+			{ name: 'Add field', control: add },
+		]
+		for (const { name, control } of controls) {
+			const edges = await edgesOf(control)
+			expect(edges.left, `${name} starts inside the fields region at ${size.width}`).toBeGreaterThanOrEqual(
+				region.left,
+			)
+			expect(edges.right, `${name} ends inside the fields region at ${size.width}`).toBeLessThanOrEqual(
+				region.right,
+			)
+		}
+		expect(region.right, `the fields region ends inside the page at ${size.width}`).toBeLessThanOrEqual(size.width)
+		expect(await linesOf(add), `Add field takes one line at ${size.width}`).toBe(1)
+		expect(await sidewaysOf(form), `the fields region scrolls sideways at ${size.width}`).toBe(0)
+		const overflow = await spills(page)
+		expect(overflow.document, `the open container spills the document at ${size.width}`).toBeLessThanOrEqual(0)
+		expect(overflow.canvas, `the open container spills the canvas at ${size.width}`).toBeLessThanOrEqual(0)
+	}
+})
+
+test('keeps every level of a field three deep inside a flexible field in the page at 390, nothing spilling', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
+	const levels = [
+		{ above: '', key: 'features', label: 'Features', kind: 'flexible' },
+		{ above: '/features', key: 'hero', label: 'Hero', kind: 'layout' },
+		{ above: '/features.hero', key: 'box', label: 'Box', kind: 'section' },
+		{ above: '/features.hero.box', key: 'caption', label: 'Caption', kind: 'text' },
+	]
+	for (const { above, key, label, kind } of levels) {
+		const made = await page.request.post(`/api/groups/${group}/fields${above}`, {
+			data: { key, label, kind, many: false, required: false },
+		})
+		expect(made.status(), `${label} is declared`).toBe(201)
+	}
+
+	await page.goto(`/admin/field-groups/${group}`)
+	const fields = page.getByRole('main').getByRole('region', { name: 'Fields', exact: true })
+	for (const { label } of levels) {
+		const toggle = fields.getByRole('button', { name: label, exact: true })
+		await toggle.click()
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+	}
+	const caption = fields
+		.getByRole('row')
+		.filter({ has: page.getByRole('button', { name: 'Caption', exact: true }) })
+		.locator('xpath=following-sibling::tr[1]')
+	const label = caption.getByRole('textbox', { name: 'Label', exact: true })
+	await expect(label).toHaveValue('Caption')
+
+	const adds = ['Add field to Box', 'Add field to Hero', 'Add layout to Features']
+	for (const name of adds) {
+		await expect(fields.getByRole('form', { name, exact: true }), `the form ${name} shows at 390`).toBeVisible()
+	}
+	const region = await edgesOf(fields)
+	const controls = [
+		{ name: 'the Label box of Caption', control: label },
+		{ name: 'the tabs of Caption', control: caption.getByRole('tablist') },
+		{ name: 'Close field of Caption', control: caption.getByRole('button', { name: 'Close field', exact: true }) },
+		...adds.flatMap((name) => {
+			const form = fields.getByRole('form', { name, exact: true })
+			const box = form.getByRole('textbox', { name: 'Label', exact: true })
+			return [
+				{ name: `the Label box of ${name}`, control: box },
+				{ name, control: form.getByRole('button', { name, exact: true }) },
+			]
+		}),
+	]
+	for (const { name, control } of controls) {
+		const edges = await edgesOf(control)
+		expect(edges.left, `${name} starts inside the fields region at 390`).toBeGreaterThanOrEqual(region.left)
+		expect(edges.right, `${name} ends inside the fields region at 390`).toBeLessThanOrEqual(region.right)
+	}
+	for (const name of ['Fields', 'Layouts of Features', 'Sub fields of Hero', 'Sub fields of Box']) {
+		const held = page.getByRole('main').getByRole('region', { name, exact: true })
+		expect(await sidewaysOf(held), `${name} scrolls sideways at 390`).toBe(0)
+	}
+	const overflow = await spills(page)
+	expect(overflow.document, 'the open levels spill the document at 390').toBeLessThanOrEqual(0)
+	expect(overflow.canvas, 'the open levels spill the canvas at 390').toBeLessThanOrEqual(0)
 })
 
 test('keeps the posts table in its card at 1280 beside a long title and the widest date, its actions in view and its listed fields in reach', async ({

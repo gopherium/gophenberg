@@ -314,7 +314,7 @@ export function requirable(kind: string): boolean {
  * @returns Whether the field may stand there.
  */
 export function standsInside(kind: string, parent?: string): boolean {
-	if (parent === 'flexible') {
+	if (holdsLayouts(parent)) {
 		return kind === 'layout'
 	}
 	if (parent !== undefined) {
@@ -339,6 +339,15 @@ export function kindsInside(parent?: string): Choice[] {
  */
 export function holdsFields(kind: string): boolean {
 	return kind === 'section' || kind === 'repeater' || kind === 'flexible' || kind === 'layout'
+}
+
+/**
+ * Reports whether a field of this kind holds layouts, the one kind a flexible content field takes.
+ * @param kind - The kind the field holds, absent at the top of a group.
+ * @returns Whether the kind holds layouts.
+ */
+export function holdsLayouts(kind?: string): boolean {
+	return kind === 'flexible'
 }
 
 /**

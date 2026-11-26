@@ -26,10 +26,9 @@ import { changedElsewhere } from './groupDraft'
 import { groupsQueryKey, pickOf, staleFieldMessage } from './groups'
 import { chosenOf } from './select'
 import { LISTABLE, settingAnswers, settingsOffered } from './settingControls'
-import { SubFields } from './SubFields'
 import { pluralOf } from './typeText'
 import { pairsOf, pickedLabel, requirable } from './types'
-import type { FieldWork, Reporter } from './fieldControls'
+import type { FieldWork } from './fieldControls'
 import type { FieldDraft, FieldPart } from './fieldDraft'
 import type { FieldNote, Rejection } from './fieldNotes'
 import type { FieldGroup } from './groups'
@@ -43,7 +42,7 @@ const BOXED: SettingControl['shape'][] = ['text', 'number']
 type FieldTab = SettingTab | 'conditions'
 
 /** Where an open field stands, what it reads, and the parts the table hands it. */
-interface OpenFieldProps extends Reporter {
+interface OpenFieldProps {
 	group: number
 	groups: FieldGroup[]
 	types: ContentType[]
@@ -53,7 +52,7 @@ interface OpenFieldProps extends Reporter {
 	/** The fields standing beside it, which its rules may read. */
 	siblings: ContentField[]
 	work: FieldWork
-	/** The table of the fields it holds, none for a field holding none. */
+	/** The fields it holds and the form declaring another, none for a field holding none. */
 	nested: ReactNode
 	/** Closes the field, moving the focus to its label when the focus sat inside. */
 	onClose: () => void
@@ -62,7 +61,8 @@ interface OpenFieldProps extends Reporter {
 /**
  * Renders the open part of a field.
  * @param props - Where the field stands, what it reads, the page's work on its fields, and the parts it holds.
- * @returns What the last save left, the form in tabs, the fields it holds, then the buttons closing it.
+ * @returns What the last save left, the form in tabs, the fields it holds and the form declaring another, then the
+ * buttons closing it.
  */
 export function OpenField(props: OpenFieldProps) {
 	const { field, path, work } = props
@@ -92,47 +92,37 @@ export function OpenField(props: OpenFieldProps) {
 				<button type="submit" hidden />
 			</form>
 			{props.nested}
-			<FieldActions {...props} held={held !== undefined} />
+			<FieldActions path={path} work={work} held={held !== undefined} onClose={props.onClose} />
 		</Stack>
 	)
 }
 
 /**
- * Renders the buttons under the fields an open field holds: Add field, then Close field and Discard changes.
- * @param props - Where the field stands, the page's work on its fields, whether it holds a draft, and what to report.
+ * Renders the buttons closing an open field: Close field, then Discard changes.
+ * @param props - The path of the field, the page's work on its fields, whether it holds a draft, and what closes it.
  * @returns The controls, Discard changes shown while a draft is held and off while the header Save runs.
  */
-function FieldActions(props: OpenFieldProps & { held: boolean }) {
-	const { field, path, work } = props
+function FieldActions(props: Pick<OpenFieldProps, 'path' | 'work' | 'onClose'> & { held: boolean }) {
+	const { path, work } = props
 	return (
-		<Stack direction="column" gap="md" align="start">
-			<SubFields
-				group={props.group}
-				types={props.types}
-				field={field}
-				path={path}
-				onDone={props.onDone}
-				onRefused={props.onRefused}
-			/>
-			<Stack direction="row" gap="sm" wrap="wrap">
-				<Button variant="outline" size="compact" onClick={props.onClose}>
-					{__('Close field', 'gophenberg')}
+		<Stack direction="row" gap="sm" wrap="wrap">
+			<Button variant="outline" size="compact" onClick={props.onClose}>
+				{__('Close field', 'gophenberg')}
+			</Button>
+			{props.held && (
+				<Button
+					variant="minimal"
+					tone="neutral"
+					size="compact"
+					disabled={work.saving}
+					onClick={() => {
+						props.onClose()
+						work.onDraft(path, null)
+					}}
+				>
+					{__('Discard changes', 'gophenberg')}
 				</Button>
-				{props.held && (
-					<Button
-						variant="minimal"
-						tone="neutral"
-						size="compact"
-						disabled={work.saving}
-						onClick={() => {
-							props.onClose()
-							work.onDraft(path, null)
-						}}
-					>
-						{__('Discard changes', 'gophenberg')}
-					</Button>
-				)}
-			</Stack>
+			)}
 		</Stack>
 	)
 }

@@ -191,6 +191,17 @@ export async function showTab(part: HTMLElement, name: string) {
 }
 
 /**
+ * Returns the form adding a field inside an open container, found by its name, which names the container.
+ * @param part - The row holding the container's open part.
+ * @param label - The label of the container.
+ * @param words - The words the form starts its name with, Add layout inside a flexible content field.
+ * @returns The form.
+ */
+export function addFormOf(part: HTMLElement, label: string, words = 'Add field') {
+	return within(part).getByRole('form', { name: `${words} to ${label}` }) as HTMLFormElement
+}
+
+/**
  * Returns the Save button in the header of a group's page.
  * @param main - The main work of the page.
  * @returns The Save button.

@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { rememberLocale } from '@gopherium/gottext'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test } from 'vitest'
+import { expect, onTestFinished, test } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
+import { DEFAULT_LOCALE } from '../i18n/catalog'
 import { gate } from './gate'
 import {
 	DETAILS,
 	EXTRAS,
+	FEATURES,
 	fieldRow,
 	fieldsOf,
+	HERO,
 	listing,
 	NO_FIELDS,
 	NO_FIELDS_SENTENCE,
@@ -29,7 +33,31 @@ import { cellBoxes } from './tableCells'
 
 const ORDER_REJECTED = { error: 'content: the order has to name every field', code: 'field_order' }
 
+/** A text field labelled Name, standing inside a container. */
+const NAME_INSIDE = { ...SUBTITLE, key: 'name', label: 'Name' }
+
+/** A text field labelled Role, standing inside a container. */
+const ROLE_INSIDE = { ...SUBTITLE, key: 'role', label: 'Role' }
+
 serveFieldGroups()
+
+/**
+ * Returns a repeater labelled Team holding the given fields.
+ * @param fields - The fields the repeater holds, in order.
+ * @returns The repeater as the listing answers it.
+ */
+function teamHolding(fields: unknown[]) {
+	return { ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields }
+}
+
+/**
+ * Returns the Kind cell of a field's own row.
+ * @param row - The field's own row.
+ * @returns The cell.
+ */
+function kindCell(row: HTMLElement) {
+	return (row as HTMLTableRowElement).cells[1]
+}
 
 /**
  * Reports whether one row of the fields table stands above another.
@@ -197,6 +225,78 @@ test('puts the first line of each cell of a sub field in the cell box and gives 
 	const plain = partOf(await fieldRow(main, 'Subtitle'))
 	expect(cellBoxes(plain)).toEqual([null])
 	expect(plain.querySelector('.godmin-table__cell')).toBeNull()
+})
+
+test('lists the labels a closed container holds in one small line after its Kind box', async () => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, teamHolding([NAME_INSIDE, ROLE_INSIDE])] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const kind = kindCell(await fieldRow(main, 'Team'))
+
+	const [box, line, ...more] = [...kind.children]
+	expect(box).toHaveClass('godmin-table__cell')
+	expect(box).toHaveTextContent(/^Repeater$/)
+	expect(line).toBe(within(kind).getByText('Name, Role'))
+	expect(line.className).toMatch(/__body-sm\b/)
+	expect(more).toEqual([])
+})
+
+test('shows no line under the Kind of an empty container, nor of a field that holds no fields', async () => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, teamHolding([])] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	for (const label of ['Team', 'Subtitle']) {
+		const kind = kindCell(await fieldRow(main, label))
+		expect(kind.children).toHaveLength(1)
+		expect(kind.firstElementChild).toHaveClass('godmin-table__cell')
+	}
+})
+
+test('lists the layouts a closed flexible content field holds under its Kind', async () => {
+	const gallery = { ...HERO, key: 'gallery', label: 'Gallery' }
+	listing([{ ...DETAILS, fields: [SUBTITLE, { ...FEATURES, fields: [HERO, gallery] }] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const kind = kindCell(await fieldRow(main, 'Features'))
+
+	expect(kind.firstElementChild).toHaveTextContent(/^Flexible content$/)
+	expect(kind.lastElementChild).toBe(within(kind).getByText('Hero, Gallery'))
+	expect(kind.lastElementChild?.className).toMatch(/__body-sm\b/)
+})
+
+test('hides the labels under the Kind of an open container, a closed one inside it listing its own', async () => {
+	const phone = { ...SUBTITLE, key: 'phone', label: 'Phone' }
+	const contact = { ...SUBTITLE, key: 'contact', label: 'Contact', kind: 'section', fields: [phone] }
+	listing([{ ...DETAILS, fields: [SUBTITLE, teamHolding([NAME_INSIDE, contact])] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	await openField(main, 'Team')
+
+	const team = await fieldRow(main, 'Team')
+	expect(kindCell(team).children).toHaveLength(1)
+	expect(within(kindCell(team)).queryByText('Name, Contact')).toBeNull()
+	expect(within(kindCell(await fieldRow(main, 'Contact'))).getByText('Phone')).toBeInTheDocument()
+	await userEvent.click(toggleOf(team, 'Team'))
+	expect(within(kindCell(team)).getByText('Name, Contact')).toBeInTheDocument()
+})
+
+test.each([
+	{ locale: 'es-ES', joined: 'Name y Role' },
+	{ locale: 'fr-FR', joined: 'Name et Role' },
+])('joins the labels under the Kind in the language the admin reads in, $locale', async (said) => {
+	rememberLocale(said.locale)
+	onTestFinished(() => rememberLocale(DEFAULT_LOCALE))
+	listing([{ ...DETAILS, fields: [SUBTITLE, teamHolding([NAME_INSIDE, ROLE_INSIDE])] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	const kind = kindCell(await fieldRow(main, 'Team'))
+
+	expect(within(kind).getByText(said.joined)).toBeInTheDocument()
 })
 
 test('draws the label as a toggle with a chevron and the open part as one cell across the table', async () => {

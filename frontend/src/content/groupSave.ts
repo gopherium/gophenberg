@@ -70,12 +70,12 @@ interface Tally {
 }
 
 /**
- * Runs one request of the header Save, stopping it once it ran past the time limit.
+ * Runs one field group write, stopping it once it ran past the time limit.
  * @param limit - The time limit in milliseconds the request gets, Infinity for none.
  * @param send - The request, handed the signal that stops it.
  * @returns The answer, or throws why the request failed, naming the field groups unreached once it ran past.
  */
-async function underLimit<T>(limit: number, send: (signal: AbortSignal) => Promise<T>): Promise<T> {
+export async function underLimit<T>(limit: number, send: (signal: AbortSignal) => Promise<T>): Promise<T> {
 	const controller = new AbortController()
 	const timer = Number.isFinite(limit) ? setTimeout(() => controller.abort(), limit) : undefined
 	try {
