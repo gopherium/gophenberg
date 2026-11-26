@@ -820,7 +820,7 @@ for the account at `/api/auth/session`, so serve that address with
    such as with `waitFor`.
 6. If your plugin imports `@gopherium/godmin`, `@gopherium/react-auth`
    or a `@wordpress` package itself, take the version the SDK pins, such
-   as godmin 0.33.0, react-auth 0.22.0 and `@wordpress/dataviews` 22.
+   as godmin 0.34.0, react-auth 0.22.0 and `@wordpress/dataviews` 22.
 7. A dialog now hands `onConfirm` and `onSubmit` a signal as their
    last argument, which fires at the site's time limit. Pass it to every
    request the dialog waits on, such as `fetch(url, { signal })`, and
