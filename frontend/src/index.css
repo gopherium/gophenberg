@@ -76,6 +76,12 @@
 	white-space: nowrap;
 }
 
+.gophenberg-field__footer {
+	box-sizing: border-box;
+	min-block-size: calc(2 * var(--wpds-dimension-padding-xl) + var(--wpds-dimension-size-md));
+	border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
 .gophenberg-updates__check {
 	padding: 0;
 	border: 0;

@@ -221,6 +221,30 @@ async function sidewaysOf(element: Locator) {
 }
 
 /**
+ * Returns how the band holding an open field's Close field sits in the open part.
+ * @param close - The Close field button.
+ * @returns The top line of the band, its height, whether the button sits in its middle, whether it spans the open
+ * part, and whether it comes last there.
+ */
+async function footerOf(close: Locator) {
+	return close.evaluate((node) => {
+		const band = node.parentElement as HTMLElement
+		const part = band.parentElement as HTMLElement
+		const style = getComputedStyle(band)
+		const box = band.getBoundingClientRect()
+		const button = node.getBoundingClientRect()
+		const above = button.top - box.top - Number.parseFloat(style.borderTopWidth)
+		return {
+			line: `${style.borderTopWidth} ${style.borderTopStyle}`,
+			height: Math.round(box.height),
+			centred: Math.abs(above - (box.bottom - button.bottom)) <= 1,
+			spans: Math.round(box.width) === Math.round(part.getBoundingClientRect().width),
+			last: part.lastElementChild === band,
+		}
+	})
+}
+
+/**
  * Returns how far the document and the canvas overflow the screen.
  * @param page - The page to measure.
  * @returns The overflow of each region in pixels.
@@ -497,6 +521,44 @@ test('keeps the form adding a field inside an open container in the page at 1280
 		const overflow = await spills(page)
 		expect(overflow.document, `the open container spills the document at ${size.width}`).toBeLessThanOrEqual(0)
 		expect(overflow.canvas, `the open container spills the canvas at ${size.width}`).toBeLessThanOrEqual(0)
+	}
+})
+
+test('ends every open field with Close field in a band under a line across the field at 1280 and 390', async ({
+	page,
+}) => {
+	const group = await groupOfItsOwn(page)
+	const team = await page.request.post(`/api/groups/${group}/fields`, {
+		data: { key: 'team', label: 'Team', kind: 'repeater', many: false, required: false },
+	})
+	expect(team.status()).toBe(201)
+
+	for (const size of [LAPTOP, PHONE]) {
+		await page.setViewportSize(size)
+		await page.goto(`/admin/field-groups/${group}`)
+		const fields = page.getByRole('main').getByRole('region', { name: 'Fields', exact: true })
+		for (const label of ['Measure', 'Team']) {
+			const toggle = fields.getByRole('button', { name: label, exact: true })
+			await toggle.click()
+			await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+		}
+		const closes = fields.getByRole('button', { name: 'Close field', exact: true })
+		await expect(closes).toHaveCount(2)
+
+		for (const close of await closes.all()) {
+			expect(await footerOf(close), `the band of Close field at ${size.width}`).toEqual({
+				line: '1px solid',
+				height: 72,
+				centred: true,
+				spans: true,
+				last: true,
+			})
+		}
+		const form = await fields.getByRole('form', { name: 'Add field to Team', exact: true }).boundingBox()
+		const line = await closes.last().evaluate((node) => (node.parentElement as HTMLElement).getBoundingClientRect().top)
+		expect(line, `the line over Close field sits under the form adding a field at ${size.width}`).toBeGreaterThanOrEqual(
+			(form?.y ?? 0) + (form?.height ?? 0),
+		)
 	}
 })
 

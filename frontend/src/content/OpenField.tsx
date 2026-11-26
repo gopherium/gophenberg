@@ -98,14 +98,14 @@ export function OpenField(props: OpenFieldProps) {
 }
 
 /**
- * Renders the buttons closing an open field: Close field, then Discard changes.
+ * Renders the footer closing an open field: Close field, then Discard changes, under a line across the field.
  * @param props - The path of the field, the page's work on its fields, whether it holds a draft, and what closes it.
- * @returns The controls, Discard changes shown while a draft is held and off while the header Save runs.
+ * @returns The footer, Discard changes shown while a draft is held and off while the header Save runs.
  */
 function FieldActions(props: Pick<OpenFieldProps, 'path' | 'work' | 'onClose'> & { held: boolean }) {
 	const { path, work } = props
 	return (
-		<Stack direction="row" gap="sm" wrap="wrap">
+		<Stack direction="row" gap="sm" align="center" wrap="wrap" className="gophenberg-field__footer">
 			<Button variant="outline" size="compact" onClick={props.onClose}>
 				{__('Close field', 'gophenberg')}
 			</Button>
