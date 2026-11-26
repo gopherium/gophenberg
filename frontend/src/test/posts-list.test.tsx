@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Icon, trashIcon } from '@gophenberg/frontend-sdk'
+import { Icon, trash } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
 import { badgeClasses, buttonClasses, setViewport } from '@gopherium/godmin/testing'
@@ -350,7 +350,7 @@ test('draws the trash icon above an empty trash', async () => {
 	renderAt('/content/post?status=trash')
 	const empty = (await screen.findByText('Trash is empty')).closest('.godmin-empty') as HTMLElement
 
-	const { container } = render(<Icon icon={trashIcon} />)
+	const { container } = render(<Icon icon={trash} />)
 
 	expect(empty.querySelector('svg')?.innerHTML).toBe(container.querySelector('svg')?.innerHTML)
 })

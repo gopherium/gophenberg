@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
+import { sessionMayChange, trash } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
 import { focusedTrigger, useBulkRun, useDialogRun } from '@gopherium/godmin'
 import type { ListRun } from '@gopherium/godmin'
@@ -98,7 +98,7 @@ export function useMediaActions(
 			{
 				id: 'delete',
 				label: __('Permanently delete', 'gophenberg'),
-				icon: trashIcon,
+				icon: trash,
 				supportsBulk: true,
 				isEligible: mayChange,
 				callback: (items) => open({ action: 'delete', items, trigger: focusedTrigger() }),

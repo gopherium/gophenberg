@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-	brushIcon,
-	categoryIcon,
-	customPostTypeIcon,
-	languageIcon,
-	listIcon,
-	mediaIcon,
-	pageIcon,
-	pluginsIcon,
-	postIcon,
-	settingsIcon,
-	updateIcon,
+	brush,
+	category,
+	customPostType,
+	language,
+	list,
+	media,
+	page,
+	plugins,
+	post,
+	settings,
+	update,
 } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { render, screen, within } from '@testing-library/react'
@@ -89,19 +89,19 @@ test('draws each sidebar row with the glyph WordPress draws for it, other types 
 	await sidebar.findByRole('link', { name: 'Guides' })
 
 	const glyphs: [string, ReactElement][] = [
-		['Posts', postIcon],
-		['Pages', pageIcon],
-		['Categories', categoryIcon],
-		['Guides', postIcon],
-		['Media', mediaIcon],
-		['Themes', brushIcon],
-		['Plugins', pluginsIcon],
-		['Content Types', customPostTypeIcon],
-		['Field Groups', listIcon],
+		['Posts', post],
+		['Pages', page],
+		['Categories', category],
+		['Guides', post],
+		['Media', media],
+		['Themes', brush],
+		['Plugins', plugins],
+		['Content Types', customPostType],
+		['Field Groups', list],
 		['Users', people],
-		['Language', languageIcon],
-		['Settings', settingsIcon],
-		['Updates', updateIcon],
+		['Language', language],
+		['Settings', settings],
+		['Updates', update],
 	]
 	for (const [name, glyph] of glyphs) {
 		expect(drawingOf(sidebar.getByRole('link', { name })), name).toBe(drawingOf(glyph))
@@ -115,5 +115,5 @@ test('draws the Posts glyph for a plugin type under a built-in key, as it keeps 
 	const sidebar = within(await screen.findByRole('region', { name: 'Navigation' }))
 	const row = await sidebar.findByRole('link', { name: 'Pages' })
 
-	expect(drawingOf(row)).toBe(drawingOf(postIcon))
+	expect(drawingOf(row)).toBe(drawingOf(post))
 })

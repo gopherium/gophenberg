@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Button, IconButton, InputControl, Notice, Stack, downIcon, upIcon } from '@gophenberg/frontend-sdk'
+import {
+	Badge,
+	Button,
+	IconButton,
+	InputControl,
+	Notice,
+	Stack,
+	chevronDown,
+	chevronUp,
+} from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ConfirmDialog, ErrorNotice, FormDialog, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
@@ -468,14 +477,14 @@ function MoveGroup(props: {
 		<>
 			<IconButton
 				label={sprintf(__('Move %(group)s up', 'gophenberg'), { group: props.held.title })}
-				icon={upIcon}
+				icon={chevronUp}
 				variant="outline"
 				disabled={props.pending || props.at === 0}
 				onClick={() => props.onMove(carried(-1))}
 			/>
 			<IconButton
 				label={sprintf(__('Move %(group)s down', 'gophenberg'), { group: props.held.title })}
-				icon={downIcon}
+				icon={chevronDown}
 				variant="outline"
 				disabled={props.pending || props.at === props.order.length - 1}
 				onClick={() => props.onMove(carried(1))}

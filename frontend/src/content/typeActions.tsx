@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { checkIcon, notAllowedIcon, trashIcon } from '@gophenberg/frontend-sdk'
+import { check, notAllowed, trash } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
 import { ConfirmDialog, focusedTrigger, useBulkRun, useDialogRun } from '@gopherium/godmin'
 import type { BulkRun, DialogRun, ListRun, Trigger } from '@gopherium/godmin'
@@ -112,7 +112,7 @@ function switchActions(tools: ActionTools): Action<ContentType>[] {
 		{
 			id: 'activate',
 			label: __('Activate', 'gophenberg'),
-			icon: checkIcon,
+			icon: check,
 			supportsBulk: true,
 			isEligible: (type) => !type.active,
 			callback: activeAs(true),
@@ -120,7 +120,7 @@ function switchActions(tools: ActionTools): Action<ContentType>[] {
 		{
 			id: 'deactivate',
 			label: __('Deactivate', 'gophenberg'),
-			icon: notAllowedIcon,
+			icon: notAllowed,
 			supportsBulk: true,
 			isEligible: (type) => type.active && !type.isDefault,
 			callback: activeAs(false),
@@ -183,7 +183,7 @@ function deleteAction(open: (opened: OpenedTypes) => void): Action<ContentType> 
 	return {
 		id: 'delete',
 		label: __('Delete', 'gophenberg'),
-		icon: trashIcon,
+		icon: trash,
 		supportsBulk: true,
 		isEligible: demotable,
 		callback: (items) => open({ action: 'delete', items, trigger: focusedTrigger() }),

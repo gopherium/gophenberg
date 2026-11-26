@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { backupIcon, sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
+import { backup, sessionMayChange, trash } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
 import { ConfirmDialog, focusedTrigger, useBulkRun, useDialogRun } from '@gopherium/godmin'
 import type { BulkRun, DialogRun, ListRun, Trigger } from '@gopherium/godmin'
@@ -130,7 +130,7 @@ function trashViewActions(
 		{
 			id: 'restore',
 			label: _x('Restore', 'trash', 'gophenberg'),
-			icon: backupIcon,
+			icon: backup,
 			isPrimary: true,
 			supportsBulk: true,
 			isEligible: mine,
@@ -139,7 +139,7 @@ function trashViewActions(
 		{
 			id: 'delete',
 			label: __('Permanently delete', 'gophenberg'),
-			icon: trashIcon,
+			icon: trash,
 			supportsBulk: true,
 			isEligible: mine,
 			callback: (items) => open({ action: 'delete', items, trigger: focusedTrigger() }),
@@ -216,7 +216,7 @@ function listActions(
 		{
 			id: 'trash',
 			label: _x('Trash', 'verb', 'gophenberg'),
-			icon: trashIcon,
+			icon: trash,
 			supportsBulk: true,
 			isEligible: changeable,
 			callback: trashing(tools, type),

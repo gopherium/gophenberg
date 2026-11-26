@@ -9,8 +9,8 @@ import {
 	RangeControl,
 	Stack,
 	Text,
-	downIcon,
-	upIcon,
+	chevronDown,
+	chevronUp,
 } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type {
@@ -745,7 +745,7 @@ function RowControls(props: {
 	return (
 		<Stack direction="row" gap="xs" align="center">
 			<IconButton
-				icon={upIcon}
+				icon={chevronUp}
 				label={__('Move row up', 'gophenberg')}
 				size="compact"
 				variant="minimal"
@@ -754,7 +754,7 @@ function RowControls(props: {
 				onClick={() => props.onMove(-1)}
 			/>
 			<IconButton
-				icon={downIcon}
+				icon={chevronDown}
 				label={__('Move row down', 'gophenberg')}
 				size="compact"
 				variant="minimal"

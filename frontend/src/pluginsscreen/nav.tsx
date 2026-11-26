@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { pluginsIcon } from '@gophenberg/frontend-sdk'
+import { plugins } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
 
@@ -18,7 +18,7 @@ export const pluginsMenuItem: MenuItem = {
 		return _x('Plugins', 'admin section', 'gophenberg')
 	},
 	to: '/plugins',
-	icon: pluginsIcon,
+	icon: plugins,
 }
 
 /**

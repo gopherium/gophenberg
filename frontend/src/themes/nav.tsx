@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { brushIcon } from '@gophenberg/frontend-sdk'
+import { brush } from '@gophenberg/frontend-sdk'
 import type { MenuItem } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
 
@@ -9,5 +9,5 @@ export const themesMenuItem: MenuItem = {
 		return _x('Themes', 'admin section', 'gophenberg')
 	},
 	to: '/themes',
-	icon: brushIcon,
+	icon: brush,
 }

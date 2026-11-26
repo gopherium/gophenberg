@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, checkIcon, downIcon, Icon, Notice, Popover, Spinner } from '@gophenberg/frontend-sdk'
+import { Button, check, chevronDown, Icon,Notice, Popover, Spinner } from '@gophenberg/frontend-sdk'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
 import { useEffect, useRef, useState } from 'react'
@@ -114,7 +114,7 @@ function StatusRow({ row, onDismiss }: RowProps) {
 	}
 	return (
 		<li className="gophenberg-media-picker__row">
-			{row.status === 'uploading' ? <Spinner /> : <Icon icon={checkIcon} size={16} />}
+			{row.status === 'uploading' ? <Spinner /> : <Icon icon={check} size={16} />}
 			<span className="gophenberg-media-picker__filename" title={row.name}>
 				{row.name}
 			</span>
@@ -163,7 +163,7 @@ export function UploadStatus({ rows, frame, onDismiss, onPanelChange }: UploadSt
 			<Popover.Root open={open} onOpenChange={changeOpen}>
 				<Popover.Trigger render={<Button variant="minimal" tone="neutral" size="compact" />}>
 					{words.trigger}
-					<Button.Icon icon={downIcon} />
+					<Button.Icon icon={chevronDown} />
 				</Popover.Trigger>
 				<Popover.Popup
 					ref={panel}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { sidebarIcon, sidebarRtlIcon } from '@gophenberg/frontend-sdk'
+import { drawerLeft, drawerRight } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -188,7 +188,7 @@ test('draws the settings drawer on the right for a left to right reader', async 
 
 	const settings = await screen.findByRole('button', { name: 'Settings' })
 
-	expect(outlineOf(settings)).toBe(outlineOf(sidebarIcon))
+	expect(outlineOf(settings)).toBe(outlineOf(drawerRight))
 })
 
 test('draws the settings drawer on the left for a right to left reader', async () => {
@@ -198,8 +198,8 @@ test('draws the settings drawer on the left for a right to left reader', async (
 
 	const settings = await screen.findByRole('button', { name: 'Settings' })
 
-	expect(outlineOf(settings)).toBe(outlineOf(sidebarRtlIcon))
-	expect(outlineOf(sidebarRtlIcon)).not.toBe(outlineOf(sidebarIcon))
+	expect(outlineOf(settings)).toBe(outlineOf(drawerLeft))
+	expect(outlineOf(drawerLeft)).not.toBe(outlineOf(drawerRight))
 })
 
 test('leaves the title its focus ring, which the design system draws around it', async () => {

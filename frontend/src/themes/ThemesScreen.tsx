@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Button, Stack, Text, uploadIcon } from '@gophenberg/frontend-sdk'
+import { Badge, Button, Stack, Text, upload } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, FileButton, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -338,7 +338,7 @@ function UploadTheme(props: { onOutcome: Reporter }) {
 	return (
 		<FileButton
 			accept=".zip"
-			icon={uploadIcon}
+			icon={upload}
 			busy={install.isPending}
 			inputLabel={label}
 			onChoose={([archive]) => install.mutate(archive)}

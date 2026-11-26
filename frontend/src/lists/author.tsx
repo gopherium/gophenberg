@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { authorIcon, Icon } from '@gophenberg/frontend-sdk'
+import { commentAuthorAvatar, Icon } from '@gophenberg/frontend-sdk'
 import type { Field, Filter } from '@gophenberg/frontend-sdk/dataviews'
 import { InitialsAvatar } from '@gopherium/godmin'
 import { __ } from '@wordpress/i18n'
@@ -51,7 +51,7 @@ function AuthorCell({ item }: { item: Authored }) {
 		<span className="gophenberg-author">
 			{item.authorAvatar === '' ? (
 				<span className="gophenberg-author__icon">
-					<Icon icon={authorIcon} />
+					<Icon icon={commentAuthorAvatar} />
 				</span>
 			) : (
 				<span className="gophenberg-author__avatar">

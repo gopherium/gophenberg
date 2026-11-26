@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Dialog, DropZone, mediaIcon, Stack, uploadIcon, useToaster } from '@gophenberg/frontend-sdk'
+import { Dialog, DropZone, media, Stack, upload as uploadIcon, useToaster } from '@gophenberg/frontend-sdk'
 import { DataViewsPicker } from '@gophenberg/frontend-sdk/dataviews'
 import type { ActionButton, Field, SupportedLayouts, View } from '@gophenberg/frontend-sdk/dataviews'
 import { Popover } from '@gophenberg/frontend-sdk/editor'
@@ -111,7 +111,7 @@ function PickerEmpty({ narrowed }: { narrowed: boolean }) {
 	if (narrowed) {
 		return <ListNoResults />
 	}
-	return <ListEmpty icon={mediaIcon} title={__('No media items yet', 'gophenberg')} />
+	return <ListEmpty icon={media}title={__('No media items yet', 'gophenberg')} />
 }
 
 /**
