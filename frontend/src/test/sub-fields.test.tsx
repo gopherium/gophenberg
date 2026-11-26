@@ -599,7 +599,7 @@ test('declares a field inside a layout of a flexible content field', async () =>
 	await waitFor(() => expect(where).toBe('/api/groups/3/fields/features.hero'))
 })
 
-test('reports a field declared into a container that was rejected and keeps what its form holds', async () => {
+test('shows a name taken inside a container under the Label box of its form, with no notice and no toast', async () => {
 	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
 	server.use(
 		http.post('/api/groups/3/fields/author', () =>
@@ -609,15 +609,72 @@ test('reports a field declared into a container that was rejected and keeps what
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Author')
-
 	const adding = addFormOf(part, 'Author')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
+	const label = within(adding).getByRole('textbox', { name: 'Label' })
+
+	await userEvent.type(label, 'Full name')
 	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
 
 	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
-	expect(await within(main).findByRole('alert')).toHaveTextContent(said)
+	await waitFor(() => expect(label).toHaveAccessibleDescription(said))
+	expect(within(main).queryByRole('alert')).toBeNull()
+	expect(screen.queryByText(/^Could not add the field\./, { selector: '.godmin-toast' })).toBeNull()
+	expect(label).toHaveValue('Full name')
+})
+
+test('reports a name taken in a toast and above the fields while its container is still closing', async () => {
+	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
+	const answer = gate()
+	server.use(
+		http.post('/api/groups/3/fields/author', async () => {
+			await answer.held
+			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Author')
+	const adding = addFormOf(part, 'Author')
+	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	await waitBusy(adding, 'Add field to Author')
+
+	await userEvent.click(toggleOf(await fieldRow(main, 'Author'), 'Author'))
+	await waitFor(() => expect(part).toHaveAttribute('data-closed'))
+	part.removeAttribute('hidden')
+	answer.release()
+
+	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
 	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveValue('Full name')
+	expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription('')
+})
+
+test('reports a name taken in a toast and above the fields once its container closed while the add ran', async () => {
+	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
+	const answer = gate()
+	server.use(
+		http.post('/api/groups/3/fields/author', async () => {
+			await answer.held
+			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Author')
+	const adding = addFormOf(part, 'Author')
+	const label = within(adding).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(label, 'Full name')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	await waitBusy(adding, 'Add field to Author')
+
+	await userEvent.click(toggleOf(await fieldRow(main, 'Author'), 'Author'))
+	await waitFor(() => expect(part).toHaveAttribute('hidden', 'until-found'))
+	answer.release()
+
+	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
+	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
+	expect(within(main).getByRole('alert')).toHaveTextContent(said)
+	expect(label).toHaveAccessibleDescription('')
 })
 
 test("stops a field declared into a container past the site's time limit, keeping what its form holds", async () => {

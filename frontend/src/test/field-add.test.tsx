@@ -13,6 +13,7 @@ import {
 	DETAILS,
 	EXTRAS,
 	FEATURES,
+	fieldRow,
 	listing,
 	openField,
 	openFields,
@@ -47,20 +48,84 @@ test('declares a field into the group it was opened from, its key made from the 
 	)
 })
 
-test('reports a refused field where the operator is looking', async () => {
+test.each([
+	{
+		reason: 'a name another field took',
+		answer: { error: 'content: field key taken', code: 'field_taken' },
+		said: 'A field with that name already exists on the items this group reaches. Pick another name.',
+	},
+	{
+		reason: 'a key in the wrong shape',
+		answer: { error: 'content: invalid field key', code: 'field_key_malformed' },
+		said:
+			'A field key has to start with a lowercase letter and then hold only lowercase letters, ' +
+			'numbers and hyphens. Rename the field so its key comes out in that shape.',
+	},
+])('shows $reason under the Label box of the group form, with no notice and no toast', async ({ answer, said }) => {
+	server.use(http.post('/api/groups/3/fields', () => HttpResponse.json(answer, { status: 422 })))
+	renderAt('/field-groups')
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
+
+	await userEvent.type(label, 'Subtitle')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(label).toHaveAccessibleDescription(said))
+	expect(label).toHaveFocus()
+	expect(within(main).queryByRole('alert')).toBeNull()
+	expect(screen.queryByText(/^Could not add the field\./, { selector: '.godmin-toast' })).toBeNull()
+	expect(label).toHaveValue('Subtitle')
+	await userEvent.type(label, 's')
+	expect(label).toHaveAccessibleDescription('')
+})
+
+test('clears the notice an earlier add left and reads the fields again once a label is rejected', async () => {
+	const summary = { ...SUBTITLE, key: 'summary', label: 'Summary' }
+	let sent = 0
+	server.use(
+		http.post('/api/groups/3/fields', () => {
+			sent += 1
+			if (sent === 1) {
+				listing([{ ...DETAILS, fields: [...DETAILS.fields, summary] }, EXTRAS])
+				return HttpResponse.error()
+			}
+			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(label, 'Summary')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
+
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(label).toHaveAccessibleDescription(/already exists/))
+	await waitFor(() => expect(within(main).queryByRole('alert')).toBeNull())
+	expect(await fieldRow(main, 'Summary')).toBeInTheDocument()
+})
+
+test('reports a rejection not about the label in a toast and above the fields, the Label box clear', async () => {
 	server.use(
 		http.post('/api/groups/3/fields', () =>
-			HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 }),
+			HttpResponse.json(
+				{ error: 'content: relation target unknown', code: 'relation_target_unknown', meta: { value: 'book' } },
+				{ status: 422 },
+			),
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
 
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Subtitle')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+	await userEvent.type(label, 'Subtitle')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
 
-	const notice = await within(dialog).findByRole('alert')
-	expect(notice).toHaveTextContent(/field with that name/i)
+	const said = 'There is no content type called book. Pick a type your site holds, or register it first.'
+	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
+	expect(within(main).getByRole('alert')).toHaveTextContent(said)
+	expect(label).toHaveAccessibleDescription('')
 })
 
 test('declares a relation field pointing at the type and holding what was picked', async () => {

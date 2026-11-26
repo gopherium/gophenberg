@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, InputControl, SelectControl } from '@gophenberg/frontend-sdk'
+import { Button, SelectControl, ValidatedInputControl } from '@gophenberg/frontend-sdk'
+import { useRejectedField } from '@gopherium/godmin'
+import type { RejectedField } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { useWriteTimeout } from '../settings/useListSettings'
 import { underLimit } from './groupSave'
-import { backlinkSettings, backlinkSources, createFieldInGroup, createSubField } from './groups'
+import {
+	backlinkSettings,
+	backlinkSources,
+	createFieldInGroup,
+	createSubField,
+	groupErrorMessage,
+	RejectedWriteError,
+} from './groups'
 import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import { pluralOf } from './typeText'
@@ -29,6 +38,9 @@ export interface FieldPlace {
 	container?: string
 }
 
+/** The codes of the rejections a new field's label answers for, its key being made from it. */
+const LABEL_CODES = new Set(['field_taken', 'field_key_malformed'])
+
 /** A new field as its controls hold it, and the write declaring it. */
 interface FieldDraft {
 	controls: ReactNode
@@ -37,6 +49,10 @@ interface FieldDraft {
 	declare: () => Promise<unknown>
 	said: string
 	clear: () => void
+	/** The label as the controls hold it. */
+	label: string
+	/** What puts the server's words about the label under its box. */
+	rejected: RejectedField
 }
 
 /** The words of the button declaring a field, and the name that tells it from the other add buttons. */
@@ -69,6 +85,24 @@ function addWords(place: FieldPlace): AddWords {
 }
 
 /**
+ * Reports whether a rejected declaration is about the label, the key being made from it.
+ * @param cause - What the write failed with.
+ * @returns Whether the server's words belong under the Label box.
+ */
+function aboutLabel(cause: unknown): boolean {
+	return cause instanceof RejectedWriteError && LABEL_CODES.has(cause.code)
+}
+
+/**
+ * Reports whether a form shows, no closed or closing part of the page holding it.
+ * @param form - The form, null once it left the page.
+ * @returns Whether a reader sees it.
+ */
+function shown(form: HTMLFormElement | null): boolean {
+	return form !== null && form.closest('[hidden], [data-closed]') === null
+}
+
+/**
  * Renders the form declaring a new field in the group or inside a container.
  * @param props - The group, the groups a backlinks field reads, the types, the container, and what to report.
  * @returns The form, named after its container inside one, its button reading Add layout in a flexible content field.
@@ -76,21 +110,36 @@ function addWords(place: FieldPlace): AddWords {
 export function AddField(props: Reporter & FieldPlace) {
 	const draft = useFieldDraft(props)
 	const words = addWords(props)
+	const form = useRef<HTMLFormElement>(null)
+
+	/**
+	 * Puts the server's words about the label under its box while the form shows.
+	 * @param cause - What the write failed with.
+	 * @param sent - The label the write sent.
+	 * @returns Whether the words stand under the box.
+	 */
+	function rejectLabel(cause: unknown, sent: string): boolean {
+		return aboutLabel(cause) && shown(form.current) && draft.rejected.reject(groupErrorMessage(cause), sent)
+	}
 
 	/** Declares the field, empties its name once it landed, and reports how the write went. */
 	function declare() {
 		const said = draft.said
+		const sent = draft.label
 		void draft.declare().then(
 			async () => {
 				draft.clear()
 				await props.onDone(said)
 			},
-			(cause: unknown) => props.onRefused(cause, 'add'),
+			async (cause: unknown) => {
+				await (rejectLabel(cause, sent) ? props.onDone() : props.onRefused(cause, 'add'))
+			},
 		)
 	}
 
 	return (
 		<form
+			ref={form}
 			className="godmin-form godmin-form--inline"
 			aria-label={words.name}
 			onSubmit={(event) => {
@@ -152,6 +201,7 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 		{ label: __('One target', 'gophenberg'), value: 'one' },
 	])
 	const [label, setLabel] = useState('')
+	const rejected = useRejectedField(label)
 	const [kind, setKind] = useState(kinds[0])
 	const [targetKey, setTargetKey] = useState('')
 	const [holding, setHolding] = useState(holdings[0])
@@ -189,6 +239,7 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 				draft={draft}
 				offers={{ kinds, targets, holdings }}
 				change={change}
+				rejected={rejected}
 				readOnly={add.isPending}
 			/>
 		),
@@ -197,6 +248,8 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 		declare: () => add.mutateAsync(),
 		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
 		clear: () => setLabel(''),
+		label,
+		rejected,
 	}
 }
 
@@ -231,25 +284,39 @@ function askedField(draft: DraftAnswers): NewField {
 	}
 }
 
+/** What the controls of a new field hold, offer and change, the server's words on its label, and whether they wait. */
+interface DraftControlsProps {
+	draft: DraftAnswers
+	offers: DraftOffers
+	change: DraftChanges
+	rejected: RejectedField
+	readOnly: boolean
+}
+
 /**
  * Renders the controls of a new field: its name, its kind when there is a choice, and what that kind asks for.
- * @param props - What the controls hold, the choices they offer, what changes each, and whether they are read only.
- * @returns The controls.
+ * @param props - What the controls hold, the choices they offer, what changes each, the server's words on the label,
+ * and whether they are read only.
+ * @returns The controls, the server's words on a rejected label under its box.
  */
-function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change: DraftChanges; readOnly: boolean }) {
+function DraftControls(props: DraftControlsProps) {
 	const { draft, offers, change, readOnly } = props
+	const { ref, validity } = props.rejected
 	const { kind, target, holding } = draft
 	const relating = draft.picked.kind === 'relation'
 	return (
 		<>
-			<InputControl
-				className="godmin-form__grow"
-				label={__('Label', 'gophenberg')}
-				autoComplete="off"
-				value={draft.label}
-				readOnly={readOnly}
-				onValueChange={change.label}
-			/>
+			<div className="godmin-form__grow">
+				<ValidatedInputControl
+					ref={ref}
+					customValidity={validity}
+					label={__('Label', 'gophenberg')}
+					autoComplete="off"
+					value={draft.label}
+					readOnly={readOnly}
+					onValueChange={change.label}
+				/>
+			</div>
 			{offers.kinds.length > 1 && (
 				<SelectControl
 					label={_x('Kind', 'field type', 'gophenberg')}
