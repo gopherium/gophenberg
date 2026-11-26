@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, within } from '@testing-library/react'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { typesQueryKey } from '../content/nav'
 import { coreNav } from '../menu/coreNav'
@@ -154,6 +157,49 @@ test('frames the active route inside the main content region', async () => {
 	const main = await screen.findByRole('main')
 	expect(await within(main).findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
 	expect(within(main).queryByRole('region', { name: 'Navigation' })).toBeNull()
+})
+
+test('shows an address no route serves inside the admin frame, under the menu', async () => {
+	renderAt('/nowhere')
+
+	const main = await screen.findByRole('main')
+	expect(await within(main).findByRole('heading', { name: 'Route not found', level: 2 })).toBeInTheDocument()
+	expect(within(main).getByText("The page you're looking for does not exist")).toBeInTheDocument()
+	const nav = screen.getByRole('region', { name: 'Navigation' })
+	expect(await within(nav).findByRole('link', { name: 'Posts' })).toBeInTheDocument()
+})
+
+test('shows an address no route serves in the words of WordPress es_ES for a Spanish reader', async () => {
+	setLocaleData(await listChromeCatalogFor('es-ES'), LIST_CHROME_DOMAIN)
+	onTestFinished(() => resetLocaleData({}, LIST_CHROME_DOMAIN))
+	renderAt('/nowhere')
+
+	const main = await screen.findByRole('main')
+	expect(await within(main).findByRole('heading', { name: 'Ruta no encontrada', level: 2 })).toBeInTheDocument()
+	expect(within(main).getByText('La página que estás buscando no existe')).toBeInTheDocument()
+	expect(screen.getByRole('region', { name: 'Navegación' })).toBeInTheDocument()
+})
+
+test('shows an address no route serves under the editor inside the admin frame', async () => {
+	renderAt('/content/post/1/edit/nowhere')
+
+	const main = await screen.findByRole('main')
+	expect(await within(main).findByRole('heading', { name: 'Route not found', level: 2 })).toBeInTheDocument()
+	expect(screen.getByRole('region', { name: 'Navigation' })).toBeInTheDocument()
+})
+
+test('keeps the focus on the menu row picked at an address no route serves under a known screen', async () => {
+	const { router } = renderRoutedAt('/content/post/1/nowhere')
+	const main = await screen.findByRole('main')
+	expect(await within(main).findByRole('heading', { name: 'Route not found', level: 2 })).toBeInTheDocument()
+	const row = await within(screen.getByRole('region', { name: 'Navigation' })).findByRole('link', { name: 'Posts' })
+
+	row.focus()
+	await userEvent.keyboard('{Enter}')
+
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
+	await waitFor(() => expect(router.state.status).toBe('idle'))
+	expect(row).toHaveFocus()
 })
 
 test('sets the router to preload a screen on intent, as the new WordPress admin does', () => {

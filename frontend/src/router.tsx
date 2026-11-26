@@ -8,6 +8,8 @@ import {
 	createRoute,
 	createRouter,
 	lazyRouteComponent,
+	rootRouteId,
+	useMatch,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
@@ -28,6 +30,23 @@ import { plugins } from './plugins'
 import { useDefaultType } from './content/nav'
 import { statusSearch } from './content/StatusTabs'
 import { pluginStatusSearch } from './pluginsscreen/nav'
+
+const { defaultNotFoundComponent: RouteNotFound } = routerDefaults()
+
+/**
+ * Renders the screen of an address no route serves inside the admin frame.
+ * @returns The not found screen, wrapped in the layout when no route above it draws the frame.
+ */
+function AdminNotFound() {
+	const unframed = useMatch({ strict: false, select: (match) => match.routeId === rootRouteId })
+	return unframed ? (
+		<Layout>
+			<RouteNotFound />
+		</Layout>
+	) : (
+		<RouteNotFound />
+	)
+}
 
 const rootRoute = createRootRoute()
 
@@ -190,6 +209,7 @@ const routeTree = rootRoute.addChildren([
 export function createAppRouter(history?: RouterHistory) {
 	return createRouter({
 		...routerDefaults(),
+		defaultNotFoundComponent: AdminNotFound,
 		routeTree,
 		history,
 		basepath: adminBasepath,
