@@ -162,17 +162,19 @@ test('clears the add form of a container once its field lands, the new row close
 	expect(add).toHaveFocus()
 })
 
-test('heads the sub fields of an open container and, under them, the form adding one', async () => {
+test('heads the sub fields of an open container and its add form, each title naming the container', async () => {
 	listing([{ ...DETAILS, fields: [AUTHOR] }, EXTRAS])
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
 	const titles = within(part).getAllByRole('heading')
-	expect(titles.map((title) => [title.tagName, title.textContent])).toEqual([
-		['H3', 'Sub fields'],
-		['H4', 'Add a field'],
-	])
+	expect(titles.map((title) => title.tagName)).toEqual(['H3', 'H4'])
+	expect(titles[0]).toHaveAccessibleName('Sub fields of Author')
+	expect(within(titles[0]).getByText('Sub fields', { exact: true })).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName('Add field to Author')
+	expect(within(titles[1]).getByText('Add a field', { exact: true })).toHaveAttribute('aria-hidden', 'true')
+	expect(titles.map((title) => title.querySelectorAll('div').length)).toEqual([0, 0])
 	expect(titles[0].parentElement).toContainElement(subFieldsOf(part, 'Author'))
 	expect(titles[1].parentElement).toContainElement(addFormOf(part, 'Author'))
 	expect(within(main).getAllByRole('heading', { level: 3, name: 'Add a field' })).toHaveLength(1)
@@ -185,7 +187,11 @@ test('says an open container holds no sub fields yet, under its Sub fields title
 	const part = await openField(main, 'Author')
 
 	const empty = within(part).getByText('No sub fields yet.')
-	const shown = [within(part).getByRole('heading', { level: 3, name: 'Sub fields' }), empty, addFormOf(part, 'Author')]
+	const shown = [
+		within(part).getByRole('heading', { level: 3, name: 'Sub fields of Author' }),
+		empty,
+		addFormOf(part, 'Author'),
+	]
 	expect(within(part).queryByRole('region')).toBeNull()
 	expect(shown[0].compareDocumentPosition(shown[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 	expect(shown[1].compareDocumentPosition(shown[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -510,10 +516,11 @@ test('heads the layouts of an open flexible content field and, under them, the f
 	const titles = within(part).getAllByRole('heading')
 	const add = within(part).getByRole('button', { name: 'Add layout to Features' })
 
-	expect(titles.map((title) => [title.tagName, title.textContent])).toEqual([
-		['H3', 'Layouts'],
-		['H4', 'Add a layout'],
-	])
+	expect(titles.map((title) => title.tagName)).toEqual(['H3', 'H4'])
+	expect(titles[0]).toHaveAccessibleName('Layouts of Features')
+	expect(within(titles[0]).getByText('Layouts', { exact: true })).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName('Add layout to Features')
+	expect(within(titles[1]).getByText('Add a layout', { exact: true })).toHaveAttribute('aria-hidden', 'true')
 	expect(titles[0].parentElement).toContainElement(layoutsOf(part, 'Features'))
 	expect(titles[1].parentElement).toContainElement(addFormOf(part, 'Features', 'Add layout'))
 	expect(within(part).queryByRole('region', { name: 'Sub fields of Features' })).toBeNull()
@@ -528,7 +535,7 @@ test('says a flexible content field holds no layouts yet, between its Layouts ti
 
 	const empty = within(part).getByText('No layouts yet.')
 	const shown = [
-		within(part).getByRole('heading', { level: 3, name: 'Layouts' }),
+		within(part).getByRole('heading', { level: 3, name: 'Layouts of Features' }),
 		empty,
 		addFormOf(part, 'Features', 'Add layout'),
 	]
@@ -550,12 +557,12 @@ test('opens a layout to its own row limits, then its own sub fields and the form
 
 	expect(within(layout).getByRole('spinbutton', { name: 'Fewest rows' })).toBeInTheDocument()
 	expect(within(layout).getByRole('spinbutton', { name: 'Most rows' })).toBeInTheDocument()
-	expect(within(flexible).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
-		'Layouts',
-		'Sub fields',
-		'Add a field',
-		'Add a layout',
-	])
+	const titles = within(flexible).getAllByRole('heading')
+	expect(titles).toHaveLength(4)
+	expect(titles[0]).toHaveAccessibleName('Layouts of Features')
+	expect(titles[1]).toHaveAccessibleName('Sub fields of Hero')
+	expect(titles[2]).toHaveAccessibleName('Add field to Hero')
+	expect(titles[3]).toHaveAccessibleName('Add layout to Features')
 	expect(subFieldsOf(layout, 'Hero')).toContainElement(await fieldRow(main, 'Title'))
 	await userEvent.click(within(addFormOf(layout, 'Hero')).getByRole('combobox', { name: 'Kind' }))
 	expect(await screen.findByRole('option', { name: 'Text' })).toBeInTheDocument()

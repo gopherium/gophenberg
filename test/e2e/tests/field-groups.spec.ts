@@ -448,7 +448,8 @@ test('adds a Hero layout from the form of an open flexible field, then a Title f
 	await page.goto(`/admin/field-groups/${group.id}`)
 
 	const features = await openField(page, 'Features')
-	await expect(features.getByRole('heading', { name: 'Layouts', exact: true })).toBeVisible()
+	const titled = features.getByRole('heading', { name: 'Layouts of Features', exact: true })
+	await expect(titled.getByText('Layouts', { exact: true })).toBeVisible()
 	await expect(features.getByText('No layouts yet.', { exact: true })).toBeVisible()
 	const asking = features.getByRole('form', { name: 'Add layout to Features', exact: true })
 	const layout = asking.getByRole('button', { name: 'Add layout to Features', exact: true })

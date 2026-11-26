@@ -235,7 +235,11 @@ test.each(READERS)('heads the sub fields of an open container and the form addin
 
 	const titles = within(container).getAllByRole('heading')
 
-	expect(titles.map((title) => title.textContent)).toEqual(said.subFields)
+	expect(titles).toHaveLength(2)
+	expect(within(titles[0]).getByText(said.subFields[0])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[0]).toHaveAccessibleName(said.inside)
+	expect(within(titles[1]).getByText(said.subFields[1])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName(said.addField.name)
 	expect(within(container).getByRole('button', { name: said.addField.name })).toHaveTextContent(said.addField.words)
 })
 
@@ -254,7 +258,11 @@ test.each(READERS)('heads the layouts of an open flexible content field and its 
 
 	const titles = within(flexible).getAllByRole('heading')
 
-	expect(titles.map((title) => title.textContent)).toEqual(said.layouts)
+	expect(titles).toHaveLength(2)
+	expect(within(titles[0]).getByText(said.layouts[0])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[0]).toHaveAccessibleName(said.layoutsOf)
+	expect(within(titles[1]).getByText(said.layouts[1])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName(said.addLayout.name)
 	expect(within(flexible).getByRole('region', { name: said.layoutsOf })).toBeInTheDocument()
 	expect(within(flexible).getByRole('button', { name: said.addLayout.name })).toHaveTextContent(said.addLayout.words)
 })

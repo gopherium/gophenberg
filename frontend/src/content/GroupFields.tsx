@@ -150,7 +150,7 @@ function FieldsBody(props: Reporter & FieldsWork) {
  * @param props - Where the field is declared, the title and its level, and what to report.
  * @returns The section.
  */
-function AddSection(props: Reporter & { place: FieldPlace; title: string; level?: 2 | 3 }) {
+function AddSection(props: Reporter & { place: FieldPlace; title: ReactNode; level?: 2 | 3 }) {
 	return (
 		<Stack direction="column" gap="sm">
 			<SectionTitle level={props.level}>{props.title}</SectionTitle>
@@ -596,9 +596,12 @@ interface Container {
 /** The words an open container shows around what it holds: its title, its region, its empty line and its add title. */
 interface PartWords {
 	title: string
+	/** The name of the region, which a screen reader also hears for the title. */
 	region: string
 	empty: string
 	add: string
+	/** The add title as a screen reader hears it, naming the container. */
+	addHeard: string
 }
 
 /**
@@ -614,6 +617,7 @@ function partWords(container: ContentField): PartWords {
 			region: sprintf(__('Layouts of %(field)s', 'gophenberg'), named),
 			empty: __('No layouts yet.', 'gophenberg'),
 			add: __('Add a layout', 'gophenberg'),
+			addHeard: sprintf(__('Add layout to %(field)s', 'gophenberg'), named),
 		}
 	}
 	return {
@@ -621,7 +625,22 @@ function partWords(container: ContentField): PartWords {
 		region: sprintf(__('Sub fields of %(field)s', 'gophenberg'), named),
 		empty: __('No sub fields yet.', 'gophenberg'),
 		add: __('Add a field', 'gophenberg'),
+		addHeard: sprintf(__('Add field to %(field)s', 'gophenberg'), named),
 	}
+}
+
+/**
+ * Renders words shown on screen while a screen reader hears a fuller name in their place.
+ * @param props - The words shown and the words heard.
+ * @returns The words.
+ */
+function Heard(props: { shown: string; heard: string }) {
+	return (
+		<>
+			<span aria-hidden="true">{props.shown}</span>
+			<VisuallyHidden render={<span />}>{props.heard}</VisuallyHidden>
+		</>
+	)
 }
 
 /**
@@ -639,7 +658,9 @@ function SubFieldsPart(props: Reporter & FieldsWork & Container) {
 	return (
 		<Stack direction="column" gap="lg">
 			<Stack direction="column" gap="sm">
-				<SectionTitle>{words.title}</SectionTitle>
+				<SectionTitle>
+					<Heard shown={words.title} heard={words.region} />
+				</SectionTitle>
 				<SubFieldList {...props} words={words} />
 			</Stack>
 			<AddSection
@@ -650,7 +671,7 @@ function SubFieldsPart(props: Reporter & FieldsWork & Container) {
 					parent: container.kind,
 					container: container.label,
 				}}
-				title={words.add}
+				title={<Heard shown={words.add} heard={words.addHeard} />}
 				level={3}
 				onDone={props.onDone}
 				onRefused={props.onRefused}
