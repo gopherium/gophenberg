@@ -239,7 +239,7 @@ function PostsEmpty({ view, status, adding }: { view: OfferedView<View>, status:
 		return <ListNoResults />
 	}
 	if (status === 'trash') {
-		return <ListEmpty icon={trash}title={__('Trash is empty', 'gophenberg')} />
+		return <ListEmpty icon={trash} title={__('Trash is empty', 'gophenberg')} />
 	}
 	if (status !== '') {
 		return <ListEmpty icon={post} title={emptyTabTitles()[status]} />
