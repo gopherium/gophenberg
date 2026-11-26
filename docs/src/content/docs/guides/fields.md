@@ -71,7 +71,9 @@ To add a field, use **Add a field** under the table. Type a
 the key from the label, so a field called Sold On is stored under
 `sold-on`. The key and the entry you picked are fixed once the field
 exists, so an Email field stays an email box. A new field starts
-optional. Open it to set it up. An add that gets no answer within the
+optional. Open it to set it up. When the key made from the label is
+taken or cannot be made, the reason shows under the **Label** box
+until you change the label. An add that gets no answer within the
 site's [time limit](/self-hosting/configuration/#the-variables) fails,
 and the label you typed stays in the box.
 
@@ -161,7 +163,8 @@ holds under **Sub fields**, then its own **Add a field** form. A
 flexible content field lists its layouts under **Layouts**, then an
 **Add a layout** form.
 [Fields inside fields](#fields-inside-fields) says how both work.
-**Close field** comes last. Closing a field keeps your edits. Its row
+**Close field** comes last, under a line across the open field.
+Closing a field keeps your edits. Its row
 shows **Unsaved changes** while it holds them. **Discard changes**
 drops the edits and closes the field.
 
@@ -291,13 +294,16 @@ straight away. After a click it stays on the button.
 
 A screen reader names the form and its button after the container,
 such as Add field to Team, so neither sounds like the group's own
-**Add field**. Two containers may each hold a field of the same name,
-because a field is named inside the container that holds it. One
-container holds each name once, so a second field of that name inside
-it is rejected. The label you typed stays in the box, so you can
-change it and try again. An add that gets no answer within the site's
-[time limit](/self-hosting/configuration/#the-variables) fails the
-same way and keeps the label too.
+**Add field**. It reads the titles over them the same way, such as
+Sub fields of Team, so a list of headings tells the levels apart.
+Two containers may each hold a field of the same name, because a
+field is named inside the container that holds it. One container
+holds each name once, so a second field of that name inside it is
+rejected, and the reason shows under the **Label** box. The label you
+typed stays there, so you can change it and try again. An add that
+gets no answer within the site's
+[time limit](/self-hosting/configuration/#the-variables) fails with a
+message above the fields, and it keeps the label too.
 
 A flexible content field takes layouts rather than fields. Open it
 and **Layouts** lists its layouts in a table. A flexible content
