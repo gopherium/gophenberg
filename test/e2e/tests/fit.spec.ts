@@ -9,6 +9,8 @@ const PHONE = { width: 390, height: 844 }
 
 const LAPTOP = { width: 1280, height: 800 }
 
+const SMALL_LAPTOP = { width: 1024, height: 768 }
+
 const LONG_TITLE =
 	'A post whose title runs on well past the width any phone screen could ever offer a reader'
 
@@ -358,6 +360,37 @@ test('lists the field groups at 390 with the count under the title, the header h
 		return { width: box?.width, height: box?.height }
 	})
 	expect(header, 'the column headers hide from sight at 390').toEqual({ width: 1, height: 1 })
+})
+
+test('scrolls the field groups table sideways in its region at 1024 beside the sidebar, every Delete in reach and nothing past the page', async ({
+	page,
+}) => {
+	await groupOfItsOwn(page)
+	const idle = await page.request.post('/api/groups', {
+		data: { title: `Apprenticeshipcoordination ${RUN}`, location: [[{ source: 'content_type', operator: '==', value: 'post' }]] },
+	})
+	expect(idle.status()).toBe(201)
+	const made = (await idle.json()) as { id: number; updated_at: string }
+	madeGroups.push(made.id)
+	const paused = await page.request.patch(`/api/groups/${made.id}`, { data: { updated_at: made.updated_at, active: false } })
+	expect(paused.status()).toBe(200)
+	await page.setViewportSize(SMALL_LAPTOP)
+
+	await page.goto('/admin/field-groups')
+	const region = page.getByRole('region', { name: 'Field Groups' })
+	await expect(region.getByText('Inactive', { exact: true })).toBeVisible()
+
+	expect(await spills(page), 'the field groups table spills past the page at 1024').toEqual({ document: 0, canvas: 0 })
+	expect(await sidewaysOf(region), 'the field groups region scrolls sideways at 1024').toBeGreaterThan(0)
+	const reached: { button: { left: number; right: number }; region: { left: number; right: number } }[] = []
+	for (const button of await region.getByRole('button', { name: 'Delete', exact: true }).all()) {
+		await button.scrollIntoViewIfNeeded()
+		reached.push({ button: await edgesOf(button), region: await edgesOf(region) })
+	}
+	expect(
+		reached.filter((at) => at.button.left < at.region.left || at.button.right > at.region.right),
+		'a Delete button stays outside the field groups region once scrolled to at 1024',
+	).toEqual([])
 })
 
 test('lists the fields of a group page at 1280 and 390, the label level with the trash and the API name under them', async ({
