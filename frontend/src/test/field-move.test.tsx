@@ -19,7 +19,7 @@ import {
 	SUBTITLE,
 } from './groupFieldsFixtures'
 import { renderAt } from './render'
-import { expectReadOnly, waitBusy } from './typeFixtures'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const NAME = { ...SUBTITLE, key: 'name', label: 'Name' }
 
@@ -37,29 +37,90 @@ const BLOCKS = { ...SUBTITLE, key: 'blocks', label: 'Blocks', kind: 'flexible', 
 
 const LINKED = { ...SUBTITLE, key: 'linked-from', label: 'Linked from', kind: 'backlinks' }
 
+const VALUES_FOLLOW_MESSAGE = 'The field keeps its values on the content both groups reach.'
+
+const VALUES_STAY_MESSAGE = 'The values stored under it do not follow.'
+
+const STALE_WRITE_MESSAGE =
+	'Someone else saved changes to this item while you were editing, so yours were not saved. ' +
+	'Copy your text somewhere safe, then reload the item and put your changes back in.'
+
 serveFieldGroups()
 
-test('carries a field over to another group', async () => {
-	let sent: unknown
+/**
+ * Opens the move of a field.
+ * @param scope - The element the field's Move button stands in.
+ * @param label - The label of the field being carried.
+ * @returns The move dialog.
+ */
+async function openMoveDialog(scope: HTMLElement, label: string) {
+	const moveButtonName = `Move ${label} elsewhere`
+	await userEvent.click(within(scope).getByRole('button', { name: moveButtonName }))
+	return screen.findByRole('dialog', { name: moveButtonName })
+}
+
+/**
+ * Opens the move of a field and the list of places it may land.
+ * @param scope - The element the field's Move button stands in.
+ * @param label - The label of the field being carried.
+ * @returns The move dialog.
+ */
+async function openDestinationList(scope: HTMLElement, label: string) {
+	const moveDialog = await openMoveDialog(scope, label)
+	await userEvent.click(within(moveDialog).getByLabelText('Destination'))
+	return moveDialog
+}
+
+test.each([
+	{
+		carries: 'over to another group',
+		field: SUBTITLE,
+		path: 'subtitle',
+		groups: [DETAILS, EXTRAS],
+		openedContainer: '',
+		destination: 'Extras',
+		message: VALUES_FOLLOW_MESSAGE,
+		body: { to_group: 4 },
+	},
+	{
+		carries: 'inside a container and says its values stay behind',
+		field: SUBTITLE,
+		path: 'subtitle',
+		groups: [NESTED, EXTRAS],
+		openedContainer: '',
+		destination: 'Article details: Author',
+		message: VALUES_STAY_MESSAGE,
+		body: { to_group: 3, to_parent: 'author' },
+	},
+	{
+		carries: 'out of a container to the top of its group',
+		field: NAME,
+		path: 'author.name',
+		groups: [NESTED, EXTRAS],
+		openedContainer: 'Author',
+		destination: 'Article details',
+		message: VALUES_STAY_MESSAGE,
+		body: { to_group: 3 },
+	},
+])('carries a field $carries', async (moveCase) => {
+	let sentBody: unknown
 	server.use(
-		http.post('/api/groups/3/fields/subtitle/move', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
+		http.post(`/api/groups/3/fields/${moveCase.path}/move`, async ({ request }) => {
+			sentBody = await request.json()
+			return HttpResponse.json(moveCase.field)
 		}),
 	)
+	listing(moveCase.groups)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
+	const scope = moveCase.openedContainer === '' ? main : await openField(main, moveCase.openedContainer)
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
-	await userEvent.click(await screen.findByRole('option', { name: 'Extras' }))
-	expect(
-		within(moving).getByText('The field keeps its values on the content both groups reach.'),
-	).toBeInTheDocument()
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+	const moveDialog = await openDestinationList(scope, moveCase.field.label)
+	await userEvent.click(await screen.findByRole('option', { name: moveCase.destination }))
+	expect(within(moveDialog).getByText(moveCase.message)).toBeInTheDocument()
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
 
-	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
+	await waitFor(() => expect(sentBody).toEqual(moveCase.body))
 })
 
 test('carries a field to the first place still on offer once the container it would land in is gone', async () => {
@@ -76,18 +137,15 @@ test('carries a field to the first place still on offer once the container it wo
 	)
 	listing([NESTED, EXTRAS])
 	renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete Author' }))
+	const main = await openFields()
+	await userEvent.click(within(main).getByRole('button', { name: 'Delete Author' }))
 	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Author"?' })
 	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
-	await waitFor(() => expect(within(fieldsOf(dialog)).queryByText('Author')).not.toBeInTheDocument())
+	await waitFor(() => expect(within(fieldsOf(main)).queryByText('Author')).not.toBeInTheDocument())
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	expect(
-		within(moving).getByText('The field keeps its values on the content both groups reach.'),
-	).toBeInTheDocument()
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+	const moveDialog = await openMoveDialog(main, 'Subtitle')
+	expect(within(moveDialog).getByText(VALUES_FOLLOW_MESSAGE)).toBeInTheDocument()
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
 })
@@ -96,19 +154,17 @@ test('offers nowhere to carry a field when the group is the only one', async () 
 	listing([DETAILS])
 	renderAt('/field-groups')
 
-	const dialog = await openFields()
+	const main = await openFields()
 
-	expect(within(dialog).queryByRole('button', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument()
+	expect(within(main).queryByRole('button', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument()
 })
 
 test('offers every container beside the other groups as a place to carry a field', async () => {
 	listing([NESTED, CRATED])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Subtitle')
 
 	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
 	expect(screen.getByRole('option', { name: 'Extras: Box' })).toBeInTheDocument()
@@ -116,59 +172,12 @@ test('offers every container beside the other groups as a place to carry a field
 	expect(screen.queryByRole('option', { name: 'Article details' })).not.toBeInTheDocument()
 })
 
-test('carries a field inside a container and says its values stay behind', async () => {
-	let sent: unknown
-	server.use(
-		http.post('/api/groups/3/fields/subtitle/move', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	listing([NESTED, EXTRAS])
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
-	await userEvent.click(await screen.findByRole('option', { name: 'Article details: Author' }))
-	expect(within(moving).getByText('The values stored under it do not follow.')).toBeInTheDocument()
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
-
-	await waitFor(() => expect(sent).toEqual({ to_group: 3, to_parent: 'author' }))
-})
-
-test('carries a field out of a container to the top of its group', async () => {
-	let sent: unknown
-	server.use(
-		http.post('/api/groups/3/fields/author.name/move', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(NAME)
-		}),
-	)
-	listing([NESTED, EXTRAS])
-	renderAt('/field-groups')
-	const dialog = await openFields()
-	const author = await openField(dialog, 'Author')
-
-	await userEvent.click(within(author).getByRole('button', { name: 'Move Name elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Name elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
-	await userEvent.click(await screen.findByRole('option', { name: 'Article details' }))
-	expect(within(moving).getByText('The values stored under it do not follow.')).toBeInTheDocument()
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
-
-	await waitFor(() => expect(sent).toEqual({ to_group: 3 }))
-})
-
 test('never offers a container to a Linked from field', async () => {
 	listing([{ ...DETAILS, fields: [LINKED, AUTHOR] }, CRATED])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Linked from elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Linked from elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Linked from')
 
 	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
@@ -179,12 +188,10 @@ test('offers a layout nothing but another flexible content field', async () => {
 	const gallery = { ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'flexible', fields: [] }
 	listing([{ ...DETAILS, fields: [BLOCKS, AUTHOR] }, { ...EXTRAS, fields: [gallery, BOX] }])
 	renderAt('/field-groups')
-	const dialog = await openFields()
-	const blocks = await openField(dialog, 'Blocks')
+	const main = await openFields()
+	const blocksPart = await openField(main, 'Blocks')
 
-	await userEvent.click(within(blocks).getByRole('button', { name: 'Move Quote elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Quote elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(blocksPart, 'Quote')
 
 	expect(await screen.findByRole('option', { name: 'Extras: Gallery' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
@@ -195,11 +202,9 @@ test('offers a layout nothing but another flexible content field', async () => {
 test('never offers a flexible content field to anything but a layout', async () => {
 	listing([{ ...DETAILS, fields: [SUBTITLE, BLOCKS] }, EXTRAS])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Subtitle')
 
 	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Article details: Blocks' })).not.toBeInTheDocument()
@@ -208,11 +213,9 @@ test('never offers a flexible content field to anything but a layout', async () 
 test('offers a choice field every place a field of its own may stand', async () => {
 	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }] }, CRATED])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Style elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Style elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Style')
 
 	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
 	expect(screen.getByRole('option', { name: 'Extras: Box' })).toBeInTheDocument()
@@ -222,11 +225,9 @@ test('never offers a group or a container a plugin keeps', async () => {
 	const kept = { ...BOX, key: 'kept', label: 'Kept', origin: 'forms' }
 	listing([{ ...NESTED, fields: [SUBTITLE, AUTHOR, kept] }, { ...CRATED, origin: 'forms' }])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Subtitle')
 
 	expect(await screen.findByRole('option', { name: 'Article details: Author' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Article details: Kept' })).not.toBeInTheDocument()
@@ -235,16 +236,17 @@ test('never offers a group or a container a plugin keeps', async () => {
 })
 
 test('never offers a container inside the field being carried', async () => {
-	listing([NESTED, EXTRAS])
+	const nestedSection = { ...BOX, key: 'inner', label: 'Inner' }
+	listing([{ ...DETAILS, fields: [SUBTITLE, READING_TIME, { ...AUTHOR, fields: [NAME, nestedSection] }, BOX] }, EXTRAS])
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Author elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Author elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await openDestinationList(main, 'Author')
 
 	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.getByRole('option', { name: 'Article details: Box' })).toBeInTheDocument()
 	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Inner' })).not.toBeInTheDocument()
 })
 
 test('keeps the move open and says inside why it was turned away', async () => {
@@ -254,15 +256,37 @@ test('keeps the move open and says inside why it was turned away', async () => {
 		),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+	const moveDialog = await openMoveDialog(main, 'Subtitle')
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
 
-	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
-	expect(await within(moving).findByText(said)).toBeInTheDocument()
-	expect(screen.getAllByText(said)).toHaveLength(1)
+	const takenNameMessage = 'A field with that name already exists on the items this group reaches. Pick another name.'
+	expect(await within(moveDialog).findByText(takenNameMessage)).toBeInTheDocument()
+	expect(screen.getAllByText(takenNameMessage)).toHaveLength(1)
+})
+
+test('closes the move, says why in a toast and reads the groups again once someone changed them first', async () => {
+	let groupReadCount = 0
+	server.use(
+		http.get('/api/groups', () => {
+			groupReadCount += 1
+			return HttpResponse.json({ items: [DETAILS, EXTRAS] })
+		}),
+		http.post('/api/groups/3/fields/subtitle/move', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const readCountBefore = groupReadCount
+
+	const moveDialog = await openMoveDialog(main, 'Subtitle')
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
+
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument())
+	expect(await findToast(`Could not save the field. ${STALE_WRITE_MESSAGE}`)).toBeInTheDocument()
+	await waitFor(() => expect(groupReadCount).toBe(readCountBefore + 1))
 })
 
 test('keeps a field where it is when the move is dismissed', async () => {
@@ -274,11 +298,10 @@ test('keeps a field where it is when the move is dismissed', async () => {
 		}),
 	)
 	renderAt('/field-groups')
-	const dialog = await openFields()
+	const main = await openFields()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByRole('button', { name: 'Cancel' }))
+	const moveDialog = await openMoveDialog(main, 'Subtitle')
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Cancel' }))
 
 	await waitFor(() =>
 		expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument(),
@@ -297,12 +320,11 @@ test('keeps the destination of a field read only while its move runs', async () 
 	renderAt('/field-groups')
 	const main = await openFields()
 
-	await userEvent.click(within(main).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
-	await waitBusy(moving, 'Move the field')
+	const moveDialog = await openMoveDialog(main, 'Subtitle')
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
+	await waitBusy(moveDialog, 'Move the field')
 
-	expectReadOnly(moving)
+	expectReadOnly(moveDialog)
 	answer.release()
 	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument())
 })
@@ -342,18 +364,16 @@ test('carries a field to the first place still on offer once the group picked le
 	)
 	listing([DETAILS, EXTRAS, later])
 	const client = renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
+	const main = await openFields()
+	const moveDialog = await openDestinationList(main, 'Subtitle')
 	await userEvent.click(await screen.findByRole('option', { name: 'Later' }))
 
 	listing([DETAILS, EXTRAS])
 	await act(async () => {
 		await client.invalidateQueries({ queryKey: groupsQueryKey })
 	})
-	await waitFor(() => expect(within(moving).getByLabelText('Destination')).toHaveTextContent('Extras'))
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+	await waitFor(() => expect(within(moveDialog).getByLabelText('Destination')).toHaveTextContent('Extras'))
+	await userEvent.click(within(moveDialog).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
 })
