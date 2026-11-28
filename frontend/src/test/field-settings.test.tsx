@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test } from 'vitest'
+import { expect, onTestFinished, test, vi } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
 import { gate } from './gate'
@@ -31,8 +31,11 @@ const READ_STAMP = '2026-08-01T10:00:00Z'
 
 const OTHER_SAVE_STAMP = '2026-08-02T09:00:00Z'
 
-/** A time limit far shorter than any test. */
-const SHORT_LIMIT = 20
+/** A time limit the site serves for a write, apart from the one the fixtures serve. */
+const SERVED_TIME_LIMIT = 30000
+
+/** How long before the served limit a write is checked as still running. */
+const TIME_BEFORE_LIMIT = 5000
 
 serveFieldGroups()
 
@@ -42,6 +45,16 @@ serveFieldGroups()
  */
 function aMoment() {
 	return act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+}
+
+/**
+ * Advances the clock inside a React update.
+ * @param ms - The milliseconds to advance.
+ */
+async function tick(ms: number) {
+	await act(async () => {
+		await vi.advanceTimersByTimeAsync(ms)
+	})
 }
 
 /**
@@ -343,20 +356,35 @@ test('sends nothing from Enter in an open field while nothing changed', async ()
 })
 
 test('stops a field save past the time limit the site serves, naming the field groups unreached', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
+	onTestFinished(() => {
+		vi.useRealTimers()
+	})
+	const requestArrived = gate()
 	server.use(
 		http.get('/api/settings', () =>
-			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SERVED_TIME_LIMIT }),
 		),
-		http.patch('/api/groups/3/fields/subtitle', () => new Promise<never>(() => {})),
+		http.patch('/api/groups/3/fields/subtitle', () => {
+			requestArrived.release()
+			return new Promise<never>(() => {})
+		}),
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Subtitle')
 	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	const unreachedMessage = 'Could not save Subtitle. The field groups could not be reached.'
 
 	await userEvent.click(saveOf(main))
+	await requestArrived.held
 
-	expect(await findToast('Could not save Subtitle. The field groups could not be reached.')).toBeInTheDocument()
+	await tick(SERVED_TIME_LIMIT - TIME_BEFORE_LIMIT)
+	expect(saveOf(main)).toHaveClass(/__is-loading\b/)
+	expect(screen.queryByText(unreachedMessage, { selector: '.godmin-toast' })).toBeNull()
+	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
+	await tick(TIME_BEFORE_LIMIT)
+	expect(await findToast(unreachedMessage)).toBeInTheDocument()
 	expect(within(part).getByRole('textbox', { name: 'Label' })).toHaveValue('Subtitle line')
 })
 
@@ -480,8 +508,11 @@ test('keeps a failed field open with the words under the setting named, closing 
 	expect(within(failing).getByRole('tab', { name: 'Presentation' })).toHaveAttribute('aria-selected', 'true')
 	const placeholder = within(failing).getByRole('textbox', { name: 'Placeholder' })
 	await waitFor(() => expect(placeholder).toHaveAccessibleDescription(said))
+	await waitFor(() => expect(saveOf(main)).not.toHaveClass(/__is-loading\b/))
+	expect(placeholder).toHaveValue('Maria Perez')
 	expect(within(failing).queryByRole('alert')).toBeNull()
 	await userEvent.type(placeholder, '!')
+	expect(placeholder).toHaveValue('Maria Perez!')
 	expect(placeholder).toHaveAccessibleDescription('')
 })
 
@@ -599,12 +630,17 @@ test('takes the notice of a rejected save away once the field drops its draft', 
 })
 
 test.each([
-	{ gone: 'the field', left: [{ ...DETAILS, fields: [READING_TIME] }, EXTRAS], shows: 'Reading time', save: 'off' },
-	{ gone: 'its group', left: [EXTRAS], shows: 'This field group does not exist', save: 'absent' },
-])('lets a stale draft go once Load saved version finds someone deleted $gone', async (asked) => {
+	{
+		deleted: 'the field',
+		remainingGroups: [{ ...DETAILS, fields: [READING_TIME] }, EXTRAS],
+		visibleText: 'Reading time',
+		save: 'off',
+	},
+	{ deleted: 'its group', remainingGroups: [EXTRAS], visibleText: 'This field group does not exist', save: 'absent' },
+])('lets a stale draft go once Load saved version finds someone deleted $deleted', async (deleteCase) => {
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () => {
-			listing(asked.left)
+			listing(deleteCase.remainingGroups)
 			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
 		}),
 	)
@@ -616,9 +652,9 @@ test.each([
 
 	await userEvent.click(await within(part).findByRole('button', { name: 'Load saved version' }))
 
-	expect(await within(main).findByText(new RegExp(asked.shows))).toBeInTheDocument()
-	expect(within(main).queryByRole('button', { name: 'Subtitle' })).toBeNull()
-	expect(saveState(main)).toBe(asked.save)
+	await waitFor(() => expect(within(main).queryByRole('button', { name: 'Subtitle' })).toBeNull())
+	expect(within(main).getByText(new RegExp(deleteCase.visibleText))).toBeInTheDocument()
+	expect(saveState(main)).toBe(deleteCase.save)
 })
 
 test('offers the settings a text field takes on their tabs and stores them', async () => {
