@@ -4,7 +4,7 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { rememberLocale } from '@gopherium/gottext'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, onTestFinished, test } from 'vitest'
+import { expect, onTestFinished, test, vi } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
 import { DEFAULT_LOCALE } from '../i18n/catalog'
@@ -74,14 +74,25 @@ function standsAbove(row: HTMLElement, other: HTMLElement) {
  * @returns The reads so far and the groups the next read answers with.
  */
 function countedReads() {
-	const reads: { count: number; groups: unknown[] } = { count: 0, groups: [DETAILS, EXTRAS] }
+	const groupReads: { count: number; groups: unknown[] } = { count: 0, groups: [DETAILS, EXTRAS] }
 	server.use(
 		http.get('/api/groups', () => {
-			reads.count += 1
-			return HttpResponse.json({ items: reads.groups })
+			groupReads.count += 1
+			return HttpResponse.json({ items: groupReads.groups })
 		}),
 	)
-	return reads
+	return groupReads
+}
+
+/**
+ * Counts the orders of the group's fields the page sends, at the moment each leaves.
+ * @returns A reader of how many left so far.
+ */
+function countOrdersSent(): () => number {
+	const fetchSpy = vi.spyOn(globalThis, 'fetch')
+	onTestFinished(() => fetchSpy.mockRestore())
+	return () =>
+		fetchSpy.mock.calls.filter(([url, init]) => url === '/api/groups/3/fields/order' && init?.method === 'PUT').length
 }
 
 /**
@@ -633,15 +644,15 @@ test('leaves the focus where the reader took it while a deleted field was on its
 })
 
 test('stores a new order with no toast, then reads the groups again', async () => {
-	const reads = countedReads()
+	const groupReads = countedReads()
 	server.use(http.put('/api/groups/3/fields/order', () => HttpResponse.json({ items: [READING_TIME, SUBTITLE] })))
 	renderAt('/field-groups')
 	const main = await openFields()
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 
-	await waitFor(() => expect(reads.count).toBeGreaterThan(before))
+	await waitFor(() => expect(groupReads.count).toBeGreaterThan(readCountBefore))
 	await act(async () => {})
 	expect(screen.queryByText('Order stored.')).toBeNull()
 })
@@ -666,7 +677,7 @@ test('stores the order a field is moved down into', async () => {
 
 test('moves a field at once while the order it asks for is on its way', async () => {
 	const answer = gate()
-	const reads = countedReads()
+	const groupReads = countedReads()
 	server.use(
 		http.put('/api/groups/3/fields/order', async () => {
 			await answer.held
@@ -675,19 +686,20 @@ test('moves a field at once while the order it asks for is on its way', async ()
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 
 	expect(standsAbove(await fieldRow(main, 'Reading time'), await fieldRow(main, 'Subtitle'))).toBe(true)
-	expect(reads.count).toBe(before)
+	expect(groupReads.count).toBe(readCountBefore)
 	answer.release()
-	await waitFor(() => expect(reads.count).toBeGreaterThan(before))
+	await waitFor(() => expect(groupReads.count).toBeGreaterThan(readCountBefore))
 })
 
 test('sends one order at a time and stores the newest once the order on its way is answered', async () => {
 	const answer = gate()
-	const reads = countedReads()
+	const groupReads = countedReads()
+	const ordersSent = countOrdersSent()
 	const sent: unknown[] = []
 	server.use(
 		http.put('/api/groups/3/fields/order', async ({ request }) => {
@@ -698,23 +710,24 @@ test('sends one order at a time and stores the newest once the order on its way 
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 	await waitFor(() => expect(sent).toHaveLength(1))
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle up' }))
-	expect(sent).toHaveLength(1)
+	expect(ordersSent()).toBe(1)
 	answer.release()
 
 	await waitFor(() =>
 		expect(sent).toEqual([{ order: ['reading-time', 'subtitle'] }, { order: ['subtitle', 'reading-time'] }]),
 	)
-	await waitFor(() => expect(reads.count).toBeGreaterThan(before))
+	expect(ordersSent()).toBe(2)
+	await waitFor(() => expect(groupReads.count).toBeGreaterThan(readCountBefore))
 })
 
 test('keeps the order a field was moved into while the groups are read again before it is answered', async () => {
 	const answer = gate()
-	const reads = countedReads()
+	const groupReads = countedReads()
 	const summary = { ...SUBTITLE, key: 'summary', label: 'Summary' }
 	server.use(
 		http.put('/api/groups/3/fields/order', async () => {
@@ -726,16 +739,16 @@ test('keeps the order a field was moved into while the groups are read again bef
 	const main = await openFields()
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 
-	reads.groups = [{ ...DETAILS, fields: [SUBTITLE, READING_TIME, summary] }, EXTRAS]
+	groupReads.groups = [{ ...DETAILS, fields: [SUBTITLE, READING_TIME, summary] }, EXTRAS]
 	await act(async () => {
 		await client.invalidateQueries({ queryKey: groupsQueryKey })
 	})
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	expect(standsAbove(await fieldRow(main, 'Summary'), await fieldRow(main, 'Subtitle'))).toBe(false)
 	expect(standsAbove(await fieldRow(main, 'Reading time'), await fieldRow(main, 'Subtitle'))).toBe(true)
 	answer.release()
-	await waitFor(() => expect(reads.count).toBeGreaterThan(before))
+	await waitFor(() => expect(groupReads.count).toBeGreaterThan(readCountBefore))
 })
 
 test('puts a field back in its stored place when the order it asked for is rejected', async () => {
@@ -750,23 +763,23 @@ test('puts a field back in its stored place when the order it asked for is rejec
 })
 
 test('keeps the order the server holds and reads nothing again when an order never arrives', async () => {
-	const reads = countedReads()
+	const groupReads = countedReads()
 	server.use(http.put('/api/groups/3/fields/order', () => HttpResponse.error()))
 	renderAt('/field-groups')
 	const main = await openFields()
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 
 	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
 	expect(standsAbove(await fieldRow(main, 'Subtitle'), await fieldRow(main, 'Reading time'))).toBe(true)
 	await act(async () => {})
-	expect(reads.count).toBe(before)
+	expect(groupReads.count).toBe(readCountBefore)
 })
 
 test('shows the order the first store landed and reads nothing again when the next order never arrives', async () => {
 	const answer = gate()
-	const reads = countedReads()
+	const groupReads = countedReads()
 	let orders = 0
 	server.use(
 		http.put('/api/groups/3/fields/order', async () => {
@@ -775,13 +788,13 @@ test('shows the order the first store landed and reads nothing again when the ne
 				return HttpResponse.error()
 			}
 			await answer.held
-			reads.groups = [{ ...DETAILS, fields: [READING_TIME, SUBTITLE] }, EXTRAS]
+			groupReads.groups = [{ ...DETAILS, fields: [READING_TIME, SUBTITLE] }, EXTRAS]
 			return HttpResponse.json({ items: [READING_TIME, SUBTITLE] })
 		}),
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
-	const before = reads.count
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle up' }))
@@ -790,11 +803,12 @@ test('shows the order the first store landed and reads nothing again when the ne
 	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
 	expect(standsAbove(await fieldRow(main, 'Reading time'), await fieldRow(main, 'Subtitle'))).toBe(true)
 	await act(async () => {})
-	expect(reads.count).toBe(before)
+	expect(groupReads.count).toBe(readCountBefore)
 })
 
 test('reads the groups again once a later order is rejected, showing the order the first one stored', async () => {
 	const answer = gate()
+	const groupReads = countedReads()
 	let orders = 0
 	server.use(
 		http.put('/api/groups/3/fields/order', async () => {
@@ -803,18 +817,20 @@ test('reads the groups again once a later order is rejected, showing the order t
 				return HttpResponse.json(ORDER_REJECTED, { status: 422 })
 			}
 			await answer.held
-			listing([{ ...DETAILS, fields: [READING_TIME, SUBTITLE] }, EXTRAS])
+			groupReads.groups = [{ ...DETAILS, fields: [READING_TIME, SUBTITLE] }, EXTRAS]
 			return HttpResponse.json({ items: [READING_TIME, SUBTITLE] })
 		}),
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
+	const readCountBefore = groupReads.count
 
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle down' }))
 	await userEvent.click(within(await fieldRow(main, 'Subtitle')).getByRole('button', { name: 'Move Subtitle up' }))
 	answer.release()
 
 	expect(await within(main).findByRole('alert')).toHaveTextContent(/every field/)
+	await waitFor(() => expect(groupReads.count).toBeGreaterThan(readCountBefore))
 	await waitFor(async () =>
 		expect(standsAbove(await fieldRow(main, 'Reading time'), await fieldRow(main, 'Subtitle'))).toBe(true),
 	)
