@@ -610,6 +610,56 @@ test('moves a stale draft onto the saved version, keeping its own changes and ma
 	})
 })
 
+/**
+ * Types a new label in Subtitle, runs the header Save into a conflict and clicks Load saved version on a gated read.
+ * @returns The main work of the page, the open part of Subtitle, its Label box, the gate of the read and the client.
+ */
+async function startPendingLoad() {
+	const otherVersion = { ...SUBTITLE, settings: { instructions: 'Say who wrote it.' }, updated_at: OTHER_SAVE_STAMP }
+	const readGate = gate()
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () => {
+			server.use(
+				http.get('/api/groups', async () => {
+					await readGate.held
+					return HttpResponse.json({ items: [{ ...DETAILS, fields: [otherVersion, READING_TIME] }, EXTRAS] })
+				}),
+			)
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	const client = renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	const labelInput = within(part).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(labelInput, ' line')
+	await userEvent.click(saveOf(main))
+	await userEvent.click(await within(part).findByRole('button', { name: 'Load saved version' }))
+	return { main, part, labelInput, readGate, client }
+}
+
+test('keeps what was typed while Load saved version reads the groups again', async () => {
+	const { part, labelInput, readGate } = await startPendingLoad()
+
+	await userEvent.type(labelInput, ' more')
+	readGate.release()
+
+	await waitFor(() => expect(within(part).queryByRole('button', { name: 'Load saved version' })).toBeNull())
+	expect(labelInput).toHaveValue('Subtitle line more')
+})
+
+test('does not bring back a draft discarded during Load saved version', async () => {
+	const { main, part, readGate, client } = await startPendingLoad()
+
+	await userEvent.click(within(part).getByRole('button', { name: 'Discard changes' }))
+	readGate.release()
+
+	await waitFor(() => expect(client.isMutating()).toBe(0))
+	await aMoment()
+	expect(saveState(main)).toBe('off')
+	expect(within(labelOf(await fieldRow(main, 'Subtitle'))).queryByText('Unsaved changes')).toBeNull()
+})
+
 test('takes the notice of a rejected save away once the field drops its draft', async () => {
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () =>

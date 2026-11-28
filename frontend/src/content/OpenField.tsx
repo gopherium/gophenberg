@@ -148,38 +148,38 @@ function boxOf(offered: SettingControl[], rejected: Rejection | undefined): Sett
 }
 
 /**
- * Returns the server's words a rejected save leaves in the field's own notice, when no box takes them.
- * @param draft - The draft held.
+ * Returns the server's message a rejected save leaves in the field's own notice, when no box takes it.
+ * @param draft - The draft of the field.
  * @param note - What the field shows of its last save.
- * @returns The words, empty while they stand under a box or no rejection stands.
+ * @returns The message, empty while it shows under a box or no rejection stands.
  */
-function noticeWords(draft: FieldDraft, note: FieldNote | undefined): string {
-	const rejected = note?.rejected
-	if (rejected === undefined || boxOf(settingsOffered(draft.base), rejected) !== undefined) {
+function noticeMessage(draft: FieldDraft, note: FieldNote | undefined): string {
+	const rejection = note?.rejected
+	if (rejection === undefined || boxOf(settingsOffered(draft.base), rejection) !== undefined) {
 		return ''
 	}
-	return rejected.words
+	return rejection.words
 }
 
 /**
- * Returns what moves a field's draft onto the version saved elsewhere, reading the groups again first.
- * @param group - The id of the group holding the field.
+ * Returns what reads the groups again and moves the page's draft of a field onto the version saved elsewhere.
+ * @param group - The id of the group of the field.
  * @param path - The dotted path of the field.
  * @param work - The page's work on its fields.
- * @returns The mutation, given the draft to move.
+ * @returns The mutation, which moves the draft the page has once the read ends and leaves a field without one alone.
  */
 function useLoadSaved(group: number, path: string, work: FieldWork) {
 	const client = useQueryClient()
 	return useMutation({
-		mutationFn: async (draft: FieldDraft) => {
+		mutationFn: async () => {
 			await client.refetchQueries({ queryKey: groupsQueryKey }, { throwOnError: true })
-			const held = client.getQueryData<FieldGroup[]>(groupsQueryKey)?.find((one) => one.id === group)
-			const saved = fieldAt(held?.fields ?? [], path)
-			return saved === undefined ? undefined : rebasedField(draft, saved)
+			const savedGroup = client.getQueryData<FieldGroup[]>(groupsQueryKey)?.find((cachedGroup) => cachedGroup.id === group)
+			return fieldAt(savedGroup?.fields ?? [], path)
 		},
-		onSuccess: (moved) => {
-			if (moved !== undefined) {
-				work.onRebase(path, moved)
+		onSuccess: (savedField) => {
+			const pageDraft = ownValue(work.drafts, path)
+			if (savedField !== undefined && pageDraft !== undefined) {
+				work.onRebase(path, rebasedField(pageDraft, savedField))
 			}
 		},
 	})
@@ -188,24 +188,24 @@ function useLoadSaved(group: number, path: string, work: FieldWork) {
 /**
  * Renders what the last save of a field left in its open part.
  * @param props - The group, the field, its path, its draft, what its last save left, and the page's work on it.
- * @returns The notice that someone saved it first, the server's words no box takes, or nothing while none stands.
+ * @returns The notice that someone saved it first, the server's message no box takes, or nothing while none stands.
  */
 function FieldNotices(props: NoticesProps) {
-	const load = useLoadSaved(props.group, props.path, props.work)
-	const words = noticeWords(props.draft, props.note)
+	const loadSaved = useLoadSaved(props.group, props.path, props.work)
+	const message = noticeMessage(props.draft, props.note)
 	return (
 		<>
 			{props.note?.stale === true && (
 				<Notice.Root intent="warning" role="alert">
 					<Notice.Description>{staleFieldMessage(props.field.label)}</Notice.Description>
 					<Notice.Actions>
-						<Notice.ActionButton loading={load.isPending} onClick={() => load.mutate(props.draft)}>
+						<Notice.ActionButton loading={loadSaved.isPending} onClick={() => loadSaved.mutate()}>
 							{__('Load saved version', 'gophenberg')}
 						</Notice.ActionButton>
 					</Notice.Actions>
 				</Notice.Root>
 			)}
-			{words !== '' && <ErrorNotice>{words}</ErrorNotice>}
+			{message !== '' && <ErrorNotice>{message}</ErrorNotice>}
 		</>
 	)
 }
