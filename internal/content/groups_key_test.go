@@ -20,7 +20,9 @@ func TestGroupKeyFromShapesATitleLikeAKey(t *testing.T) {
 		"2024 plans":      "group-2024-plans",
 		"!!!":             "untitled",
 		"":                "untitled",
-		"Été d'été":       "t-d-t",
+		"Été d'été":       "ete-dete",
+		"Cafés":           "cafes",
+		"Café Ærø Straße": "cafe-aero-strasse",
 	} {
 		if got := content.GroupKeyFrom(title); got != want {
 			t.Errorf("GroupKeyFrom(%q) = %q, want %q", title, got, want)

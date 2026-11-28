@@ -417,13 +417,47 @@ export function kindLabel(kind: string): string {
 }
 
 /**
- * Returns the key a label reduces to.
+ * The lowercase Latin letters that do not decompose, with their plain spelling.
+ * The same table as `letterFolds` in `internal/content/accents.go`, so a key
+ * the admin proposes is the one the server would mint.
+ */
+const LETTER_FOLDS: Readonly<Record<string, string>> = {
+	ß: 'ss',
+	æ: 'ae',
+	œ: 'oe',
+	ø: 'o',
+	đ: 'd',
+	ð: 'd',
+	þ: 'th',
+	ł: 'l',
+	ħ: 'h',
+	ı: 'i',
+	ŧ: 't',
+	ĳ: 'ij',
+	ŀ: 'l',
+	ĸ: 'k',
+	ŉ: 'n',
+	ŋ: 'n',
+	ſ: 's',
+	ª: 'a',
+	º: 'o',
+	ɑ: 'a',
+	ǝ: 'e',
+	ə: 'e',
+}
+
+/**
+ * Returns the key a label reduces to. Accented letters are written as plain
+ * ones, so "Cafés" gives `cafes` rather than `caf-s`.
  * @param label - The name the operator typed.
  * @returns The slug the label reduces to.
  */
 export function slugifyKey(label: string): string {
 	return label
 		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{Mn}/gu, '')
+		.replace(/[^\x00-\x7f]/g, (letter) => LETTER_FOLDS[letter] ?? letter)
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '')
 }
