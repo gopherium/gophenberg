@@ -39,18 +39,46 @@ function containersOf(fields: ContentField[], above: string): { label: string; p
 }
 
 /**
- * Returns whether a container may take the field: not its own place, not itself, and not one of its own.
- * @param own - Whether the container stands in the field's own group.
- * @param path - The container's dotted path.
- * @param at - The field's dotted path.
- * @param parent - The dotted path of the container holding the field, empty at a group's top.
+ * Returns whether a container can receive the moved field: not its current one, not itself, and not one inside it.
+ * @param isOwnGroup - Whether the container stands in the field's own group.
+ * @param containerPath - The container's dotted path.
+ * @param fieldPath - The field's dotted path.
+ * @param parentPath - The dotted path of the container holding the field, empty at a group's top.
  * @returns Whether the container is offered.
  */
-function takes(own: boolean, path: string, at: string, parent: string): boolean {
-	if (!own) {
+function canReceiveField(isOwnGroup: boolean, containerPath: string, fieldPath: string, parentPath: string): boolean {
+	if (!isOwnGroup) {
 		return true
 	}
-	return path !== parent && path !== at && !path.startsWith(`${at}.`)
+	return containerPath !== parentPath && containerPath !== fieldPath && !containerPath.startsWith(`${fieldPath}.`)
+}
+
+/** The field a move carries: its dotted path, the path of the container holding it, and its kind. */
+interface MovingField {
+	at: string
+	parent: string
+	kind: string
+}
+
+/**
+ * Returns the places in one group a field may be moved to: its top and every container, its own place left out.
+ * @param group - The group to look through.
+ * @param isOwnGroup - Whether the field stands in this group.
+ * @param field - The field being moved.
+ * @returns The destinations in the group, its top before its containers.
+ */
+function destinationsInGroup(group: FieldGroup, isOwnGroup: boolean, field: MovingField): Landing[] {
+	const destinations: Landing[] = []
+	const isTopLevelInOwnGroup = isOwnGroup && field.parent === ''
+	if (!isTopLevelInOwnGroup && standsInside(field.kind)) {
+		destinations.push({ label: group.title, value: String(group.id) })
+	}
+	for (const container of containersOf(group.fields, '')) {
+		if (canReceiveField(isOwnGroup, container.path, field.at, field.parent) && standsInside(field.kind, container.kind)) {
+			destinations.push({ label: `${group.title}: ${container.label}`, value: `${group.id}:${container.path}` })
+		}
+	}
+	return destinations
 }
 
 /**
@@ -64,19 +92,9 @@ function takes(own: boolean, path: string, at: string, parent: string): boolean 
  */
 function landingsFor(groups: FieldGroup[], group: number, at: string, kind: string): Landing[] {
 	const parent = at.includes('.') ? at.slice(0, at.lastIndexOf('.')) : ''
-	const held: Landing[] = []
-	for (const listed of groups.filter((listed) => (listed.origin ?? '') === '')) {
-		const own = listed.id === group
-		if ((!own || parent !== '') && standsInside(kind)) {
-			held.push({ label: listed.title, value: String(listed.id) })
-		}
-		for (const container of containersOf(listed.fields, '')) {
-			if (takes(own, container.path, at, parent) && standsInside(kind, container.kind)) {
-				held.push({ label: `${listed.title}: ${container.label}`, value: `${listed.id}:${container.path}` })
-			}
-		}
-	}
-	return held
+	return groups
+		.filter((listed) => (listed.origin ?? '') === '')
+		.flatMap((listed) => destinationsInGroup(listed, listed.id === group, { at, parent, kind }))
 }
 
 /**

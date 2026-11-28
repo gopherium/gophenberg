@@ -574,7 +574,8 @@ function labelList(fields: ContentField[]) {
  * @returns The badges, or nothing when the field carries none.
  */
 function FieldBadges(props: { field: ContentField; drafted: boolean; shadowed: boolean }) {
-	if (!props.field.required && !props.drafted && !props.shadowed) {
+	const showsNoBadges = !props.field.required && !props.drafted && !props.shadowed
+	if (showsNoBadges) {
 		return null
 	}
 	return (

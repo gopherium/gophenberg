@@ -437,7 +437,8 @@ function GroupRow(
  */
 function GroupStatus(props: { active: boolean; shadowed: boolean; origin: string }) {
 	const declared = props.origin !== ''
-	if (props.active && !props.shadowed && !declared) {
+	const needsNoStatusBadge = props.active && !props.shadowed && !declared
+	if (needsNoStatusBadge) {
 		return null
 	}
 	return (
