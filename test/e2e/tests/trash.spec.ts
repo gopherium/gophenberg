@@ -13,6 +13,8 @@ const READ_WORDS = 'Words the reading view draws in the column of the editor.'
 
 const READ_CONTENT = `<!-- wp:paragraph -->\n<p>${READ_WORDS}</p>\n<!-- /wp:paragraph -->`
 
+const LONGEST_TIMER = 2 ** 31 - 1
+
 /**
  * Creates an item of a type and moves it to the trash.
  * @param request - The signed in API client.
@@ -29,6 +31,11 @@ async function trashed(request: APIRequestContext, type: string, title: string, 
 	expect((await request.delete(`/api/content/${id}`)).ok()).toBe(true)
 	return id
 }
+
+/**
+ * Leaves a request unanswered, as a server that never replies does.
+ */
+function stall() {}
 
 test.afterEach(async ({ page }) => {
 	for (const id of created.splice(0)) {
@@ -95,4 +102,27 @@ test('reads a trashed post unscaled on a phone without clipping or a sideways sc
 	})
 	expect(inside.textRight).toBeLessThanOrEqual(inside.width)
 	expect(inside.overflow).toBe(0)
+})
+
+test('stops a permanent delete at the time limit the page carries, ahead of a longer one in the settings', async ({ page }) => {
+	const title = 'A post the dialog time limit spec trashed'
+	await trashed(page.request, 'post', title)
+	await page.clock.install()
+	await page.route('**/api/settings', async (route) => {
+		const response = await route.fetch()
+		const settings = (await response.json()) as Record<string, unknown>
+		await route.fulfill({ response, json: { ...settings, dialog_write_timeout_milliseconds: LONGEST_TIMER } })
+	})
+	await page.route((url) => url.pathname.startsWith('/api/content/') && url.searchParams.get('force') === 'true', stall)
+	await page.goto(`/admin/content/post?status=trash&search=${encodeURIComponent(title)}`)
+	const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+	await row.getByRole('button', { name: 'Actions' }).click()
+	await page.getByRole('menuitem', { name: 'Permanently delete', exact: true }).click()
+	const confirm = page.getByRole('alertdialog')
+	await confirm.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+
+	await page.clock.fastForward('01:00')
+
+	await expect(confirm).toHaveCount(0)
+	await expect(page.locator('#root').getByText('The item could not be permanently deleted.')).toBeVisible()
 })

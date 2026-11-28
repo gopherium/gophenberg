@@ -313,3 +313,23 @@ func TestTheLocaleAnswerStaysOutOfSharedCaches(t *testing.T) {
 		t.Errorf("Cache-Control = %q, want the locale answer kept out of shared caches", held)
 	}
 }
+
+func TestTheAdminPageIsNeverKeptByItsFileDate(t *testing.T) {
+	t.Parallel()
+
+	written := time.Date(2026, time.November, 1, 10, 0, 0, 0, time.UTC)
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web:   fstest.MapFS{"index.html": {Data: []byte("<!doctype html><head></head>"), ModTime: written}},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/admin/", nil)
+	request.Header.Set("If-Modified-Since", written.Add(time.Hour).Format(http.TimeFormat))
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Last-Modified") != "" {
+		t.Errorf("GET /admin/ = %d with Last-Modified %q, want 200 and no file date a client may keep the page by",
+			recorder.Code, recorder.Header().Get("Last-Modified"))
+	}
+}

@@ -4,12 +4,20 @@ Feature: The admin app comes inside the binary
   admin folder, which then wins. A named folder that holds no admin page
   stops the command before it serves, so the admin never answers a quiet
   404. The hashed files of the admin may be kept for a long window, while
-  the admin page is checked on every load.
+  the admin page is checked on every load. The page carries the dialog
+  write limit, 60 seconds unless GOPHENBERG_DIALOG_WRITE_TIMEOUT is set,
+  so a dialog still stops when the settings cannot be read.
 
   Scenario: The admin answers with no folder named
     Given the settings name no admin folder
     When the site serves
     Then "/admin/" answers the admin page built into this binary
+
+  Scenario: The dialog write limit on the admin page is a setting
+    Given the settings name no admin folder
+    And the settings give dialogs a write limit of "45s"
+    When the site serves
+    Then "/admin/" carries a dialog write limit of 45000 milliseconds
 
   Scenario: A named admin folder wins over the built-in admin
     Given the settings name an admin folder whose page says "Maria Perez built this admin"
