@@ -356,7 +356,12 @@ test('opens a field in place, saves it from Enter and from the header, and reads
 	const again = await openField(page, 'Phone number')
 	await again.getByRole('tab', { name: 'Validation' }).click()
 	await again.getByRole('checkbox', { name: 'Required' }).click()
+	const path = `/api/groups/${group.id}/fields/phone`
+	const fieldSaveResponse = page.waitForResponse(
+		(response) => response.request().method() === 'PATCH' && new URL(response.url()).pathname === path,
+	)
 	await save.click()
+	expect((await fieldSaveResponse).ok()).toBe(true)
 	await expect(save).toHaveAttribute('aria-disabled', 'true')
 	await page.reload()
 
