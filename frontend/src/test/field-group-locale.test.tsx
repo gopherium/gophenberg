@@ -1,0 +1,328 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { expect, onTestFinished, test } from 'vitest'
+
+import { catalogFor } from '../i18n/catalog'
+import {
+	DETAILS,
+	EXTRAS,
+	FEATURES,
+	HERO,
+	listing,
+	READING_TIME,
+	serveFieldGroups,
+	SUBTITLE,
+} from './groupFieldsFixtures'
+import { renderAt } from './render'
+import { findToast } from './typeFixtures'
+
+const BYLINE = { ...SUBTITLE, key: 'byline', label: 'Byline' }
+
+const AUTHOR = { ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [BYLINE] }
+
+const STYLE = { ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }
+
+/** The rule showing a field while the reading time is above five. */
+const WHILE_ABOVE_FIVE = { source: READING_TIME.key, operator: '>', value: '5' }
+
+/** The subtitle shown by a stored rule on the reading time. */
+const RULED_SUBTITLE = { ...SUBTITLE, settings: { conditions: [[WHILE_ABOVE_FIVE]] } }
+
+serveFieldGroups()
+
+/** The words of the fields table, the parts of an open field, and the header Save in each shipped locale. */
+const READERS = [
+	{
+		locale: 'es-ES',
+		fields: 'Campos',
+		columns: ['Etiqueta', 'Tipo', 'Nombre de API', 'Acciones'],
+		empty: 'Todavía no hay campos',
+		add: 'Añade un campo para guardar más datos de los elementos en los que aparece este grupo.',
+		label: 'Etiqueta',
+		tabs: ['General', 'Validación', 'Presentación', 'Lógica condicional'],
+		ruled: /^Lógica condicional/,
+		active: 'Activa',
+		rule: 'Regla 1 del conjunto 1',
+		trash: 'Quitar la regla 1 del conjunto 1',
+		close: 'Cerrar campo',
+		discard: 'Descartar los cambios',
+		listed: 'Mostrar en la lista',
+		inside: 'Subcampos de Author',
+		subFields: ['Subcampos', 'Añadir un campo'],
+		addField: { text: 'Añadir campo', name: 'Añadir campo a Author' },
+		noSubFields: 'Todavía no hay subcampos.',
+		layouts: ['Diseños', 'Añadir un diseño'],
+		layoutsOf: 'Diseños de Features',
+		addLayout: { text: 'Añadir diseño', name: 'Añadir diseño a Features' },
+		noLayouts: 'Todavía no hay diseños.',
+		remove: 'Borrar Author',
+		lostToo: 'También se pierden los cambios sin guardar dentro de Author.',
+		choice: 'Opción 1',
+		choiceButtons: ['Subir la opción', 'Bajar la opción', 'Quitar la opción'],
+		noChoices: 'Todavía no hay opciones.',
+		save: 'Guardar',
+		ran: [
+			'Cambios guardados: 1 de 2.',
+			'Error al guardar Subtitle.',
+			'Alguien guardó el campo Subtitle después de que lo abrieras.',
+		],
+	},
+	{
+		locale: 'fr-FR',
+		fields: 'Champs',
+		columns: ['Libellé', 'Genre', "Nom d'API", 'Actions'],
+		empty: "Aucun champ pour l'instant",
+		add: "Ajoutez un champ pour enregistrer plus d'informations sur les éléments où ce groupe apparaît.",
+		label: 'Libellé',
+		tabs: ['Général', 'Validation', 'Présentation', 'Logique conditionnelle'],
+		ruled: /^Logique conditionnelle/,
+		active: 'Active',
+		rule: "Règle 1 de l'ensemble 1",
+		trash: "Retirer la règle 1 de l'ensemble 1",
+		close: 'Fermer le champ',
+		discard: 'Abandonner les modifications',
+		listed: 'Afficher dans la liste',
+		inside: 'Sous-champs de Author',
+		subFields: ['Sous-champs', 'Ajouter un champ'],
+		addField: { text: 'Ajouter un champ', name: 'Ajouter un champ à Author' },
+		noSubFields: "Aucun sous-champ pour l'instant.",
+		layouts: ['Dispositions', 'Ajouter une disposition'],
+		layoutsOf: 'Dispositions de Features',
+		addLayout: { text: 'Ajouter une disposition', name: 'Ajouter une disposition à Features' },
+		noLayouts: "Aucune disposition pour l'instant.",
+		remove: 'Supprimer Author',
+		lostToo: 'Les modifications non enregistrées dans Author sont aussi perdues.',
+		choice: 'Choix 1',
+		choiceButtons: ['Monter le choix', 'Descendre le choix', 'Retirer le choix'],
+		noChoices: "Aucun choix pour l'instant.",
+		save: 'Enregistrer',
+		ran: [
+			'Modifications enregistrées : 1 sur 2.',
+			"Impossible d'enregistrer Subtitle.",
+			"Quelqu'un a enregistré le champ Subtitle après que vous l'avez ouvert.",
+		],
+	},
+]
+
+/**
+ * Renders a group's page in the locale and returns the region its fields table scrolls in.
+ * @param locale - The language to read in.
+ * @param group - The group whose page to render.
+ * @param fields - The name the region carries in the locale.
+ * @returns The region.
+ */
+async function fieldsIn(locale: string, group: { id: number; title: string }, fields: string) {
+	setLocaleData(await catalogFor(locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt(`/field-groups/${group.id}`)
+	const main = await screen.findByRole('main')
+	await within(main).findByRole('heading', { level: 2, name: group.title })
+	return within(main).getByRole('region', { name: fields })
+}
+
+/**
+ * Opens a field from the label in its row and returns the row that opened under it.
+ * @param fields - The region the fields table scrolls in.
+ * @param label - The label the field shows.
+ * @returns The row holding the open part.
+ */
+async function openIn(fields: HTMLElement, label: string) {
+	const toggle = within(fields).getByRole('button', { name: label })
+	await userEvent.click(toggle)
+	const part = toggle.closest('tr')?.nextElementSibling as HTMLElement
+	await waitFor(() => expect(part).not.toHaveAttribute('hidden'))
+	return part
+}
+
+test.each([
+	{ locale: 'es-ES', list: 'Grupos de campos', counts: ['1 campo', '0 campos', '2 campos'] },
+	{ locale: 'fr-FR', list: 'Groupes de champs', counts: ['1 champ', '0 champ', '2 champs'] },
+])('writes how many fields each group holds in the Field Groups list in $locale', async (texts) => {
+	const SOLE = { ...DETAILS, id: 5, key: 'sole', title: 'Sole', position: 3, fields: [SUBTITLE] }
+	listing([SOLE, EXTRAS, DETAILS])
+	server.use(
+		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),
+	)
+	setLocaleData(await catalogFor(texts.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: texts.list })
+
+	const written = [SOLE, EXTRAS, DETAILS].map(
+		(group) =>
+			(within(table).getByRole('row', { name: new RegExp(group.title) }) as HTMLTableRowElement).cells[2].textContent,
+	)
+	expect(written).toEqual(texts.counts)
+})
+
+test.each(READERS)('heads the fields table with Label, Kind, API name and Actions in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+
+	const headers = within(fields).getAllByRole('columnheader')
+	expect(headers.map((header) => header.textContent)).toEqual(texts.columns)
+})
+
+test.each(READERS)('says a group holds no fields yet and what a field adds in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, EXTRAS, texts.fields)
+
+	expect(within(fields).getByRole('heading', { name: texts.empty })).toBeInTheDocument()
+	expect(within(fields).getByText(texts.add)).toBeInTheDocument()
+})
+
+test.each(READERS)('names the tabs of an open field, Close field and Discard changes in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	expect(within(part).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(texts.tabs)
+	expect(within(part).getByRole('button', { name: texts.close })).toBeInTheDocument()
+	await userEvent.type(within(part).getByRole('textbox', { name: texts.label }), ' line')
+	expect(within(part).getByRole('button', { name: texts.discard })).toBeInTheDocument()
+})
+
+test.each(READERS)('names the box putting a field in the admin list on Presentation in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	await userEvent.click(within(part).getByRole('tab', { name: texts.tabs[2] }))
+
+	expect(within(part).getByRole('checkbox', { name: texts.listed })).toBeInTheDocument()
+})
+
+test.each(READERS)('names the Conditional logic tab Active while the field holds a rule in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	const tab = within(part).getByRole('tab', { name: texts.ruled })
+
+	expect(tab).toHaveTextContent(texts.tabs[3] + texts.active)
+	expect(within(tab).getByText(texts.active)).toBeInTheDocument()
+})
+
+test.each(READERS)('names a rule row and its trash by their place on Conditional logic in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, SUBTITLE.label)
+
+	await userEvent.click(within(part).getByRole('tab', { name: texts.ruled }))
+
+	const rule = within(part).getByRole('group', { name: texts.rule })
+	expect(within(rule).getByRole('button', { name: texts.trash })).toBeInTheDocument()
+})
+
+test.each(READERS)('names the sub fields of a container and the edits its delete loses in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const container = await openIn(fields, AUTHOR.label)
+	const subFieldRegion = within(container).getByRole('region', { name: texts.inside })
+	const part = await openIn(subFieldRegion, BYLINE.label)
+	await userEvent.type(within(part).getByRole('textbox', { name: texts.label }), ' line')
+
+	await userEvent.click(within(fields).getByRole('button', { name: texts.remove }))
+
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent(texts.lostToo)
+})
+
+/** The texts heading the open part of a container: the two titles shown, the region name, and its add button. */
+interface ContainerHeadingTexts {
+	visibleTitles: string[]
+	regionName: string
+	add: { text: string; name: string }
+}
+
+/**
+ * Checks the two titles of an open container, the region the first one names, and the button adding to it.
+ * @param part - The row holding the container's open part.
+ * @param expectedTexts - The texts the part shows and the names a screen reader hears.
+ */
+function expectContainerHeadings(part: HTMLElement, expectedTexts: ContainerHeadingTexts) {
+	const titles = within(part).getAllByRole('heading')
+
+	expect(titles).toHaveLength(2)
+	expect(within(titles[0]).getByText(expectedTexts.visibleTitles[0])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[0]).toHaveAccessibleName(expectedTexts.regionName)
+	expect(within(titles[1]).getByText(expectedTexts.visibleTitles[1])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName(expectedTexts.add.name)
+	expect(within(part).getByRole('region', { name: expectedTexts.regionName })).toBeInTheDocument()
+	expect(within(part).getByRole('button', { name: expectedTexts.add.name })).toHaveTextContent(expectedTexts.add.text)
+}
+
+test.each(READERS)('heads the sub fields of an open container and the form adding one in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const container = await openIn(fields, AUTHOR.label)
+
+	expectContainerHeadings(container, {
+		visibleTitles: texts.subFields,
+		regionName: texts.inside,
+		add: texts.addField,
+	})
+})
+
+test.each(READERS)('says an open container holds no sub fields yet in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [{ ...AUTHOR, fields: [] }] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const container = await openIn(fields, AUTHOR.label)
+
+	expect(within(container).getByText(texts.noSubFields)).toBeInTheDocument()
+})
+
+test.each(READERS)('heads the layouts of an open flexible content field and its add form in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const flexible = await openIn(fields, FEATURES.label)
+
+	expectContainerHeadings(flexible, {
+		visibleTitles: texts.layouts,
+		regionName: texts.layoutsOf,
+		add: texts.addLayout,
+	})
+})
+
+test.each(READERS)('says a flexible content field holds no layouts yet in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const flexible = await openIn(fields, FEATURES.label)
+
+	expect(within(flexible).getByText(texts.noLayouts)).toBeInTheDocument()
+})
+
+test.each(READERS)('names a choice row by its place and its move and remove buttons in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [{ ...STYLE, settings: { choices: [{ value: 'ipa', label: 'IPA' }] } }] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, STYLE.label)
+
+	const row = within(part).getByRole('group', { name: texts.choice })
+	texts.choiceButtons.forEach((name) => expect(within(row).getByRole('button', { name })).toBeInTheDocument())
+})
+
+test.each(READERS)('says a choice field holds no choices yet in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [STYLE] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const part = await openIn(fields, STYLE.label)
+
+	expect(within(part).getByText(texts.noChoices)).toBeInTheDocument()
+})
+
+test.each(READERS)('counts what the header Save stored and names the field it could not in $locale', async (texts) => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
+		http.patch('/api/groups/3/fields/reading-time', () => HttpResponse.json(READING_TIME)),
+	)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const stale = await openIn(fields, SUBTITLE.label)
+	const saving = await openIn(fields, READING_TIME.label)
+	await userEvent.type(within(stale).getByRole('textbox', { name: texts.label }), ' line')
+	await userEvent.type(within(saving).getByRole('textbox', { name: texts.label }), ' in minutes')
+
+	await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: texts.save }))
+
+	expect(await findToast(texts.ran.join(' '))).toBeInTheDocument()
+})

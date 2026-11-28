@@ -8,26 +8,57 @@ import {
 	deleteType,
 	holdsFields,
 	holdsRows,
-	kindLabel,
 	kindsInside,
 	listTypes,
 	pickedKind,
+	pickedLabel,
 	slugifyKey,
 	updateType,
 } from '../content/types'
+
+/**
+ * Returns a field as the registry stores it, of the given kind.
+ * @param kind - The kind stored.
+ * @param settings - The settings stored with it.
+ * @param many - Whether the field holds many values.
+ * @returns The stored field's kind, many flag and settings.
+ */
+function storedAs(kind: string, settings: Record<string, unknown> = {}, many = false) {
+	return { kind, many, settings }
+}
 
 test('reduces a label to the key it declares', () => {
 	expect(slugifyKey('Sold On')).toBe('sold-on')
 	expect(slugifyKey('  Colour!  ')).toBe('colour')
 })
 
-test('names a field kind the admin has no word for by the kind itself', () => {
-	expect(kindLabel('text')).toBe('Text')
-	expect(kindLabel('choice')).toBe('Choice')
-	expect(kindLabel('flexible')).toBe('Flexible content')
-	expect(kindLabel('layout')).toBe('Layout')
-	expect(kindLabel('backlinks')).toBe('Linked from')
-	expect(kindLabel('sundial')).toBe('sundial')
+test('names a stored field by the picker entry it was made from', () => {
+	expect(pickedLabel(storedAs('text', { variant: 'email', maxlength: 80 }))).toBe('Email')
+	expect(pickedLabel(storedAs('choice', { presentation: 'radio', choices: [] }))).toBe('Radio group')
+	expect(pickedLabel(storedAs('choice', { presentation: 'checkbox', multiple: true }))).toBe('Checkbox group')
+	expect(pickedLabel(storedAs('number', { presentation: 'range', step: 5 }))).toBe('Range')
+	expect(pickedLabel(storedAs('media', {}, true))).toBe('Gallery')
+})
+
+test('names a stored field the picker made no variant of by its stored kind', () => {
+	expect(pickedLabel(storedAs('text'))).toBe('Text')
+	expect(pickedLabel(storedAs('media'))).toBe('Media')
+	expect(pickedLabel(storedAs('relation', {}, true))).toBe('Relation')
+	expect(pickedLabel(storedAs('flexible'))).toBe('Flexible content')
+	expect(pickedLabel(storedAs('layout'))).toBe('Layout')
+	expect(pickedLabel(storedAs('backlinks'))).toBe('Linked from')
+})
+
+test('names a choice field by how it shows its choices, whether it holds one value or many', () => {
+	expect(pickedLabel(storedAs('choice', { presentation: 'checkbox' }))).toBe('Checkbox group')
+	expect(pickedLabel(storedAs('choice', { presentation: 'checkbox', multiple: false }))).toBe('Checkbox group')
+	expect(pickedLabel(storedAs('choice', { presentation: 'select', multiple: true }))).toBe('Select')
+})
+
+test('names a stored field the picker has no entry for by the kind itself', () => {
+	expect(pickedLabel(storedAs('choice'))).toBe('Choice')
+	expect(pickedLabel(storedAs('choice', { multiple: true }))).toBe('Choice')
+	expect(pickedLabel(storedAs('sundial'))).toBe('sundial')
 })
 
 test('offers a picker entry for every presentation a field starts as', () => {
@@ -57,7 +88,8 @@ test('offers a picker entry for every presentation a field starts as', () => {
 })
 
 test('names the link kind and reads a color as a text variant', () => {
-	expect(kindLabel('link')).toBe('Link')
+	expect(pickedLabel(storedAs('link'))).toBe('Link')
+	expect(pickedLabel(storedAs('text', { variant: 'color' }))).toBe('Color')
 	expect(pickedKind('link')).toEqual({ kind: 'link', many: false })
 	expect(pickedKind('color')).toEqual({ kind: 'text', many: false, settings: { variant: 'color' } })
 })

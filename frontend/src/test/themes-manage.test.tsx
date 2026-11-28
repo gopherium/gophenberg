@@ -9,6 +9,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { rollbackLabel, servingLine } from '../themes/ThemesScreen'
 import { gate } from './gate'
 import { renderAt } from './render'
+import { cellBoxes } from './tableCells'
 import { findToast } from './typeFixtures'
 
 const ARCHIVE = new File(['a packaged theme'], 'aurora.zip', { type: 'application/zip' })
@@ -198,6 +199,37 @@ test('marks a theme that will not load with the reason', async () => {
 
 	expect(within(listed).getByText('Broken')).toBeTruthy()
 	expect(within(listed).getByText('the manifest is missing')).toBeTruthy()
+})
+
+test('puts the first line of each cell of a theme in the cell box and why it will not load after it', async () => {
+	listing([row('aurora', true), row('driftwood', false, { version: '2.0.0', broken: 'the manifest is missing' })])
+	renderAt('/themes')
+
+	const serving = await screen.findByRole('row', { name: /aurora/ })
+	const broken = screen.getByRole('row', { name: /driftwood/ })
+
+	const boxes = cellBoxes(serving)
+	expect(boxes).not.toContain(null)
+	const [name, version, status, actions] = boxes as HTMLElement[]
+	expect(name).toContainElement(within(serving).getByText('aurora'))
+	expect(version).toContainElement(within(serving).getByText('1.0.0'))
+	expect(status).toContainElement(within(serving).getByText('Serving'))
+	expect(actions).toContainElement(within(serving).getByRole('button', { name: 'Deactivate aurora' }))
+	const [, , held] = cellBoxes(broken)
+	const reason = within(broken).getByText('the manifest is missing')
+	expect(held).toContainElement(within(broken).getByText('Broken'))
+	expect(held).not.toContainElement(reason)
+	expect((broken as HTMLTableRowElement).cells[2]).toContainElement(reason)
+})
+
+test('draws the button of a theme row compact, as tall as the cell box', async () => {
+	renderAt('/themes')
+
+	const idle = await screen.findByRole('row', { name: /riverbed/ })
+
+	expect([...within(idle).getByRole('button', { name: 'Activate riverbed' }).classList]).toEqual(
+		buttonClasses('outline', 'compact'),
+	)
 })
 
 test('says so when no theme is installed at all', async () => {
@@ -454,5 +486,7 @@ test('draws a theme status badge at the width of its words, not stretched across
 
 	const serving = await screen.findByRole('row', { name: /aurora/ })
 
-	expect(within(serving).getByText('Serving').parentElement).toHaveStyle({ alignItems: 'flex-start' })
+	const box = within(serving).getByText('Serving').parentElement as HTMLElement
+	expect(box).toHaveClass('godmin-table__cell')
+	expect(box.children).toHaveLength(1)
 })

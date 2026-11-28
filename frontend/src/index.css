@@ -47,30 +47,39 @@
 	overflow: hidden;
 }
 
-.gophenberg-fields__list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.gophenberg-fields__list > li {
-	padding: 12px 0;
-}
-
-.gophenberg-fields__list > li + li {
-	border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
-}
-
-.gophenberg-fields__list--top > li:first-child {
-	padding-top: 0;
+.gophenberg-fields__label * {
+	white-space: nowrap;
 }
 
 .gophenberg-groups__actions button {
 	overflow-wrap: normal;
 }
 
+.gophenberg-groups__count {
+	white-space: nowrap;
+}
+
 .gophenberg-field-group__created {
 	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.gophenberg-conditions__active {
+	display: inline-block;
+	flex-shrink: 0;
+	inline-size: 6px;
+	block-size: 6px;
+	overflow: hidden;
+	border: 1px solid var(--wpds-color-stroke-surface-success-strong);
+	border-radius: 50%;
+	background-color: var(--wpds-color-background-surface-success);
+	text-indent: 100%;
+	white-space: nowrap;
+}
+
+.gophenberg-field__footer {
+	box-sizing: border-box;
+	min-block-size: calc(2 * var(--wpds-dimension-padding-xl) + var(--wpds-dimension-size-md));
+	border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .gophenberg-updates__check {

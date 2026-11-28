@@ -41,19 +41,47 @@ the only source today.
 
 Rules are arranged in sets. Every condition in a set has to be true
 at once, so **Add condition** narrows a set, and any one set being
-true is enough, so **Add rule set** widens it.
+true is enough, so **Add rule set** widens it. The trash icon at the
+end of a rule takes it away. A set left with no rule goes with it.
 
 A group with no rules at all appears nowhere, and the list says
 **Nowhere** beside it.
 
 ## Declaring a field
 
-Press the group's title to open its page, then give the field a name
-and pick a kind. The name is what editors see, and Gophenberg derives
-the key from it, so a field named Sold On is stored under `sold-on`. The
-key and the entry you picked are fixed once the field exists, so an
-Email field stays an email box. **Rename** changes only the name,
-which is free and touches nothing stored.
+Press the group's title to open its page. Its fields are listed in a
+table, one row per field, in three columns:
+
+- **Label**, the name editors see. Press it to open the field, as
+  [Editing a field](#editing-a-field) explains.
+- **Kind**, the entry you picked when you added the field, so an
+  Email field reads Email.
+- **API name**, the key the field is stored under. A theme reads the
+  field's value by this key, and so does the
+  [content API](/reference/content-api/).
+
+Where the table has less than 640 pixels of room, such as beside the
+group's settings on a laptop or on a phone, each field shows as one
+item instead, with its kind and API name under its label.
+
+A group with no fields yet says so where the table would be.
+
+To add a field, use **Add a field** under the table. Type a
+**Label**, pick a **Kind** and press **Add field**. Gophenberg makes
+the key from the label, so a field called Sold On is stored under
+`sold-on`. The key and the entry you picked are fixed once the field
+exists, so an Email field stays an email box. A new field starts
+optional. Open it to set it up. When the key made from the label is
+taken or cannot be made, the reason shows under the **Label** box
+until you change the label. An add that gets no answer within the
+site's [time limit](/self-hosting/configuration/#the-variables) fails,
+and the label you typed stays in the box.
+
+**Move** sits under a field's label, then badges such as
+**Required**. At the end of each row, the up and down arrows move the
+field one place, and the new order is stored at once. The trash icon
+beside them deletes the field, as [Deleting a field](#deleting-a-field)
+explains.
 
 Two fields cannot share a key on the same content. If another group
 reaching the same items already holds that key, the save is refused
@@ -74,7 +102,7 @@ says which before you confirm.
 ## The kinds
 
 The picker offers twenty one entries. Twenty of them store eleven
-kinds of value, so all four choice entries are listed as Choice.
+kinds of value, so several entries share a kind.
 
 | Stores | Pick |
 | --- | --- |
@@ -113,24 +141,89 @@ The twenty first entry, **Linked from**, stores nothing of its own.
 It reads a relation and lists the items pointing this way. Reading
 a relation backwards, below, says how.
 
+## Editing a field
+
+Press a field's label to open it in place, under its row. Press the
+label again to close it. Several fields can stay open at once.
+
+An open field sorts its settings into three tabs, **General**,
+**Validation** and **Presentation**. [The settings](#the-settings)
+says what each tab holds. A kind with nothing to check, such as
+Linked from, has no Validation tab. A fourth tab,
+**Conditional logic**, holds the rules that decide when the field
+shows. It appears only while a rule has a field beside it to read, as
+[Showing a field by rule](#showing-a-field-by-rule) explains.
+
+General starts with the **Label**. Changing it renames the field and
+moves nothing stored under it. Under the label, General shows what is
+fixed once the field exists, such as its API name and its kind.
+
+Under the tabs, a section, a repeater or a layout lists the fields it
+holds under **Sub fields**, then its own **Add a field** form. A
+flexible content field lists its layouts under **Layouts**, then an
+**Add a layout** form.
+[Fields inside fields](#fields-inside-fields) says how both work.
+**Close field** comes last, under a line across the open field.
+Closing a field keeps your edits. Its row
+shows **Unsaved changes** while it holds them. **Discard changes**
+drops the edits and closes the field.
+
+## Saving fields
+
+**Save** at the top of the page saves every field you changed, one
+after another in table order, then the group's own details. Pressing
+Enter in a field's text box saves the same way. **Instructions** is
+the one box where Enter starts a new line instead. Once Save ends,
+every open field closes, the ones you did not change too. Only a
+field that did not save is left open, and it opens if it was closed.
+Once every change saved, a message says the group was updated.
+
+When the server rejects a field, the other changes still save. The
+rejected field opens with your edits kept. When it sits inside a
+container, the container opens too, so you see the field in place.
+The reason shows under the setting it names, with that setting's tab
+chosen, or at the top of the field. A message names each field that
+did not save and counts the changes that did.
+
+A field someone else saved after you opened it keeps your edits too.
+It says so and offers **Load saved version**, which works as it does
+for [the group](#where-a-group-appears).
+
+**Move**, the arrows and the trash in a field's row save on their
+own, without the header **Save**. **Move** is off while the field, or
+a field inside it, holds edits not saved. Save or discard the edits
+first.
+
 ## The settings
 
-Press **Settings** on a field to tune its control. **Instructions**
-is the help line under the control.
+Each setting sits in one tab of an open field. A kind shows only the
+settings it takes.
+
+| Tab | Settings |
+| --- | --- |
+| General | Label, Default, Choices, Many values |
+| Validation | Required, Longest, Lowest, Highest, Allow empty, Fewest files, Most files, Fewest rows, Most rows |
+| Presentation | Instructions, Placeholder, Steps of, Allow custom, Show in the list |
+
+**Instructions** is the help line under the control, and
+**Placeholder** the hint inside an empty text box.
 
 **Default** fills the control in as you press the add button of a
 list, such as Add Post, and never reaches an item that already exists.
 
 A choice field lists its answers under **Choices**. Each answer has
 a **Value**, which is what gets stored, and a **Label**, which is
-what the editor reads. A field listing no answers takes whatever is
-typed, so add them first. **Many values** lets an item hold several
-answers, in a box you add them into. **Allow custom** lets the field
-take answers outside its list. A Many values box, a Radio group and
-a Checkbox group each grow an Other box for typing one. A Select or
-a Button group offers no way to type, so pick another presentation
-when you need one. **Allow empty** adds a None entry that clears the
-field.
+what the editor reads. **Add choice** adds an empty answer at the
+end. The arrows beside an answer move it up or down, and its trash
+removes it. These changes wait for the header **Save**. When you
+save, an answer missing its Value or its Label is dropped. A field
+listing no answers takes whatever is typed, so add them first.
+**Many values** lets an item hold several answers, in a box you add
+them into. **Allow custom** lets the field take answers outside its
+list. A Many values box, a Radio group and a Checkbox group each
+grow an Other box for typing one. A Select or a Button group offers
+no way to type, so pick another presentation when you need one.
+**Allow empty** adds a None entry that clears the field.
 
 **Longest**, **Lowest** and **Highest** are limits. Longest stops
 your typing. A number outside Lowest or Highest, and an answer a
@@ -150,13 +243,14 @@ number box without them, where Steps of reaches nothing.
 files, not letters, and they are checked when you save, drafts
 included.
 
-**In list** puts the field in the content list as a column of its
-own. Press it on a text, number, switch, date or choice field at the
-top of a group. The list opens with these columns at every width. A
-table too wide for its space scrolls sideways, and above 782 pixels
-its checkbox and title stay in place. A switch or a choice field can
-also be picked under **Add filter**, so you can narrow the list to
-the items holding one value. See [the content list](/guides/posts/).
+**Show in the list** puts the field in the content list as a column
+of its own. Only a text, number, switch, date or choice field at the
+top of a group offers it. The list opens with these columns at every
+width. A table too wide for its space scrolls sideways, and above 782
+pixels its checkbox and title stay in place. A switch or a choice
+field can also be picked under **Add filter**, so you can narrow the
+list to the items holding one value. See
+[the content list](/guides/posts/).
 
 ## Fields inside fields
 
@@ -175,20 +269,57 @@ author build a page as a hero, then a quote, then another hero, in
 whatever order the page needs. Each row carries only the fields of
 the layout it picked.
 
-Press **Add field** on a section or a repeater to declare a field
-inside it. The field is listed under its container, and every setting
-its kind takes works there exactly as it does at the top. Rename it,
-require it, settle it and move it up or down in the same way. Two
-containers may each hold a field of the same name, because a field is
-named inside the container that holds it. One container holds each
-name once, so a second field of that name inside it is refused.
+In the fields table, a closed section, repeater or layout lists the
+labels of the fields it holds in small text under its kind. A closed
+Team repeater holding a Name and a Role reads *Name, Role* there. A
+closed flexible content field lists its layouts the same way. A label
+you change shows there once you press **Save**. The line hides while
+the container is open, because its own table then lists the same
+fields. A closed container inside it still lists its own.
 
-A flexible content field takes layouts rather than fields, so it
-offers **Add layout** instead. Press it to name a layout, then press
-**Add field** on that layout to declare what its rows carry. Two
-layouts may each hold a field of the same name for the same reason
-two containers may. A layout stands nowhere but inside a flexible
-content field, and a field stands nowhere directly under one.
+Open a section, a repeater or a layout to see the fields it holds.
+Under the container's tabs, **Sub fields** lists them in a table of
+their own, with the same columns. A container holding no fields yet
+says so in place of the table. A field inside opens, saves and moves
+up or down the same way as one at the top.
+
+To declare a field inside, use the container's own **Add a field**
+form, under its sub fields. Type a **Label**, pick a **Kind** and
+press **Add field**, or press Enter in the Label box. The Kind list
+offers only the kinds that may stand inside. The field is stored at
+once, without the header **Save**, and edits you have not saved stay
+as they are. Its row stays closed and the form clears. After Enter
+the focus stays in the Label box, so you can type the next label
+straight away. After a click it stays on the button.
+
+A screen reader names the form and its button after the container,
+such as Add field to Team, so neither sounds like the group's own
+**Add field**. It reads the titles over them the same way, such as
+Sub fields of Team, so a list of headings tells the levels apart.
+Two containers may each hold a field of the same name, because a
+field is named inside the container that holds it. One container
+holds each name once, so a second field of that name inside it is
+rejected, and the reason shows under the **Label** box. The label you
+typed stays there, so you can change it and try again. An add that
+gets no answer within the site's
+[time limit](/self-hosting/configuration/#the-variables) fails with a
+message above the fields, and it keeps the label too.
+
+A flexible content field takes layouts rather than fields. Open it
+and **Layouts** lists its layouts in a table. A flexible content
+field holding none yet says so instead. An **Add a layout** form
+comes next. Type the layout's **Label** and press
+**Add layout**. A layout is the only kind the field takes, so the form
+asks no Kind. The new layout is stored at once, and its row stays
+closed.
+
+A layout opens like any other row. Its Validation tab holds its own
+**Fewest rows** and **Most rows**. Under its tabs sit its own
+**Sub fields** and its own **Add a field** form, where you declare
+what its rows carry. Two layouts may each hold a field of the same
+name for the same reason two containers may. A layout stands nowhere
+but inside a flexible content field, and a field stands nowhere
+directly under one.
 
 **Fewest rows** and **Most rows** bound how many rows a repeater or a
 flexible content field takes. Set them on a layout instead and they
@@ -265,21 +396,36 @@ and a reader of the site is never shown it. It stays until you take
 it out yourself, the same as a file taken out of the library, and
 saving the item again in the meantime is never blocked by it.
 
-A field can be marked **required**, as you declare it or with
-**Require** afterwards. It never blocks a draft save, only
+Tick **Required** in a field's Validation tab, then press **Save**, to
+make the field required. It never blocks a draft save, only
 publishing, so an item goes public only once the field holds
 something. A Linked from field and a layout hold no value of their
 own, so neither can be required.
 
 ## Showing a field by rule
 
-A field can wait until another field says so. Press **Rules** beside
-it and add a condition: pick a field, pick a comparison, pick or type
-a value. The field then shows only while the rule holds, and the
-editor hides it the moment you change what it reads.
+A field can wait until another field says so. Open it and choose its
+last tab, **Conditional logic**. Press **Add rule set** and a rule
+appears. Pick its **Source**, the field it reads, then its
+**Condition**, then pick or type its **Value**. A condition such as
+*is empty* takes no value. The field then shows only while the rule
+holds, and the editor hides it the moment you change what it reads.
 
-Add more conditions to one set and every one of them has to hold. Add
-a second set and the field shows when either set holds.
+The sets are named **Rule set 1**, **Rule set 2** and so on.
+**Add condition** adds a rule to its set, and every rule in a set has
+to hold. **Add rule set** adds another set, and the field shows when
+any one set holds. The trash icon at the end of a rule takes it away.
+A set left with no rule goes with it.
+
+While the field holds a rule, a small green dot sits after the tab's
+name, and a screen reader reads it as **Active**. It shows as soon as
+you add the rule, before you save. A field with no rule always shows,
+and the tab says so.
+
+Rules wait for the header **Save**, like every other setting.
+Changing them shows **Unsaved changes** on the field's row, and
+**Discard changes** puts the saved rules back. Save sends the rules
+with the field's other edits, and they save or fail together.
 
 A rule reads the fields standing beside it. A field at the top of a
 group reads the group's other fields, and a field inside a section or
@@ -292,6 +438,11 @@ date, choice, media or link field, a link only for whether it is
 filled. A relation, a container and a **Linked from** field can
 each be shown by a rule but never read by one, so they are not
 offered when you pick what a rule reads.
+
+So **Source** offers only the fields beside this one that a rule can
+read. A field inside a section or a repeater offers the other fields
+inside that same container, and nothing outside it. A field with no
+such field beside it has no Conditional logic tab.
 
 What a hidden field already holds stays where it is. Turn the switch
 back on and the value is still there. While the field is hidden its
@@ -364,12 +515,17 @@ it. Point the Linked from field at another relation first, under
 
 ## Deleting a field
 
-**Delete** removes the field and everything stored under it, from
-every item and revision that holds it. The dialog says so before it
-happens. Where another active group serves a field at the same
-place, inside containers of the same names, its value stays.
-Everywhere else the value goes, even on content the group stopped
-reaching when its rules changed.
+The trash icon at the end of a field's row removes the field and
+everything stored under it, from every item and revision that holds
+it. A field inside a container has the same trash in its own table.
+A dialog says so first. Nothing is deleted until you press its red
+**Delete the field** button. Edits not saved in the field, or in a
+field inside it, go too, and the dialog says so.
+
+Where another active group serves a field at the same place, inside
+containers of the same names, its value stays. Everywhere else the
+value goes, even on content the group stopped reaching when its rules
+changed.
 
 Deleting a whole group takes its fields with it, and their stored
 values too. If you only want the group to stop appearing, deactivate

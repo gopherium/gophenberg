@@ -1,71 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
-import { FormDialog } from '@gopherium/godmin'
-import { formatNumber } from '@gopherium/gottext'
-import { __, sprintf } from '@wordpress/i18n'
-import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Stack } from '@gophenberg/frontend-sdk'
+import { __, _x } from '@wordpress/i18n'
 
-import { conditionsOf, multipleOf, needsValue, operatorsFor } from './conditions'
-import { fieldRead, formAnswer, setFieldSettingsInGroup } from './groups'
-import { chosenOf } from './select'
+import { conditionsOf, multipleOf, operatorsFor } from './conditions'
+import { RuleSets } from './RuleSets'
 import { pairsOf } from './types'
 import type { ConditionRule } from './conditions'
+import type { FieldDraft } from './fieldDraft'
+import type { SourceChoices } from './RuleSets'
 import type { Choice } from './select'
 import type { ContentField } from './types'
 
-/** The phrase each operator is offered under. */
-const OPERATOR_LABELS: Record<string, string> = {
-	'==': __('is', 'gophenberg'),
-	'!=': __('is not', 'gophenberg'),
-	'<': __('is below', 'gophenberg'),
-	'>': __('is above', 'gophenberg'),
-	contains: __('holds', 'gophenberg'),
-	empty: __('is empty', 'gophenberg'),
-	not_empty: __('holds anything', 'gophenberg'),
-}
-
-/** The values a boolean source offers. */
-const BOOLEANS: Choice[] = [
-	{ value: 'true', label: __('Yes', 'gophenberg') },
-	{ value: 'false', label: __('No', 'gophenberg') },
-]
-
 /**
- * Returns the sibling fields a condition on the field may read.
- * @param siblings - The fields standing at the same depth.
- * @param field - The field the conditions belong to.
- * @returns The fields offered as sources.
- */
-function conditionSources(siblings: ContentField[], field: ContentField): ContentField[] {
-	return siblings.filter(
-		(held) => held.key !== field.key && operatorsFor(held.kind, multipleOf(held)).length > 0,
-	)
-}
-
-/**
- * Returns the values a source offers, none when it takes a typed value.
+ * Returns the values a source offers to pick, none when it takes a written value.
  * @param source - The field a rule reads.
  * @returns The choices offered.
  */
 function valuesOf(source: ContentField): Choice[] {
 	if (source.kind === 'boolean') {
-		return BOOLEANS
+		return [
+			{ value: 'true', label: __('Yes', 'gophenberg') },
+			{ value: 'false', label: __('No', 'gophenberg') },
+		]
 	}
 	return source.kind === 'choice' ? pairsOf(source.settings) : []
-}
-
-/**
- * Returns the rule a fresh row starts as.
- * @param sources - The fields offered as sources.
- * @returns The rule to add.
- */
-function blankRule(sources: ContentField[]): ConditionRule {
-	const [first] = sources
-	const offered = operatorsFor(first.kind, multipleOf(first))
-	const values = valuesOf(first)
-	return { source: first.key, operator: offered[0], value: values.length > 0 ? values[0].value : '' }
 }
 
 /**
@@ -78,236 +37,84 @@ function shapeOf(kind: string): string {
 }
 
 /**
- * Returns the choice standing for a stored value.
- * @param offered - The choices the select holds.
- * @param value - The value stored.
- * @returns The matching choice, or the raw value when nothing matches.
+ * Returns the sibling fields a condition on the field may read, each with the conditions and values it offers.
+ * @param siblings - The fields standing at the same depth.
+ * @param field - The field the conditions belong to.
+ * @returns The sources offered, none for a sibling of a kind no rule reads.
  */
-function chosen(offered: Choice[], value: string): Choice {
-	return offered.find((one) => one.value === value) ?? { value, label: value }
+export function conditionSources(siblings: ContentField[], field: ContentField): SourceChoices[] {
+	return siblings
+		.filter((held) => held.key !== field.key)
+		.map((held) => ({
+			value: held.key,
+			label: held.label,
+			operators: operatorsFor(held.kind, multipleOf(held)),
+			values: valuesOf(held),
+			typed: shapeOf(held.kind),
+		}))
+		.filter((source) => source.operators.length > 0)
 }
 
 /**
- * Renders one condition as the source, operator and value it reads.
- * @param props - The rule, where it sits, the sources, whether the row is read only, and what to do.
- * @returns The row element.
+ * Returns the rules a draft shows its field under.
+ * @param draft - The draft held.
+ * @returns The rule sets, any one of which is enough.
  */
-function ConditionRow(props: {
-	rule: ConditionRule
-	sources: ContentField[]
-	readOnly: boolean
-	onChange: (rule: ConditionRule) => void
-	onRemove: () => void
-}) {
-	const held = props.sources.find((source) => source.key === props.rule.source) ?? props.sources[0]
-	const sources = props.sources.map((source) => ({ value: source.key, label: source.label }))
-	const operators = operatorsFor(held.kind, multipleOf(held)).map((operator) => ({
-		value: operator,
-		label: OPERATOR_LABELS[operator],
-	}))
-	const values = valuesOf(held)
+function draftedRules(draft: FieldDraft): ConditionRule[][] {
+	return conditionsOf({ ...draft.base, settings: draft.settings })
+}
+
+/**
+ * Returns the settings of a draft holding the rules given, the rules left out once none stands.
+ * @param settings - The settings the draft holds.
+ * @param rules - The rule sets the reader left.
+ * @returns The settings.
+ */
+function ruledSettings(settings: Record<string, unknown>, rules: ConditionRule[][]): Record<string, unknown> {
+	const held = { ...settings }
+	delete held.conditions
+	return rules.length === 0 ? held : { ...held, conditions: rules }
+}
+
+/**
+ * Renders the name of the Conditional logic tab, with the Active dot while the draft holds a rule.
+ * @param props - The draft held.
+ * @returns The tab's name.
+ */
+export function ConditionsTabName(props: { draft: FieldDraft }) {
 	return (
-		<Stack direction="row" gap="sm" align="end" wrap="wrap">
-			<SelectControl
-				label={__('Source', 'gophenberg')}
-				items={sources}
-				value={chosen(sources, props.rule.source)}
-				readOnly={props.readOnly}
-				onValueChange={(item) =>
-					props.onChange(
-						blankRule(
-							props.sources.filter(
-								(source) => source.key === chosenOf(item, sources, sources[0]).value,
-							),
-						),
-					)
-				}
-			/>
-			<SelectControl
-				label={__('Condition', 'gophenberg')}
-				items={operators}
-				value={chosen(operators, props.rule.operator)}
-				readOnly={props.readOnly}
-				onValueChange={(item) =>
-					props.onChange({
-						...props.rule,
-						operator: chosenOf(item, operators, operators[0]).value,
-					})
-				}
-			/>
-			{needsValue(props.rule.operator) && values.length > 0 && (
-				<SelectControl
-					label={__('Value', 'gophenberg')}
-					items={values}
-					value={chosen(values, props.rule.value)}
-					readOnly={props.readOnly}
-					onValueChange={(item) =>
-						props.onChange({ ...props.rule, value: chosenOf(item, values, values[0]).value })
-					}
-				/>
+		<Stack direction="row" gap="sm" align="center" render={<span />}>
+			{__('Conditional logic', 'gophenberg')}
+			{draftedRules(props.draft).length > 0 && (
+				<span className="gophenberg-conditions__active">{_x('Active', 'conditional logic', 'gophenberg')}</span>
 			)}
-			{needsValue(props.rule.operator) && values.length === 0 && (
-				<InputControl
-					label={__('Value', 'gophenberg')}
-					type={shapeOf(held.kind)}
-					autoComplete="off"
-					value={props.rule.value}
-					readOnly={props.readOnly}
-					onValueChange={(written) => props.onChange({ ...props.rule, value: written })}
-				/>
-			)}
-			<Button variant="outline" disabled={props.readOnly} onClick={props.onRemove}>
-				{__('Remove', 'gophenberg')}
-			</Button>
 		</Stack>
 	)
 }
 
-/**
- * Renders the rule sets a field is shown under and the controls editing them.
- * @param props - The rules held, the sources offered, whether the rules are read only, and what to do.
- * @returns The body element.
- */
-function ConditionsBody(props: {
-	draft: ConditionRule[][]
-	sources: ContentField[]
-	readOnly: boolean
-	onDraft: (next: ConditionRule[][]) => void
-}) {
-	return (
-		<Stack direction="column" gap="md">
-			{props.draft.length === 0 && (
-				<Text>{__('Without a rule this field always shows.', 'gophenberg')}</Text>
-			)}
-			{props.draft.map((set, at) => (
-				<Stack
-					key={at}
-					direction="column"
-					gap="sm"
-					role="group"
-					aria-label={sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(at + 1) })}
-				>
-					{set.map((rule, spot) => (
-						<ConditionRow
-							key={spot}
-							rule={rule}
-							sources={props.sources}
-							readOnly={props.readOnly}
-							onChange={(next) =>
-								props.onDraft(
-									props.draft.map((held, index) =>
-										index === at ? held.map((one, i) => (i === spot ? next : one)) : held,
-									),
-								)
-							}
-							onRemove={() =>
-								props.onDraft(
-									props.draft
-										.map((held, index) =>
-											index === at ? held.filter((_, i) => i !== spot) : held,
-										)
-										.filter((held) => held.length > 0),
-								)
-							}
-						/>
-					))}
-					<Button
-						variant="outline"
-						disabled={props.readOnly}
-						onClick={() =>
-							props.onDraft(
-								props.draft.map((held, index) =>
-									index === at ? [...held, blankRule(props.sources)] : held,
-								),
-							)
-						}
-					>
-						{__('Add condition', 'gophenberg')}
-					</Button>
-				</Stack>
-			))}
-			<Button
-				variant="outline"
-				disabled={props.readOnly}
-				onClick={() => props.onDraft([...props.draft, [blankRule(props.sources)]])}
-			>
-				{__('Add rule set', 'gophenberg')}
-			</Button>
-		</Stack>
-	)
-}
-
-/** What the control editing the rules a field is shown under takes. */
+/** What the rules of an open field show and edit. */
 interface ConditionsProps {
-	group: number
-	field: ContentField
-	siblings: ContentField[]
-	path?: string
-	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => Promise<void>
+	draft: FieldDraft
+	/** The sibling fields a rule may read. */
+	sources: SourceChoices[]
+	readOnly: boolean
+	onDraft: (next: FieldDraft) => void
 }
 
 /**
- * Renders the control editing the rules a field is shown under and, while it asks, its form.
- * @param props - The group, the field, its siblings, its path, and what to report.
- * @returns The control and its form, or nothing when no sibling can be read.
+ * Renders the rules a field is shown under, read from its draft and written back into it.
+ * @param props - The draft, the sources a rule may read, whether they are read only, and what changes the draft.
+ * @returns The rule sets editor.
  */
 export function FieldConditions(props: ConditionsProps) {
-	const [asking, setAsking] = useState(false)
-	const sources = conditionSources(props.siblings, props.field)
-	const title = sprintf(__('Rules showing %(field)s', 'gophenberg'), { field: props.field.label })
-	if (sources.length === 0) {
-		return null
-	}
+	const { draft } = props
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{__('Rules', 'gophenberg')}
-			</Button>
-			{asking ? (
-				<ConditionsForm {...props} title={title} sources={sources} onClose={() => setAsking(false)} />
-			) : null}
-		</>
+		<RuleSets
+			draft={draftedRules(draft)}
+			sources={props.sources}
+			empty={__('Without a rule this field always shows.', 'gophenberg')}
+			readOnly={props.readOnly}
+			onDraft={(rules) => props.onDraft({ ...draft, settings: ruledSettings(draft.settings, rules) })}
+		/>
 	)
-}
-
-/**
- * Renders the form editing the rules a field is shown under, its draft started from the field as read on each ask.
- * @param props - The group, the field, its path, the reporters, the title, the sources offered and what takes it away.
- * @returns The form dialog, kept open with the draft after a failure other than a stale write.
- */
-function ConditionsForm(props: ConditionsProps & { title: string; sources: ContentField[]; onClose: () => void }) {
-	const [opened] = useState(props.field)
-	const [draft, setDraft] = useState<ConditionRule[][]>(() => conditionsOf(opened))
-	const save = useMutation({
-		mutationFn: (signal: AbortSignal) =>
-			setFieldSettingsInGroup(fieldRead(props, opened), storedConditions(opened.settings, draft), signal),
-	})
-	const said = sprintf(__('%(field)s shows by its rules now.', 'gophenberg'), { field: props.field.label })
-	return (
-		<FormDialog
-			title={props.title}
-			submitLabel={__('Save rules', 'gophenberg')}
-			cancelLabel={__('Cancel', 'gophenberg')}
-			onSubmit={(signal) => formAnswer(save.mutateAsync(signal), said, props, signal)}
-			onClose={props.onClose}
-		>
-			{(busy) => <ConditionsBody draft={draft} sources={props.sources} readOnly={busy} onDraft={setDraft} />}
-		</FormDialog>
-	)
-}
-
-/**
- * Returns the settings to store, carrying the rules beside whatever else the field holds.
- * @param held - The settings the field stands on.
- * @param draft - The rules the operator wrote.
- * @returns The settings to send.
- */
-function storedConditions(held: Record<string, unknown>, draft: ConditionRule[][]): Record<string, unknown> {
-	const settings = { ...held }
-	delete settings.conditions
-	if (draft.length === 0) {
-		return settings
-	}
-	return { ...settings, conditions: draft }
 }

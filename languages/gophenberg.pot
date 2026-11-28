@@ -37,6 +37,11 @@ msgstr ""
 msgid "\"%s\" was not moved to the trash, because its changes could not be saved."
 msgstr ""
 
+msgid "%(count)s field"
+msgid_plural "%(count)s fields"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%(field)s address"
 msgstr ""
 
@@ -61,12 +66,6 @@ msgstr ""
 msgid "%(field)s holds no value of its own, so it cannot be required. Make it optional."
 msgstr ""
 
-msgid "%(field)s is optional again."
-msgstr ""
-
-msgid "%(field)s is required now."
-msgstr ""
-
 msgid "%(field)s moved."
 msgstr ""
 
@@ -86,21 +85,6 @@ msgid "%(field)s reads a relation field that is not there. Pick a group and a re
 msgstr ""
 
 msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
-msgstr ""
-
-msgid "%(field)s renamed."
-msgstr ""
-
-msgid "%(field)s settled."
-msgstr ""
-
-msgid "%(field)s shows by its rules now."
-msgstr ""
-
-msgid "%(field)s stands in the list."
-msgstr ""
-
-msgid "%(field)s stays out of the list."
 msgstr ""
 
 msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
@@ -383,6 +367,9 @@ msgstr ""
 msgid "A type that still holds items, even in the trash, is not deleted."
 msgstr ""
 
+msgid "API name"
+msgstr ""
+
 msgid "Actions"
 msgstr ""
 
@@ -429,6 +416,12 @@ msgid "Add User"
 msgstr ""
 
 msgid "Add a field"
+msgstr ""
+
+msgid "Add a field to store more about the items this group shows on."
+msgstr ""
+
+msgid "Add a layout"
 msgstr ""
 
 msgid "Add block"
@@ -586,6 +579,9 @@ msgstr ""
 msgid "Checking the new version…"
 msgstr ""
 
+msgid "Choice %(number)s"
+msgstr ""
+
 msgid "Choices"
 msgstr ""
 
@@ -610,10 +606,16 @@ msgstr ""
 msgid "Close Settings"
 msgstr ""
 
+msgid "Close field"
+msgstr ""
+
 msgid "Closed"
 msgstr ""
 
 msgid "Condition"
+msgstr ""
+
+msgid "Conditional logic"
 msgstr ""
 
 msgid "Content"
@@ -653,6 +655,9 @@ msgid "Could not order the fields. %s"
 msgstr ""
 
 msgid "Could not roll back the theme. %s"
+msgstr ""
+
+msgid "Could not save %(names)s."
 msgstr ""
 
 msgid "Could not save image. %s"
@@ -786,6 +791,9 @@ msgid "Dimensions"
 msgstr ""
 
 msgid "Discard"
+msgstr ""
+
+msgid "Discard changes"
 msgstr ""
 
 msgid "Discard changes?"
@@ -925,6 +933,9 @@ msgstr ""
 msgid "Full Size"
 msgstr ""
 
+msgid "General"
+msgstr ""
+
 msgid "Gophenberg %(version)s failed its start check on this site. Fix what failed before you try it again."
 msgstr ""
 
@@ -993,9 +1004,6 @@ msgid "Images"
 msgstr ""
 
 msgid "Import definitions"
-msgstr ""
-
-msgid "In list"
 msgstr ""
 
 msgid "Inactive"
@@ -1067,9 +1075,6 @@ msgstr ""
 msgid "June"
 msgstr ""
 
-msgid "Keep %(field)s out of the list"
-msgstr ""
-
 msgid "Keep editing"
 msgstr ""
 
@@ -1086,6 +1091,12 @@ msgid "Large"
 msgstr ""
 
 msgid "Last checked on %(date)s at %(time)s."
+msgstr ""
+
+msgid "Layouts"
+msgstr ""
+
+msgid "Layouts of %(field)s"
 msgstr ""
 
 msgid "Leave empty if decorative."
@@ -1136,13 +1147,7 @@ msgstr ""
 msgid "Make \"%(type)s\" the default?"
 msgstr ""
 
-msgid "Make %(field)s optional"
-msgstr ""
-
 msgid "Make default"
-msgstr ""
-
-msgid "Make optional"
 msgstr ""
 
 msgid "Manage the categories on this site."
@@ -1220,6 +1225,12 @@ msgstr ""
 msgid "Move %(name)s up"
 msgstr ""
 
+msgid "Move choice down"
+msgstr ""
+
+msgid "Move choice up"
+msgstr ""
+
 msgid "Move every address"
 msgstr ""
 
@@ -1253,16 +1264,25 @@ msgstr ""
 msgid "No active plugins"
 msgstr ""
 
+msgid "No choices yet."
+msgstr ""
+
 msgid "No description"
 msgstr ""
 
 msgid "No drafts"
 msgstr ""
 
+msgid "No fields yet"
+msgstr ""
+
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
 msgid "No items yet"
+msgstr ""
+
+msgid "No layouts yet."
 msgstr ""
 
 msgid "No mail server is configured. Deliver the activation link by hand."
@@ -1299,6 +1319,9 @@ msgid "No private items"
 msgstr ""
 
 msgid "No published items"
+msgstr ""
+
+msgid "No sub fields yet."
 msgstr ""
 
 msgid "No theme arrived with this upload. Choose a zip file and try again."
@@ -1376,13 +1399,7 @@ msgstr ""
 msgid "Open %(field)s in a new tab"
 msgstr ""
 
-msgid "Order stored."
-msgstr ""
-
 msgid "Other"
-msgstr ""
-
-msgid "Out of list"
 msgstr ""
 
 msgid "Parent"
@@ -1431,6 +1448,9 @@ msgstr ""
 msgid "Posts per page"
 msgstr ""
 
+msgid "Presentation"
+msgstr ""
+
 msgid "Preview"
 msgstr ""
 
@@ -1461,28 +1481,22 @@ msgstr ""
 msgid "Reload the admin"
 msgstr ""
 
-msgid "Remove"
-msgstr ""
-
 msgid "Remove %(name)s"
 msgstr ""
 
 msgid "Remove %(title)s"
 msgstr ""
 
+msgid "Remove choice"
+msgstr ""
+
 msgid "Remove row"
 msgstr ""
 
+msgid "Remove rule %(number)s of set %(set)s"
+msgstr ""
+
 msgid "Rename"
-msgstr ""
-
-msgid "Rename %(field)s"
-msgstr ""
-
-msgid "Require"
-msgstr ""
-
-msgid "Require %(field)s"
 msgstr ""
 
 msgid "Required"
@@ -1509,12 +1523,6 @@ msgstr ""
 msgid "Rule set %(number)s"
 msgstr ""
 
-msgid "Rules"
-msgstr ""
-
-msgid "Rules showing %(field)s"
-msgstr ""
-
 msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
 msgstr ""
 
@@ -1524,14 +1532,13 @@ msgstr ""
 msgid "Save draft"
 msgstr ""
 
-msgid "Save rules"
-msgstr ""
-
-msgid "Save settings"
-msgstr ""
-
 msgid "Saved"
 msgstr ""
+
+msgid "Saved %(done)s of %(asked)s change."
+msgid_plural "Saved %(done)s of %(asked)s changes."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Saving"
 msgstr ""
@@ -1576,13 +1583,10 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-msgid "Settings of %(field)s"
-msgstr ""
-
 msgid "Shadowed"
 msgstr ""
 
-msgid "Show %(field)s in the list"
+msgid "Show in the list"
 msgstr ""
 
 msgid "Showing %(held)s of %(total)s."
@@ -1598,6 +1602,9 @@ msgid "Someone else changed this media item while you were editing it. Reload th
 msgstr ""
 
 msgid "Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in."
+msgstr ""
+
+msgid "Someone saved %(field)s after you opened it."
 msgstr ""
 
 msgid "Someone saved %(group)s after you opened it."
@@ -1625,6 +1632,12 @@ msgid "Steps of"
 msgstr ""
 
 msgid "Stop nesting"
+msgstr ""
+
+msgid "Sub fields"
+msgstr ""
+
+msgid "Sub fields of %(field)s"
 msgstr ""
 
 msgid "Tablet"
@@ -2020,9 +2033,6 @@ msgstr ""
 msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
 msgstr ""
 
-msgid "This group holds no fields yet."
-msgstr ""
-
 msgid "This install of Gophenberg has no install root, so it updates by hand."
 msgstr ""
 
@@ -2137,6 +2147,9 @@ msgstr ""
 msgid "Unsaved changes"
 msgstr ""
 
+msgid "Unsaved changes inside %(field)s are lost too."
+msgstr ""
+
 msgid "Update"
 msgstr ""
 
@@ -2173,6 +2186,9 @@ msgid "Uploading %s file"
 msgid_plural "Uploading %s files"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Validation"
+msgstr ""
 
 msgid "Value"
 msgstr ""
@@ -2306,6 +2322,10 @@ msgctxt "column"
 msgid "Date"
 msgstr ""
 
+msgctxt "conditional logic"
+msgid "Active"
+msgstr ""
+
 msgctxt "content type"
 msgid "\"%s\" permanently deleted."
 msgstr ""
@@ -2316,10 +2336,6 @@ msgstr ""
 
 msgctxt "content type"
 msgid "Status"
-msgstr ""
-
-msgctxt "field"
-msgid "Name"
 msgstr ""
 
 msgctxt "field group"

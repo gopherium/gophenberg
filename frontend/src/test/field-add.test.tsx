@@ -1,0 +1,458 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { expect, onTestFinished, test, vi } from 'vitest'
+
+import { catalogFor } from '../i18n/catalog'
+import { gate } from './gate'
+import {
+	addFormOf,
+	DETAILS,
+	EXTRAS,
+	FEATURES,
+	fieldRow,
+	listing,
+	openField,
+	openFields,
+	serveFieldGroups,
+	SUBTITLE,
+} from './groupFieldsFixtures'
+import { renderAt } from './render'
+import { siteSettings } from './siteSettings'
+import { findToast, waitBusy } from './typeFixtures'
+
+/** A time limit far shorter than any test. */
+const SHORT_LIMIT = 20
+
+serveFieldGroups()
+
+test('declares a field into the group it was opened from, its key made from the Label typed', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({ key: 'summary', label: 'Summary', kind: 'text' }),
+	)
+})
+
+test.each([
+	{
+		reason: 'a name another field took',
+		answer: { error: 'content: field key taken', code: 'field_taken' },
+		said: 'A field with that name already exists on the items this group reaches. Pick another name.',
+	},
+	{
+		reason: 'a key in the wrong shape',
+		answer: { error: 'content: invalid field key', code: 'field_key_malformed' },
+		said:
+			'A field key has to start with a lowercase letter and then hold only lowercase letters, ' +
+			'numbers and hyphens. Rename the field so its key comes out in that shape.',
+	},
+])('shows $reason under the Label box of the group form, with no notice and no toast', async ({ answer, said }) => {
+	server.use(http.post('/api/groups/3/fields', () => HttpResponse.json(answer, { status: 422 })))
+	renderAt('/field-groups')
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
+
+	await userEvent.type(label, 'Subtitle')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(label).toHaveAccessibleDescription(said))
+	expect(label).toHaveFocus()
+	expect(within(main).queryByRole('alert')).toBeNull()
+	expect(screen.queryByText(/^Could not add the field\./, { selector: '.godmin-toast' })).toBeNull()
+	expect(label).toHaveValue('Subtitle')
+	await userEvent.type(label, 's')
+	expect(label).toHaveAccessibleDescription('')
+})
+
+test('clears the notice an earlier add left and reads the fields again once a label is rejected', async () => {
+	const summary = { ...SUBTITLE, key: 'summary', label: 'Summary' }
+	let sent = 0
+	server.use(
+		http.post('/api/groups/3/fields', () => {
+			sent += 1
+			if (sent === 1) {
+				listing([{ ...DETAILS, fields: [...DETAILS.fields, summary] }, EXTRAS])
+				return HttpResponse.error()
+			}
+			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(label, 'Summary')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+	expect(await within(main).findByRole('alert')).toHaveTextContent('The field groups could not be reached.')
+
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(label).toHaveAccessibleDescription(/already exists/))
+	await waitFor(() => expect(within(main).queryByRole('alert')).toBeNull())
+	expect(await fieldRow(main, 'Summary')).toBeInTheDocument()
+})
+
+test('reports a rejection not about the label in a toast and above the fields, the Label box clear', async () => {
+	server.use(
+		http.post('/api/groups/3/fields', () =>
+			HttpResponse.json(
+				{ error: 'content: relation target unknown', code: 'relation_target_unknown', meta: { value: 'book' } },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const label = within(main).getByRole('textbox', { name: 'Label' })
+
+	await userEvent.type(label, 'Subtitle')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	const said = 'There is no content type called book. Pick a type your site holds, or register it first.'
+	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
+	expect(within(main).getByRole('alert')).toHaveTextContent(said)
+	expect(label).toHaveAccessibleDescription('')
+})
+
+test('declares a relation field pointing at the type and holding what was picked', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Author')
+	await userEvent.click(within(dialog).getByLabelText('Kind'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
+	await userEvent.click(within(dialog).getByLabelText('Points at'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Posts' }))
+	await userEvent.click(within(dialog).getByLabelText('Holds'))
+	await userEvent.click(await screen.findByRole('option', { name: 'One target' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({
+			key: 'author',
+			kind: 'relation',
+			relates_to: 'post',
+			many: false,
+			required: false,
+		}),
+	)
+})
+
+test('asks nothing about Required on the add form, so a new field lands optional', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	const form = within(dialog).getByRole('button', { name: 'Add field' }).closest('form') as HTMLFormElement
+
+	expect(within(form).queryByLabelText(/Required/)).toBeNull()
+	expect(within(form).getAllByRole('combobox')).toEqual([within(form).getByRole('combobox', { name: 'Kind' })])
+	await userEvent.type(within(form).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(form).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toMatchObject({ key: 'summary', kind: 'text', required: false }))
+})
+
+test('asks nothing about Required on the form adding a field inside a container', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	const author = await openField(dialog, 'Author')
+
+	const adding = addFormOf(author, 'Author')
+
+	expect(within(adding).getAllByRole('combobox')).toEqual([within(adding).getByRole('combobox', { name: 'Kind' })])
+	expect(within(adding).queryByLabelText(/Required/)).toBeNull()
+})
+
+test('offers a built-in type as a relation target in the words of WordPress es_ES for a Spanish reader', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups')
+	const dialog = await openFields('Article details', 'Grupos de campos')
+
+	await userEvent.click(within(dialog).getByLabelText('Tipo'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Relación' }))
+
+	expect(within(dialog).getByLabelText('Apunta a')).toHaveTextContent('Entradas')
+})
+
+test('declares a plain field while the content types are still out of reach', async () => {
+	let sent: unknown
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.get('/api/types', () => new HttpResponse(null, { status: 500 })))
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(dialog).getByLabelText('Kind'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	expect(within(dialog).queryByLabelText('Points at')).not.toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Add field' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+	expect(sent).toBeUndefined()
+})
+
+test.each([
+	{
+		field: 'a radio group',
+		shape: 'the choice kind presented as radio',
+		label: 'Style',
+		option: 'Radio group',
+		body: { key: 'style', kind: 'choice', settings: { presentation: 'radio' } },
+		unset: [],
+	},
+	{
+		field: 'an email field',
+		shape: 'text checked as an email',
+		label: 'Contact',
+		option: 'Email',
+		body: { kind: 'text', settings: { variant: 'email' } },
+		unset: [],
+	},
+	{
+		field: 'a gallery',
+		shape: 'a media field holding many',
+		label: 'Gallery',
+		option: 'Gallery',
+		body: { kind: 'media', many: true },
+		unset: ['settings'],
+	},
+])('declares $field as $shape', async ({ label, option, body, unset }) => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: label.toLowerCase(), label, kind: body.kind })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), label)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: option }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toMatchObject(body))
+	for (const key of unset) {
+		expect(sent).not.toHaveProperty(key)
+	}
+})
+
+test('offers flexible content at the top of a group and no bare layout', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+
+	expect(await screen.findByRole('option', { name: 'Flexible content' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Layout' })).not.toBeInTheDocument()
+})
+
+test('asks only the label of a layout inside a flexible content field, its button reading Add layout', async () => {
+	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
+	renderAt('/field-groups')
+	const main = await openFields()
+	const features = await openField(main, 'Features')
+
+	const adding = addFormOf(features, 'Features', 'Add layout')
+
+	expect(within(adding).queryByRole('combobox')).toBeNull()
+	expect(within(adding).getAllByRole('textbox')).toEqual([within(adding).getByRole('textbox', { name: 'Label' })])
+	expect(within(adding).getByRole('button', { name: 'Add layout to Features' }).textContent).toBe('Add layout')
+})
+
+const VANS = {
+	...DETAILS,
+	id: 5,
+	key: 'vans',
+	title: 'Vans',
+	position: 3,
+	fields: [{ ...SUBTITLE, key: 'driver', label: 'Driver', kind: 'relation', relates_to: 'post' }],
+}
+
+const CARS = {
+	...DETAILS,
+	id: 6,
+	key: 'cars',
+	title: 'Cars',
+	position: 4,
+	fields: [
+		{ ...SUBTITLE, key: 'maker', label: 'Maker', kind: 'relation', relates_to: 'post' },
+		{ ...SUBTITLE, key: 'owner', label: 'Owner', kind: 'relation', relates_to: 'post' },
+		{ ...SUBTITLE, key: 'note', label: 'Note', kind: 'text' },
+	],
+}
+
+/**
+ * Opens the kind picker on the linked from entry.
+ * @param dialog - The dialog the fields stand in.
+ */
+async function pickLinkedFrom(dialog: HTMLElement) {
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Linked from' }))
+}
+
+test('declares a linked from field reading a relation another group holds', async () => {
+	let sent: unknown
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'linked-from', kind: 'backlinks' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Linked from')
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Owner' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({
+			key: 'linked-from',
+			kind: 'backlinks',
+			required: false,
+			settings: { source_group: 'cars', source_field: ['owner'] },
+		}),
+	)
+})
+
+test('offers a linked from field only the groups holding a relation', async () => {
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+
+	expect(await screen.findByRole('option', { name: 'Vans' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details' })).not.toBeInTheDocument()
+})
+
+test('offers a linked from field only the relations of the group it reads', async () => {
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Through' }))
+
+	expect(await screen.findByRole('option', { name: 'Maker' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Note' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Driver' })).not.toBeInTheDocument()
+})
+
+test('holds back a linked from field when no group holds a relation', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+
+	expect(within(dialog).getByRole('button', { name: 'Add field' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+})
+
+test('offers no linked from field inside a container', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }],
+		},
+		CARS,
+	])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	const author = await openField(dialog, 'Author')
+
+	await userEvent.click(within(addFormOf(author, 'Author')).getByRole('combobox', { name: 'Kind' }))
+
+	expect(await screen.findByRole('option', { name: 'Text' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Linked from' })).not.toBeInTheDocument()
+})
+
+test("stops a field declared into the group past the site's time limit, keeping what its form holds", async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+		),
+		http.post('/api/groups/3/fields', () => new Promise<never>(() => {})),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+
+	await userEvent.type(within(main).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(main).getByRole('button', { name: 'Add field' }))
+
+	expect(await findToast('Could not add the field. The field groups could not be reached.')).toBeInTheDocument()
+	expect(within(main).getByRole('textbox', { name: 'Label' })).toHaveValue('Summary')
+	expect(within(main).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
+})
+
+test('keeps the label and the kind of a new field read only while it is declared', async () => {
+	const answer = gate()
+	server.use(
+		http.post('/api/groups/3/fields', async () => {
+			await answer.held
+			return HttpResponse.json({ ...SUBTITLE, key: 'summary', label: 'Summary' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Summary')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+	await waitBusy(dialog, 'Add field')
+
+	expect(within(dialog).getByRole('textbox', { name: 'Label' })).toHaveAttribute('readonly')
+	expect(within(dialog).getByRole('combobox', { name: 'Kind' })).toHaveAttribute('aria-readonly', 'true')
+	answer.release()
+	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly'))
+})

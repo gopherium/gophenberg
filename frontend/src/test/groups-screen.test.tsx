@@ -12,9 +12,11 @@ import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { NO_FIELDS } from './groupFieldsFixtures'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
 import { declarations } from './stylesheet'
+import { cellBoxes } from './tableCells'
 import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
@@ -104,8 +106,9 @@ test('lists every group with where it appears and how many fields it holds', asy
 
 	const details = within(table).getByRole('row', { name: /Article details/ })
 	expect(within(details).getByText('Posts')).toBeInTheDocument()
-	expect(within(details).getByText('1')).toBeInTheDocument()
+	expect(within(details).getByText('1 field')).toBeInTheDocument()
 	expect(within(table).getByText('Extras')).toBeInTheDocument()
+	expect(within(within(table).getByRole('row', { name: /Extras/ })).getByText('0 fields')).toBeInTheDocument()
 })
 
 test('writes how many fields a group holds in the site format', async () => {
@@ -117,7 +120,7 @@ test('writes how many fields a group holds in the site format', async () => {
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 
 	const details = within(table).getByRole('row', { name: /Article details/ })
-	expect(within(details).getByText('१')).toBeInTheDocument()
+	expect(within(details).getByText('१ field')).toBeInTheDocument()
 })
 
 test('draws one compact solid header button beside compact outline ones, as WordPress does', async () => {
@@ -226,16 +229,74 @@ test('keeps the Fields button for a plugin group alone, a site group opening its
 	expect(within(site).queryByRole('button', { name: 'Fields' })).not.toBeInTheDocument()
 })
 
-test('wraps the actions of a group row so its buttons keep their words whole', async () => {
+test('marks the Actions column as the actions of each row and keeps the words of its buttons whole', async () => {
 	renderAt('/field-groups')
 
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
+	expect(within(table).getByRole('columnheader', { name: 'Actions' })).toHaveClass('godmin-table__actions')
 	const actions = within(row).getByRole('button', { name: 'Deactivate' }).parentElement
-	expect(actions).toHaveStyle({ flexWrap: 'wrap' })
+	expect(actions?.closest('td')).toHaveClass('godmin-table__actions')
+	expect(actions).not.toHaveStyle({ flexWrap: 'wrap' })
 	expect(actions).toHaveClass('gophenberg-groups__actions')
 	expect(declarations('.gophenberg-groups__actions button')).toEqual({ 'overflow-wrap': 'normal' })
+})
+
+test('keeps the field count of a group on one line', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const [, , count] = cellBoxes(within(table).getByRole('row', { name: /Article details/ }))
+
+	expect(count).toHaveClass('gophenberg-groups__count')
+	expect(declarations('.gophenberg-groups__count')).toEqual({ 'white-space': 'nowrap' })
+})
+
+test('leaves the Status box empty for an active site group no other group shadows', async () => {
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const [, , , status] = cellBoxes(within(table).getByRole('row', { name: /Extras/ }))
+
+	expect(status).toBeEmptyDOMElement()
+})
+
+test('puts the first line of each cell of a group row in the cell box', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events', active: false }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	const boxes = cellBoxes(declared)
+	expect(boxes).not.toContain(null)
+	const [title, placed, count, status, actions] = boxes as HTMLElement[]
+	expect(title).toContainElement(within(declared).getByText('Article details'))
+	expect(placed).toContainElement(within(declared).getByText('Posts'))
+	expect(count).toContainElement(within(declared).getByText('1 field'))
+	expect(status).toContainElement(within(declared).getByText('Inactive'))
+	expect(status).toContainElement(within(declared).getByText('From events'))
+	for (const button of within(declared).getAllByRole('button')) {
+		expect(actions).toContainElement(button)
+	}
+	const [link, , , , own] = cellBoxes(site)
+	expect(link).toContainElement(within(site).getByRole('link', { name: 'Extras' }))
+	expect(own).toContainElement(within(site).getByRole('button', { name: 'Delete' }))
+})
+
+test('draws every button of a group row compact, as tall as the cell box', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	const buttons = within(table).getAllByRole('button')
+
+	expect(buttons).toHaveLength(8)
+	for (const button of buttons) {
+		expect([...button.classList]).toEqual(expect.arrayContaining(buttonClasses('outline', 'compact')))
+	}
 })
 
 test('shows the fields a plugin declared without offering to change them', async () => {
@@ -312,7 +373,7 @@ test('opens the page of a new group once it is created, read again with the grou
 	const main = screen.getByRole('main')
 	expect(await within(main).findByRole('heading', { level: 2, name: 'Extras' })).toBeInTheDocument()
 	expect(router.state.location.pathname).toBe('/field-groups/4')
-	expect(within(main).getByText('This group holds no fields yet.')).toBeInTheDocument()
+	expect(within(main).getByRole('heading', { name: NO_FIELDS })).toBeInTheDocument()
 	expect(await findToast('Extras created.')).toBeInTheDocument()
 })
 
@@ -538,6 +599,17 @@ test('reports why a group write was turned away', async () => {
 
 	expect(await findToast(/^Could not save the change\. A field with that name already exists/)).toBeInTheDocument()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('says the field groups could not be reached when the network drops a group write', async () => {
+	server.use(http.patch('/api/groups/3', () => HttpResponse.error()))
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	expect(await findToast('Could not save the change. The field groups could not be reached.')).toBeInTheDocument()
 })
 
 test('reports why the groups could not be reordered', async () => {

@@ -4,6 +4,7 @@ import { __ } from '@wordpress/i18n'
 
 import { backlinkSettings, backlinkSources, pickOf } from './groups'
 import type { BacklinkPick, FieldGroup, GroupEdit, Location } from './groups'
+import { ownValue } from './types'
 import type { ContentField } from './types'
 
 /** A Linked from source picked in the details, with the source and the stamp its field held at the first pick. */
@@ -117,9 +118,14 @@ export function changedParts(base: FieldGroup, draft: GroupDraft): DraftPart[] {
  * @returns The draft to hold.
  */
 export function withPick(draft: GroupDraft, field: ContentField, pick: BacklinkPick): GroupDraft {
-	const first = draft.links[field.key] ?? { was: pickOf(field), updatedAt: field.updatedAt }
-	const held: LinkPick = { group: pick.group, field: pick.field, was: first.was, updatedAt: first.updatedAt }
-	return { ...draft, links: { ...draft.links, [field.key]: held } }
+	const existingPick = ownValue(draft.links, field.key) ?? { was: pickOf(field), updatedAt: field.updatedAt }
+	const newPick: LinkPick = {
+		group: pick.group,
+		field: pick.field,
+		was: existingPick.was,
+		updatedAt: existingPick.updatedAt,
+	}
+	return { ...draft, links: { ...draft.links, [field.key]: newPick } }
 }
 
 /**
@@ -224,7 +230,7 @@ export function editOf(draft: GroupDraft, parts: DraftPart[], live: FieldGroup, 
 	}
 }
 
-/** One part of a group as the draft started from it, as the draft holds it and as it was saved elsewhere. */
+/** One part as a draft started from it, as the draft holds it and as it was saved elsewhere. */
 interface Sides<T> {
 	base: T
 	mine: T
@@ -232,14 +238,19 @@ interface Sides<T> {
 }
 
 /**
- * Returns the value a part takes once the draft moves onto the saved version, naming the part when the saved value won.
+ * Returns the value a part takes once a draft moves onto the saved version, naming the part when the saved value won.
  * @param part - The name of the part.
  * @param sides - The part as the draft started from it, as the draft holds it and as it was saved.
  * @param same - What tells two values of the part apart.
  * @param lost - The parts named so far, where a part the saved value won over goes.
  * @returns The value the draft holds.
  */
-function settled<T>(part: DraftPart, sides: Sides<T>, same: (one: T, other: T) => boolean, lost: DraftPart[]): T {
+export function settled<T, P extends string>(
+	part: P,
+	sides: Sides<T>,
+	same: (one: T, other: T) => boolean,
+	lost: P[],
+): T {
 	if (same(sides.mine, sides.base)) {
 		return sides.theirs
 	}

@@ -6,15 +6,21 @@ import { UnsavedChangesDialog } from '@gopherium/godmin/router'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { __, sprintf } from '@wordpress/i18n'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { atOrUnder, changedFieldParts, changedPaths } from './fieldDraft'
+import { notesRan, notesStarted, openedRan, withoutPaths } from './fieldNotes'
 import { GroupDetails, SaveNotices, useGroupDetails } from './GroupDetails'
-import { GroupFields } from './GroupFieldsDialog'
+import { GroupFields } from './GroupFields'
+import { useGroupSave } from './groupSave'
 import { shadowings, shadowingSentence } from './GroupsScreen'
 import { groupsQueryKey, listGroups } from './groups'
 import { groupsMenuItem, typesQueryKey } from './nav'
 import { listTypes } from './types'
+import type { FieldWork } from './fieldControls'
+import type { FieldDraft, FieldDrafts, RebasedField } from './fieldDraft'
+import type { FieldFailure, FieldNotes } from './fieldNotes'
 import type { FieldGroup } from './groups'
 import type { Shadowing } from './GroupsScreen'
 import type { ContentType } from './types'
@@ -123,6 +129,74 @@ interface SiteGroupProps {
 }
 
 /**
+ * Returns the drafts held with one field's draft set, or dropped when given none or once it holds no change.
+ * @param drafts - The drafts held.
+ * @param path - The dotted path of the field.
+ * @param draft - The field's draft, none to drop it.
+ * @returns The drafts to hold.
+ */
+function withDraft(drafts: FieldDrafts, path: string, draft: FieldDraft | null): FieldDrafts {
+	const rest = Object.fromEntries(Object.entries(drafts).filter(([held]) => held !== path))
+	return draft === null || changedFieldParts(draft).length === 0 ? rest : { ...rest, [path]: draft }
+}
+
+/**
+ * Returns the dotted paths of the open fields with one field opened or closed.
+ * @param opened - The paths of the fields standing open.
+ * @param path - The dotted path of the field.
+ * @param open - Whether the field stands open.
+ * @returns The paths to hold.
+ */
+function withOpen(opened: ReadonlySet<string>, path: string, open: boolean): ReadonlySet<string> {
+	const next = new Set(opened)
+	if (open) {
+		next.add(path)
+	} else {
+		next.delete(path)
+	}
+	return next
+}
+
+/**
+ * Returns the drafts, open fields and notes of a page's fields, with what changes them.
+ * @returns The drafts, the fields standing open, what each shows of its saves, what changes them, and what a run of
+ * the header Save tells them.
+ */
+function useFieldEdits() {
+	const [drafts, setDrafts] = useState<FieldDrafts>({})
+	const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
+	const [notes, setNotes] = useState<FieldNotes>({})
+	return {
+		drafts,
+		opened,
+		notes,
+		onDraft: (path: string, draft: FieldDraft | null) => {
+			setDrafts((held) => withDraft(held, path, draft))
+			if (draft === null || changedFieldParts(draft).length === 0) {
+				setNotes((held) => withoutPaths(held, (one) => one === path))
+			}
+		},
+		onOpen: (path: string, open: boolean) => setOpened((held) => withOpen(held, path, open)),
+		onDrop: (path: string) => {
+			const gone = (held: string) => atOrUnder(held, path)
+			setDrafts((held) => withoutPaths(held, gone))
+			setNotes((held) => withoutPaths(held, gone))
+			setOpened((held) => new Set([...held].filter((one) => !gone(one))))
+		},
+		onRebase: (path: string, moved: RebasedField) => {
+			setDrafts((held) => withDraft(held, path, moved.draft))
+			setNotes((held) => ({ ...held, [path]: { stale: false, lost: moved.lost } }))
+		},
+		started: () => setNotes(notesStarted),
+		ran: (saved: string[], failures: FieldFailure[]) => {
+			setDrafts((held) => withoutPaths(held, (path) => saved.includes(path)))
+			setNotes((held) => notesRan(held, saved, failures, drafts))
+			setOpened(openedRan(failures))
+		},
+	}
+}
+
+/**
  * Renders the page of a group the site declared: its fields, its details beside them and the header Save.
  * @param props - The group, every group read, the types last read, and whether the last read of each failed.
  * @returns The page element.
@@ -130,25 +204,54 @@ interface SiteGroupProps {
 function SiteGroupPage(props: SiteGroupProps) {
 	const form = useId()
 	const types = props.types ?? []
-	const details = useGroupDetails(props.held, props.groups)
+	const details = useGroupDetails(props.held)
+	const edits = useFieldEdits()
+	const save = useGroupSave({
+		held: props.held,
+		groups: props.groups,
+		details,
+		drafts: edits.drafts,
+		fields: { started: edits.started, ran: edits.ran },
+	})
 	const overlaps = overlapsOf(props.held, props.groups, types)
 	const losing = new Set(overlaps.filter((overlap) => overlap.loserID === props.held.id).map((overlap) => overlap.key))
-	const blank = details.draft.title.trim() === ''
+	const ready = save.changed && details.draft.title.trim() !== '' && !save.saving
+	const submit = () => {
+		if (ready) {
+			save.save()
+		}
+	}
+	const work: FieldWork = {
+		drafts: edits.drafts,
+		changed: changedPaths(props.held.fields, edits.drafts),
+		opened: edits.opened,
+		notes: edits.notes,
+		saving: save.saving,
+		onDraft: edits.onDraft,
+		onOpen: edits.onOpen,
+		onDrop: edits.onDrop,
+		onRebase: edits.onRebase,
+		onSave: submit,
+	}
 	return (
 		<GroupPage
 			title={titleOf(details.draft.title)}
 			actions={
-				<Button
-					type="submit"
-					form={form}
-					size="compact"
-					disabled={!details.changed || blank || details.saving}
-					loading={details.saving}
-				>
+				<Button type="submit" form={form} size="compact" disabled={!ready} loading={save.saving}>
 					{__('Save', 'gophenberg')}
 				</Button>
 			}
-			aside={<GroupDetails form={form} held={props.held} groups={props.groups} types={types} details={details} />}
+			aside={
+				<GroupDetails
+					form={form}
+					held={props.held}
+					groups={props.groups}
+					types={types}
+					details={details}
+					saving={save.saving}
+					onSave={submit}
+				/>
+			}
 		>
 			<SaveNotices held={props.held} details={details} />
 			{overlaps.map((overlap) => (
@@ -158,9 +261,9 @@ function SiteGroupPage(props: SiteGroupProps) {
 			))}
 			{props.failed && <ReadFailure />}
 			{props.typesFailed && <TypesFailure read={props.types !== undefined} />}
-			<GroupFields held={props.held} groups={props.groups} types={types} shadowed={losing} />
+			<GroupFields held={props.held} groups={props.groups} types={types} shadowed={losing} work={work} />
 			<UnsavedChangesDialog
-				when={details.changed}
+				when={save.changed}
 				title={__('Discard changes?', 'gophenberg')}
 				description={__('The changes to this field group are not saved.', 'gophenberg')}
 				discardLabel={__('Discard', 'gophenberg')}

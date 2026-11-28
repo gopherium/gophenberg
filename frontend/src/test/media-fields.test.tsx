@@ -2,12 +2,14 @@
 
 import { audioIcon, fileIcon, Icon, imageIcon, videoIcon } from '@gophenberg/frontend-sdk'
 import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
+import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import type { ComponentType, ReactNode } from 'react'
 import { expect, onTestFinished, test, vi } from 'vitest'
 
+import { catalogFor } from '../i18n/catalog'
 import '../media/media.css'
 import type { MediaItem } from '../media/api'
 import { libraryFields, MEDIA_SORT, mediaFields, mediaListing } from '../media/fields'
@@ -189,6 +191,24 @@ test('helps with alt text in WordPress words, the WAI decision tree opening in a
 	expect(link).toHaveAttribute('href', 'https://www.w3.org/WAI/tutorials/images/decision-tree/')
 	expect(link).toHaveAttribute('target', '_blank')
 	expect(container).toHaveTextContent(/Leave empty if decorative\.$/)
+})
+
+test.each([
+	{ locale: 'es-ES', words: 'Describe el propósito de la imagen.', note: '(abre en una nueva pestaña)' },
+	{ locale: 'fr-FR', words: 'Décrivez la fonction de l’image.', note: '(ouvre un nouvel onglet)' },
+])('says the alt text link opens in a new tab in the words of $locale', async ({ locale, words, note }) => {
+	setLocaleData(await catalogFor(locale), 'gophenberg')
+	setLocaleData(await listChromeCatalogFor(locale), LIST_CHROME_DOMAIN)
+	onTestFinished(() => {
+		resetLocaleData({}, 'gophenberg')
+		resetLocaleData({}, LIST_CHROME_DOMAIN)
+	})
+
+	render(<>{fieldOf('altText').description as ReactNode}</>)
+
+	const link = screen.getByRole('link')
+	expect(link).toHaveTextContent(words)
+	expect(within(link).getByRole('img', { name: note })).toBeInTheDocument()
 })
 
 test.each(['altText', 'caption', 'description', 'mimeType'])('draws a dash for an empty %s', (id) => {

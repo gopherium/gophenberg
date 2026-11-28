@@ -12,9 +12,8 @@ import {
 	deleteFieldInGroup,
 	deleteGroup,
 	deleteSubField,
+	editFieldInGroup,
 	moveField,
-	renameFieldInGroup,
-	setFieldSettingsInGroup,
 } from '../content/groups'
 import type { Location } from '../content/groups'
 import { createType, deleteType, updateType } from '../content/types'
@@ -81,8 +80,9 @@ const writes: [string, (signal: AbortSignal) => Promise<unknown>][] = [
 	['deleteMedia', (signal) => deleteMedia(7, signal)],
 	['createGroup', (signal) => createGroup('Details', ON_POSTS, signal)],
 	['deleteGroup', (signal) => deleteGroup(3, signal)],
-	['renameFieldInGroup', (signal) => renameFieldInGroup(READ_FIELD, 'Strapline', signal)],
-	['setFieldSettingsInGroup', (signal) => setFieldSettingsInGroup(READ_FIELD, {}, signal)],
+	['editFieldInGroup with a label', (signal) => editFieldInGroup(READ_FIELD, { label: 'Strapline' }, signal)],
+	['editFieldInGroup with settings', (signal) => editFieldInGroup(READ_FIELD, { settings: {} }, signal)],
+	['editFieldInGroup with a required flag', (signal) => editFieldInGroup(READ_FIELD, { required: true }, signal)],
 	['createFieldInGroup', (signal) => createFieldInGroup(3, NEW_FIELD, signal)],
 	['createSubField', (signal) => createSubField(3, 'team', NEW_FIELD, signal)],
 	['deleteFieldInGroup', (signal) => deleteFieldInGroup(3, 'subtitle', signal)],

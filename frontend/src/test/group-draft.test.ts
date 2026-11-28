@@ -157,6 +157,17 @@ test('keeps the stamp and the source of the first pick of a field through the pi
 	})
 })
 
+test('holds the source and the stamp a Linked from field keyed constructor reads at its first pick', () => {
+	const constructorField = { ...LINKED, key: 'constructor', updatedAt: NEWER_STAMP }
+
+	const draft = draftOf({ ...BASE, fields: [constructorField] })
+	const picked = withPick(draft, constructorField, { group: 'cars', field: 'rival' })
+
+	expect(picked.links).toEqual({
+		constructor: { group: 'cars', field: 'rival', was: { group: 'cars', field: 'maker' }, updatedAt: NEWER_STAMP },
+	})
+})
+
 test('keeps a part only the draft changed and takes a part only the saved version changed', () => {
 	const draft = { ...draftOf(BASE), title: 'Car details' }
 	const saved = { ...BASE, active: false, updatedAt: NEWER_STAMP }

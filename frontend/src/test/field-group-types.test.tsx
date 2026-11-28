@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest'
 
 import { groupsQueryKey } from '../content/groups'
 import { typesQueryKey } from '../content/nav'
-import { DETAILS, EXTRAS, listing, SUBTITLE } from './groupFieldsFixtures'
+import { DETAILS, EXTRAS, fieldRow, listing, SUBTITLE } from './groupFieldsFixtures'
 import { renderAt } from './render'
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
@@ -54,7 +54,7 @@ test('names a failed first read of the content types above the fields and outsid
 
 	expect(notice).toHaveTextContent(TYPES_LOST)
 	expect(within(main).getByRole('region', { name: 'Field group settings' })).not.toContainElement(notice)
-	const field = within(main).getByRole('listitem', { name: 'Subtitle' })
+	const field = await fieldRow(main, 'Subtitle')
 	expect(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 	expect(within(main).queryByText(OVERLAP)).not.toBeInTheDocument()
 })

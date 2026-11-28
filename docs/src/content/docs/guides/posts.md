@@ -44,7 +44,7 @@ Slug, and Parent on a type whose items nest, are hidden at first.
 Turn them on under **View options**, where you can also hide every
 other column but Title.
 
-A field the type marks **In list** gets a column of its own,
+A field set to **Show in the list** gets a column of its own,
 showing what each post holds under it. A switch reads Yes or No, a
 date reads in the site's format, and a choice reads its label rather
 than its stored value. These columns do not sort.
@@ -57,7 +57,7 @@ list turns flat, and a reload of that address stays flat too.
 On a phone the list shows one item per row with its status and its
 date. Tap a row to open the post.
 
-Counts and the dates of an **In list** field follow the format the
+Counts and the dates of a field shown in the list follow the format the
 site runs with, whatever language you read the admin in, so every
 reader sees 04/10/2026 and 1.234 by default. Whoever runs the site
 picks that format, see
@@ -98,8 +98,8 @@ body.
   calendar names the months in the language you read the admin in,
   and its weeks start on Monday. Its chip writes the moment in full,
   such as `October 8, 2026 5:54 pm`, as WordPress does.
-- A switch or a choice field marked In list keeps the posts holding
-  the value you pick.
+- A switch or a choice field set to Show in the list keeps the posts
+  holding the value you pick.
 
 Filters add up, so a post has to match every one of them.
 

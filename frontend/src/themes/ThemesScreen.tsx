@@ -216,16 +216,22 @@ function ThemeRow(props: { theme: Theme; onOutcome: Reporter }) {
 	const { theme } = props
 	return (
 		<tr>
-			<td>{theme.name}</td>
-			<td>{theme.version}</td>
 			<td>
-				<Stack direction="column" gap="xs" align="flex-start">
+				<div className="godmin-table__cell">{theme.name}</div>
+			</td>
+			<td>
+				<div className="godmin-table__cell">{theme.version}</div>
+			</td>
+			<td>
+				<div className="godmin-table__cell">
 					<ThemeBadge theme={theme} />
-					{theme.broken !== '' && <Text>{theme.broken}</Text>}
-				</Stack>
+				</div>
+				{theme.broken !== '' && <Text>{theme.broken}</Text>}
 			</td>
 			<td className="godmin-table__actions">
-				<ServingToggle theme={theme} onOutcome={props.onOutcome} />
+				<div className="godmin-table__cell">
+					<ServingToggle theme={theme} onOutcome={props.onOutcome} />
+				</div>
 			</td>
 		</tr>
 	)
@@ -277,6 +283,7 @@ function ServingToggle(props: { theme: Theme; onOutcome: Reporter }) {
 	return (
 		<Button
 			variant="outline"
+			size="compact"
 			aria-label={named}
 			loading={serve.isPending}
 			onClick={() => serve.mutate()}
