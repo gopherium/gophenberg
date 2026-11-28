@@ -134,13 +134,47 @@ async function savedFields(asked: SaveAsked, limit: number, tally: Tally): Promi
 }
 
 /**
- * Returns the group as last read holding at its top the fields the run saved, so a Linked from pick takes their stamps.
+ * Returns the fields with each field the run saved at its dotted path, the sub fields as last read.
+ * @param fields - The fields as last read.
+ * @param saved - The fields the run saved, each under its dotted path.
+ * @param parentPath - The dotted path of the field holding the fields, empty at a group's top.
+ * @returns The fields.
+ */
+function fieldsWithSaved(
+	fields: ContentField[],
+	saved: Record<string, ContentField>,
+	parentPath = '',
+): ContentField[] {
+	return fields.map((field) => {
+		const path = parentPath === '' ? field.key : `${parentPath}.${field.key}`
+		const newestField = ownValue(saved, path) ?? field
+		return { ...newestField, fields: fieldsWithSaved(field.fields, saved, path) }
+	})
+}
+
+/**
+ * Returns the group with each field the run saved at its dotted path.
  * @param group - The group as last read.
  * @param saved - The fields the run saved, each under its dotted path.
  * @returns The group.
  */
 function withSaved(group: FieldGroup, saved: Record<string, ContentField>): FieldGroup {
-	return { ...group, fields: group.fields.map((field) => ownValue(saved, field.key) ?? field) }
+	return { ...group, fields: fieldsWithSaved(group.fields, saved) }
+}
+
+/**
+ * Returns the groups with the fields a run saved placed in the group it saved them in.
+ * @param groups - The groups cached, none before the first read.
+ * @param groupId - The id of the group the run saved the fields in.
+ * @param saved - The fields the run saved, each under its dotted path.
+ * @returns The groups to cache.
+ */
+function groupsWithSaved(
+	groups: FieldGroup[] | undefined,
+	groupId: number,
+	saved: Record<string, ContentField>,
+): FieldGroup[] | undefined {
+	return groups?.map((group) => (group.id === groupId ? withSaved(group, saved) : group))
 }
 
 /**
@@ -313,19 +347,21 @@ export function useGroupSave(page: SavePage) {
 	const client = useQueryClient()
 	const toaster = useToaster()
 	const limit = useWriteTimeout()
-	const { held, details, drafts } = page
-	const run = useMutation({
-		mutationFn: () => runSave({ held, groups: page.groups, base: details.base, draft: details.draft, drafts }, limit),
+	const { held: group, details, drafts } = page
+	const saveMutation = useMutation({
+		mutationFn: () =>
+			runSave({ held: group, groups: page.groups, base: details.base, draft: details.draft, drafts }, limit),
 		onMutate: () => {
 			details.saveStarted()
 			page.fields.started()
 		},
-		onSuccess: async (ran) => {
-			settleDetails(ran, details, client)
-			page.fields.ran(Object.keys(ran.saved), fieldFailures(ran))
-			const notes = saveNotes(ran)
+		onSuccess: async (saveRun) => {
+			client.setQueryData<FieldGroup[]>(groupsQueryKey, (cached) => groupsWithSaved(cached, group.id, saveRun.saved))
+			settleDetails(saveRun, details, client)
+			page.fields.ran(Object.keys(saveRun.saved), fieldFailures(saveRun))
+			const notes = saveNotes(saveRun)
 			toaster.show((notes.notice ?? notes.toast) as string)
-			if (ran.outcome.done > 0) {
+			if (saveRun.outcome.done > 0) {
 				await Promise.all([
 					client.invalidateQueries({ queryKey: groupsQueryKey }),
 					client.invalidateQueries({ queryKey: typesQueryKey }),
@@ -334,8 +370,8 @@ export function useGroupSave(page: SavePage) {
 		},
 	})
 	return {
-		changed: details.changed || changedPaths(held.fields, drafts).length > 0,
-		saving: run.isPending,
-		save: () => run.mutate(),
+		changed: details.changed || changedPaths(group.fields, drafts).length > 0,
+		saving: saveMutation.isPending,
+		save: () => saveMutation.mutate(),
 	}
 }

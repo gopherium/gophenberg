@@ -389,6 +389,66 @@ test('opens a field inside a container in place and saves it on its dotted path 
 	expect(sent).toEqual([{ label: 'Full name', required: true, settings: {}, updated_at: '2026-08-01T10:00:00Z' }])
 })
 
+test(
+	'keeps the sub fields of a container the header Save stored though the groups could not be read again',
+	async () => {
+		listing([{ ...DETAILS, fields: [AUTHOR] }, EXTRAS])
+		server.use(
+			http.patch('/api/groups/3/fields/author', () => {
+				server.use(http.get('/api/groups', () => new HttpResponse(null, { status: 500 })))
+				return HttpResponse.json({ ...AUTHOR, label: 'Writer', fields: undefined, updated_at: '2026-08-02T09:00:00Z' })
+			}),
+		)
+		renderAt('/field-groups')
+		const main = await openFields()
+		const part = await openField(main, 'Author')
+		const labelInput = within(part).getAllByRole('textbox', { name: 'Label' })[0]
+		await userEvent.clear(labelInput)
+		await userEvent.type(labelInput, 'Writer')
+		await userEvent.click(saveOf(main))
+		expect(await within(main).findByText('The field groups could not be loaded.')).toBeInTheDocument()
+
+		await openField(main, 'Writer')
+
+		expect(await fieldRow(main, 'Name')).toBeInTheDocument()
+	},
+)
+
+test('places a saved sub field at its dotted path though the groups could not be read again', async () => {
+	const storedName = { ...NAME, label: 'Full name', updated_at: '2026-08-02T09:00:00Z' }
+	const sentBodies: unknown[] = []
+	listing([{ ...DETAILS, fields: [AUTHOR] }, EXTRAS])
+	server.use(
+		http.patch('/api/groups/3/fields/author.name', async ({ request }) => {
+			sentBodies.push(await request.json())
+			server.use(http.get('/api/groups', () => new HttpResponse(null, { status: 500 })))
+			return HttpResponse.json(storedName)
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	await openField(main, 'Author')
+	const part = await openField(main, 'Name')
+	const labelInput = within(part).getByRole('textbox', { name: 'Label' })
+	await userEvent.clear(labelInput)
+	await userEvent.type(labelInput, 'Full name')
+	await userEvent.click(saveOf(main))
+	expect(await within(main).findByText('The field groups could not be loaded.')).toBeInTheDocument()
+
+	await openField(main, 'Author')
+	const reopenedPart = await openField(main, 'Full name')
+	await userEvent.type(within(reopenedPart).getByRole('textbox', { name: 'Label' }), ' again')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sentBodies).toHaveLength(2))
+	expect(sentBodies[1]).toEqual({
+		label: 'Full name again',
+		required: false,
+		settings: {},
+		updated_at: storedName.updated_at,
+	})
+})
+
 test('moves the stale draft of a sub field onto its saved version, marking the label both changed', async () => {
 	const theirs = { ...NAME, label: 'Given name', updated_at: '2026-08-02T09:00:00Z' }
 	listing([{ ...DETAILS, fields: [AUTHOR] }, EXTRAS])

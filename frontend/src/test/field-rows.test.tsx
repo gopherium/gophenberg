@@ -23,6 +23,7 @@ import {
 	openFields,
 	partOf,
 	READING_TIME,
+	saveOf,
 	serveFieldGroups,
 	SUBTITLE,
 	toggleOf,
@@ -388,6 +389,36 @@ test('keeps a field open while the groups are read again', async () => {
 
 	expect(await fieldRow(main, 'Summary')).toBeInTheDocument()
 	expect(toggleOf(await fieldRow(main, 'Subtitle'), 'Subtitle')).toHaveAttribute('aria-expanded', 'true')
+})
+
+test('shows what a field save stored though the groups could not be read again', async () => {
+	const storedField = { ...SUBTITLE, label: 'Subtitle line', updated_at: '2026-08-02T09:00:00Z' }
+	const sentBodies: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sentBodies.push(await request.json())
+			server.use(http.get('/api/groups', () => new HttpResponse(null, { status: 500 })))
+			return HttpResponse.json(storedField)
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Subtitle')
+	await userEvent.type(within(part).getByRole('textbox', { name: 'Label' }), ' line')
+	await userEvent.click(saveOf(main))
+	expect(await within(main).findByText('The field groups could not be loaded.')).toBeInTheDocument()
+
+	const reopenedPart = await openField(main, 'Subtitle line')
+	await userEvent.type(within(reopenedPart).getByRole('textbox', { name: 'Label' }), ' again')
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() => expect(sentBodies).toHaveLength(2))
+	expect(sentBodies[1]).toEqual({
+		label: 'Subtitle line again',
+		required: false,
+		settings: {},
+		updated_at: storedField.updated_at,
+	})
 })
 
 test('marks a closed field holding unsaved changes, and no other', async () => {
