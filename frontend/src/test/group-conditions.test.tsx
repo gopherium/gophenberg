@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
-import { beforeEach, expect, onTestFinished, test } from 'vitest'
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
@@ -18,8 +18,11 @@ const READ_STAMP = '2026-08-01T10:00:00Z'
 
 const OTHER_SAVE_STAMP = '2026-08-02T09:00:00Z'
 
-/** A time limit far shorter than any test. */
-const SHORT_LIMIT = 20
+/** A time limit the site serves for a write, apart from the one the fixtures serve. */
+const SERVED_TIME_LIMIT = 30000
+
+/** How long before the served limit a write is checked as still running. */
+const TIME_BEFORE_LIMIT = 5000
 
 /** The name every Conditional logic tab starts with, whether or not it carries its dot. */
 const RULES_TAB = /^Conditional logic/
@@ -83,6 +86,16 @@ const CYCLE = 'The rules on sale-note lead back to sale-note itself, so nothing 
  */
 function serve(fields: unknown[]) {
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields }] })))
+}
+
+/**
+ * Advances the clock inside a React update.
+ * @param ms - The milliseconds to advance.
+ */
+async function tick(ms: number) {
+	await act(async () => {
+		await vi.advanceTimersByTimeAsync(ms)
+	})
 }
 
 /**
@@ -444,19 +457,33 @@ test('keeps a drafted rule after a stale save, and marks the rules the saved ver
 })
 
 test('stops a rule save past the time limit the site serves, keeping the drafted rule', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
+	onTestFinished(() => {
+		vi.useRealTimers()
+	})
+	const requestArrived = gate()
 	server.use(
 		http.get('/api/settings', () =>
-			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SHORT_LIMIT }),
+			HttpResponse.json({ ...siteSettings, dialog_write_timeout_milliseconds: SERVED_TIME_LIMIT }),
 		),
-		http.patch('/api/groups/3/fields/sale-note', () => new Promise<never>(() => {})),
+		http.patch('/api/groups/3/fields/sale-note', () => {
+			requestArrived.release()
+			return new Promise<never>(() => {})
+		}),
 	)
 	renderAt('/field-groups')
 	const { main, panel } = await openRules('Sale note')
 	await userEvent.click(within(panel).getByRole('button', { name: 'Add rule set' }))
+	const unreachedMessage = 'Could not save Sale note. The field groups could not be reached.'
 
 	await userEvent.click(saveOf(main))
+	await requestArrived.held
 
-	expect(await findToast('Could not save Sale note. The field groups could not be reached.')).toBeInTheDocument()
+	await tick(SERVED_TIME_LIMIT - TIME_BEFORE_LIMIT)
+	expect(saveOf(main)).toHaveClass(/__is-loading\b/)
+	expect(screen.queryByText(unreachedMessage, { selector: '.godmin-toast' })).toBeNull()
+	await tick(TIME_BEFORE_LIMIT)
+	expect(await findToast(unreachedMessage)).toBeInTheDocument()
 	expect(within(panel).getByRole('group', { name: 'Rule 1 of set 1' })).toBeInTheDocument()
 })
 
@@ -491,6 +518,9 @@ test('offers the siblings a rule may read, leaving the field itself out', async 
 
 	const sources = within(panel).getByRole('combobox', { name: 'Source' })
 	expect(within(sources).getByText('On sale')).toBeInTheDocument()
+	await userEvent.click(sources)
+	expect(await screen.findByRole('option', { name: 'On sale' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Sale note' })).toBeNull()
 })
 
 test('carries a rule onto another source, starting its condition afresh', async () => {
@@ -666,7 +696,13 @@ test('stores the rules of a field standing inside a container', async () => {
 	const fee = { ...SALE_NOTE, key: 'fee', label: 'Fee' }
 	const crew = { ...ON_SALE, key: 'crew', label: 'Crew', kind: 'section', fields: [paid, fee] }
 	serve([crew])
-	const sent = recordingEdits()
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/:key', async ({ request, params }) => {
+			sent.push({ key: String(params.key), body: await request.json() })
+			return HttpResponse.json(fee)
+		}),
+	)
 	renderAt('/field-groups')
 	const main = await openFields()
 	await openField(main, 'Crew')
@@ -676,7 +712,9 @@ test('stores the rules of a field standing inside a container', async () => {
 	await userEvent.click(saveOf(main))
 
 	await waitFor(() =>
-		expect(sent).toEqual([editOf({ conditions: [[{ ...WHILE_ON_SALE, source: 'paid' }]] }, 'Fee')]),
+		expect(sent).toEqual([
+			{ key: 'crew.fee', body: editOf({ conditions: [[{ ...WHILE_ON_SALE, source: 'paid' }]] }, 'Fee') },
+		]),
 	)
 })
 
