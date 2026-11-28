@@ -9,6 +9,7 @@ import { backlinkSources, pickOf, typeSource } from './groups'
 import { RuleSets } from './RuleSets'
 import { SourceOfLinks } from './SourceOfLinks'
 import { pluralOf } from './typeText'
+import { ownValue } from './types'
 import type { DraftPart } from './groupDraft'
 import type { BacklinkPick, FieldGroup, Location, RuleSource } from './groups'
 import type { SourceChoices } from './RuleSets'
@@ -109,7 +110,7 @@ export function LinkedSources(props: {
 		<Stack direction="column" gap="sm">
 			<Text>{__('What each Linked from field reads', 'gophenberg')}</Text>
 			{reading.map((field) => {
-				const pick = props.picked[field.key] ?? pickOf(field)
+				const pick = ownValue(props.picked, field.key) ?? pickOf(field)
 				return (
 					<Stack key={field.key} direction="column" gap="sm" role="group" aria-label={field.label}>
 						<Text variant="body-sm">{field.label}</Text>

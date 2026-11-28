@@ -2,7 +2,7 @@
 
 import { settled } from './groupDraft'
 import { pairedSettings, settingsOffered, storedSettings, typedSettings } from './settingControls'
-import { pairsOf } from './types'
+import { ownValue, pairsOf } from './types'
 import type { ContentField } from './types'
 
 /** An open field's label, required flag and settings as the reader leaves them, with the field as first read. */
@@ -202,7 +202,7 @@ export function rebasedField(draft: FieldDraft, saved: ContentField): RebasedFie
 export function changedPaths(fields: ContentField[], drafts: FieldDrafts, above = ''): string[] {
 	return fields.flatMap((field) => {
 		const path = above === '' ? field.key : `${above}.${field.key}`
-		const draft = drafts[path]
+		const draft = ownValue(drafts, path)
 		const own = draft !== undefined && changedFieldParts(draft).length > 0 ? [path] : []
 		return [...own, ...changedPaths(field.fields, drafts, path)]
 	})

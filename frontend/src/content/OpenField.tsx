@@ -27,7 +27,7 @@ import { groupsQueryKey, pickOf, staleFieldMessage } from './groups'
 import { chosenOf } from './select'
 import { LISTABLE, settingAnswers, settingsOffered } from './settingControls'
 import { pluralOf } from './typeText'
-import { pairsOf, pickedLabel, requirable } from './types'
+import { ownValue, pairsOf, pickedLabel, requirable } from './types'
 import type { FieldWork } from './fieldControls'
 import type { FieldDraft, FieldPart } from './fieldDraft'
 import type { FieldNote, Rejection } from './fieldNotes'
@@ -66,9 +66,9 @@ interface OpenFieldProps {
  */
 export function OpenField(props: OpenFieldProps) {
 	const { field, path, work } = props
-	const held = work.drafts[path]
-	const draft = held ?? fieldDraftOf(field)
-	const note = work.notes[path]
+	const pageDraft = ownValue(work.drafts, path)
+	const draft = pageDraft ?? fieldDraftOf(field)
+	const note = ownValue(work.notes, path)
 	return (
 		<Stack direction="column" gap="md">
 			<FieldNotices group={props.group} field={field} path={path} draft={draft} note={note} work={work} />
@@ -92,7 +92,7 @@ export function OpenField(props: OpenFieldProps) {
 				<button type="submit" hidden />
 			</form>
 			{props.nested}
-			<FieldActions path={path} work={work} held={held !== undefined} onClose={props.onClose} />
+			<FieldActions path={path} work={work} hasDraft={pageDraft !== undefined} onClose={props.onClose} />
 		</Stack>
 	)
 }
@@ -102,14 +102,14 @@ export function OpenField(props: OpenFieldProps) {
  * @param props - The path of the field, the page's work on its fields, whether it holds a draft, and what closes it.
  * @returns The footer, Discard changes shown while a draft is held and off while the header Save runs.
  */
-function FieldActions(props: Pick<OpenFieldProps, 'path' | 'work' | 'onClose'> & { held: boolean }) {
+function FieldActions(props: Pick<OpenFieldProps, 'path' | 'work' | 'onClose'> & { hasDraft: boolean }) {
 	const { path, work } = props
 	return (
 		<Stack direction="row" gap="sm" align="center" wrap="wrap" className="gophenberg-field__footer">
 			<Button variant="outline" size="compact" onClick={props.onClose}>
 				{__('Close field', 'gophenberg')}
 			</Button>
-			{props.held && (
+			{props.hasDraft && (
 				<Button
 					variant="minimal"
 					tone="neutral"

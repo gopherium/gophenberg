@@ -18,6 +18,7 @@ import {
 	NO_FIELDS,
 	openField,
 	POST_TYPE,
+	READING_TIME,
 	showTab,
 	SUBTITLE,
 } from './groupFieldsFixtures'
@@ -71,6 +72,16 @@ const LINKED_FROM = {
 	label: 'Linked from',
 	kind: 'backlinks',
 	settings: { source_group: 'cars', source_field: ['maker'] },
+}
+
+const CONSTRUCTOR_FIELD = { ...SUBTITLE, key: 'constructor', label: 'Constructor' }
+
+const CONSTRUCTOR_LINKED_FROM_FIELD = {
+	...LINKED_FROM,
+	key: 'constructor',
+	label: 'Built from',
+	settings: { source_group: 'cars', source_field: ['rival'] },
+	updated_at: OTHER_SAVE_STAMP,
 }
 
 /**
@@ -645,6 +656,58 @@ test('stores a Linked from pick in the same Save that renames its field, on the 
 		},
 	])
 	expect(await fieldRow(main, 'Linked cars')).toBeInTheDocument()
+})
+
+test('opens a field keyed constructor and sends its new label from the header Save', async () => {
+	const sent: unknown[] = []
+	listing([{ ...DETAILS, fields: [CONSTRUCTOR_FIELD, READING_TIME] }, EXTRAS, PLUGIN_GROUP])
+	server.use(
+		http.patch('/api/groups/3/fields/:path', async ({ request, params }) => {
+			sent.push({ path: String(params.path), body: await request.json() })
+			return HttpResponse.json({ ...CONSTRUCTOR_FIELD, label: 'Builder', updated_at: OTHER_SAVE_STAMP })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const part = await openField(main, 'Constructor')
+	const labelBox = within(part).getByRole('textbox', { name: 'Label' })
+	expect(labelBox).toHaveValue('Constructor')
+	expect(within(part).queryByRole('button', { name: 'Discard changes' })).not.toBeInTheDocument()
+
+	await userEvent.clear(labelBox)
+	await userEvent.type(labelBox, 'Builder')
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast('Article details updated.')).toBeInTheDocument()
+	expect(sent).toEqual([
+		{
+			path: 'constructor',
+			body: { label: 'Builder', required: false, settings: {}, updated_at: CONSTRUCTOR_FIELD.updated_at },
+		},
+	])
+})
+
+test('shows the source a Linked from field keyed constructor reads and stores a pick on its stamp', async () => {
+	const sent: unknown[] = []
+	listing([{ ...DETAILS, fields: [CONSTRUCTOR_LINKED_FROM_FIELD] }, CARS])
+	storing(sent, { ...DETAILS, fields: [CONSTRUCTOR_LINKED_FROM_FIELD] })
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const builtFromSource = within(detailsOf(main)).getByRole('group', { name: 'Built from' })
+	expect(within(builtFromSource).getByRole('combobox', { name: 'Through' })).toHaveTextContent('Rival')
+
+	await userEvent.click(within(builtFromSource).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Maker' }))
+	await userEvent.click(saveOf(main))
+
+	await waitFor(() =>
+		expect(sent).toEqual([
+			{
+				backlinks: { constructor: { source_group: 'cars', source_field: ['maker'], updated_at: OTHER_SAVE_STAMP } },
+				updated_at: DETAILS.updated_at,
+			},
+		]),
+	)
 })
 
 test('draws no Save and no details on the page of a group a plugin declared', async () => {

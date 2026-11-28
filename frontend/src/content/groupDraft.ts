@@ -4,6 +4,7 @@ import { __ } from '@wordpress/i18n'
 
 import { backlinkSettings, backlinkSources, pickOf } from './groups'
 import type { BacklinkPick, FieldGroup, GroupEdit, Location } from './groups'
+import { ownValue } from './types'
 import type { ContentField } from './types'
 
 /** A Linked from source picked in the details, with the source and the stamp its field held at the first pick. */
@@ -117,9 +118,14 @@ export function changedParts(base: FieldGroup, draft: GroupDraft): DraftPart[] {
  * @returns The draft to hold.
  */
 export function withPick(draft: GroupDraft, field: ContentField, pick: BacklinkPick): GroupDraft {
-	const first = draft.links[field.key] ?? { was: pickOf(field), updatedAt: field.updatedAt }
-	const held: LinkPick = { group: pick.group, field: pick.field, was: first.was, updatedAt: first.updatedAt }
-	return { ...draft, links: { ...draft.links, [field.key]: held } }
+	const existingPick = ownValue(draft.links, field.key) ?? { was: pickOf(field), updatedAt: field.updatedAt }
+	const newPick: LinkPick = {
+		group: pick.group,
+		field: pick.field,
+		was: existingPick.was,
+		updatedAt: existingPick.updatedAt,
+	}
+	return { ...draft, links: { ...draft.links, [field.key]: newPick } }
 }
 
 /**

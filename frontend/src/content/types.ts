@@ -381,6 +381,16 @@ export function pairsOf(settings: Record<string, unknown>): ChoicePair[] {
 	})
 }
 
+/**
+ * Returns the record's own value under a key, never a member every object inherits.
+ * @param record - The record to read.
+ * @param key - The key, a dotted path or a field key.
+ * @returns The value, none while the record has no own value under the key.
+ */
+export function ownValue<T>(record: Record<string, T>, key: string): T | undefined {
+	return Object.hasOwn(record, key) ? record[key] : undefined
+}
+
 /** What a picker entry declares: the kind, whether it holds many, and the settings it starts with. */
 export interface PickedKind {
 	kind: string

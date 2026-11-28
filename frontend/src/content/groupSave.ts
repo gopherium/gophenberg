@@ -27,6 +27,7 @@ import {
 } from './groups'
 import type { FieldGroup } from './groups'
 import { typesQueryKey } from './nav'
+import { ownValue } from './types'
 import type { ContentField } from './types'
 
 /** One change the header Save sends: a field by its dotted path, or the group's own parts under an empty path. */
@@ -134,12 +135,12 @@ async function savedFields(asked: SaveAsked, limit: number, tally: Tally): Promi
 
 /**
  * Returns the group as last read holding at its top the fields the run saved, so a Linked from pick takes their stamps.
- * @param held - The group as last read.
+ * @param group - The group as last read.
  * @param saved - The fields the run saved, each under its dotted path.
  * @returns The group.
  */
-function withSaved(held: FieldGroup, saved: Record<string, ContentField>): FieldGroup {
-	return { ...held, fields: held.fields.map((field) => (field.key in saved ? saved[field.key] : field)) }
+function withSaved(group: FieldGroup, saved: Record<string, ContentField>): FieldGroup {
+	return { ...group, fields: group.fields.map((field) => ownValue(saved, field.key) ?? field) }
 }
 
 /**

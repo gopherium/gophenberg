@@ -18,6 +18,8 @@ const READ_STAMP = '2026-08-01T10:00:00Z'
 
 const SAVED_STAMP = '2026-08-02T09:30:00Z'
 
+const OTHER_SAVE_STAMP = '2026-08-02T08:00:00Z'
+
 const NO_LIMIT = Number.POSITIVE_INFINITY
 
 const SHORT_LIMIT = 20
@@ -306,6 +308,29 @@ test('keeps the stamp it read for a Linked from pick whose field was not in the 
 			path: 'group',
 			body: {
 				backlinks: { 'linked-from': { source_group: 'cars', source_field: ['rival'], updated_at: READ_STAMP } },
+				updated_at: READ_STAMP,
+			},
+		},
+	])
+})
+
+test('sends the newest stamp of a Linked from field keyed constructor while the run saved no field', async () => {
+	const sent: { path: string; body: Record<string, unknown> }[] = []
+	storing(sent)
+	const group = { ...CONTACT, fields: [{ ...LINKED_FROM, key: 'constructor', updatedAt: OTHER_SAVE_STAMP }] }
+	const previousSource = { group: 'cars', field: 'maker' }
+	const draft: GroupDraft = {
+		...draftOf(group),
+		links: { constructor: { group: 'cars', field: 'rival', was: previousSource, updatedAt: READ_STAMP } },
+	}
+
+	await runSave({ held: group, groups: [group, CARS], base: group, draft, drafts: {} }, NO_LIMIT)
+
+	expect(sent).toEqual([
+		{
+			path: 'group',
+			body: {
+				backlinks: { constructor: { source_group: 'cars', source_field: ['rival'], updated_at: OTHER_SAVE_STAMP } },
 				updated_at: READ_STAMP,
 			},
 		},

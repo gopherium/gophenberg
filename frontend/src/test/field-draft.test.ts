@@ -222,6 +222,14 @@ test('lists the paths of the changed drafts in page order, leaving out a path no
 	expect(changedPaths([TEAM, PHONE, EMAIL], drafts)).toEqual(['team.role', 'email'])
 })
 
+test('reads no draft for a field keyed like a member every object inherits', () => {
+	const constructorField: ContentField = { ...EMAIL, key: 'constructor', label: 'Constructor', settings: {} }
+	const renamedDrafts: FieldDrafts = { constructor: { ...fieldDraftOf(constructorField), label: 'Builder' } }
+
+	expect(changedPaths([constructorField, EMAIL], {})).toEqual([])
+	expect(changedPaths([constructorField], renamedDrafts)).toEqual(['constructor'])
+})
+
 test('tells whether a field or a field inside it holds a changed draft', () => {
 	const changed = ['team.role', 'email']
 
