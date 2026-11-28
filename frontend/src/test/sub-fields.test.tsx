@@ -61,6 +61,40 @@ function layoutsOf(part: HTMLElement, label: string) {
 	return within(part).getByRole('region', { name: `Layouts of ${label}` })
 }
 
+/**
+ * Deletes the sub field Name from the open part of its container, confirming the warning.
+ * @param part - The row holding the container's open part.
+ */
+async function deleteNameField(part: HTMLElement) {
+	await userEvent.click(within(part).getByRole('button', { name: 'Delete Name' }))
+	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Name"?' })
+	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+}
+
+/**
+ * Opens the empty Author container and starts adding Full name to it, the server's answer of a name taken held back.
+ * @returns The main work of the page, the open part, its add form, its Label box and the gate holding the answer.
+ */
+async function startAddWithTakenName() {
+	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
+	const answerGate = gate()
+	server.use(
+		http.post('/api/groups/3/fields/author', async () => {
+			await answerGate.held
+			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
+		}),
+	)
+	renderAt('/field-groups')
+	const main = await openFields()
+	const part = await openField(main, 'Author')
+	const addForm = addFormOf(part, 'Author')
+	const label = within(addForm).getByRole('textbox', { name: 'Label' })
+	await userEvent.type(label, 'Full name')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
+	await waitBusy(addForm, 'Add field to Author')
+	return { main, part, addForm, label, answerGate }
+}
+
 test('shows no sub field row while their container is closed, and a table of them in a region once open', async () => {
 	listing([{ ...DETAILS, fields: [AUTHOR] }, EXTRAS])
 	renderAt('/field-groups')
@@ -90,18 +124,18 @@ test('puts a container its tabs in its form, then its sub fields, add form, Clos
 	await userEvent.type(within(part).getAllByRole('textbox', { name: 'Label' })[0], ' line')
 
 	const form = within(part).getAllByRole('textbox', { name: 'Label' })[0].closest('form') as HTMLFormElement
-	const adding = addFormOf(part, 'Author')
+	const addForm = addFormOf(part, 'Author')
 	const shown = [
 		form,
 		subFieldsOf(part, 'Author'),
-		adding,
+		addForm,
 		within(part).getByRole('button', { name: 'Close field' }),
 		within(part).getByRole('button', { name: 'Discard changes' }),
 	]
 
 	expect(form).toContainElement(within(part).getByRole('tab', { name: 'Conditional logic' }))
-	expect(adding).toBeInstanceOf(HTMLFormElement)
-	expect(adding.parentElement?.closest('form')).toBeNull()
+	expect(addForm).toBeInstanceOf(HTMLFormElement)
+	expect(addForm.parentElement?.closest('form')).toBeNull()
 	const following = shown.slice(1).map((node, at) => shown[at].compareDocumentPosition(node))
 	expect(following.map((position) => (position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0)).toEqual([
 		true,
@@ -127,9 +161,9 @@ test('declares a sub field from the form inside the container it was opened from
 	const part = await openField(main, 'Author')
 	expect(within(part).queryByRole('region')).toBeNull()
 
-	const adding = addFormOf(part, 'Author')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	const addForm = addFormOf(part, 'Author')
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Full name')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'full-name', label: 'Full name' }))
 	expect(where).toBe('/api/groups/3/fields/author')
@@ -147,10 +181,10 @@ test('clears the add form of a container once its field lands, the new row close
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Author')
-	const adding = addFormOf(part, 'Author')
-	const add = within(adding).getByRole('button', { name: 'Add field to Author' })
+	const addForm = addFormOf(part, 'Author')
+	const add = within(addForm).getByRole('button', { name: 'Add field to Author' })
 
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Name')
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Name')
 	await userEvent.click(add)
 
 	expect(await findToast('Name declared.')).toBeInTheDocument()
@@ -158,7 +192,7 @@ test('clears the add form of a container once its field lands, the new row close
 	expect(subFieldsOf(part, 'Author')).toContainElement(row)
 	expect(toggleOf(row, 'Name')).toHaveAttribute('aria-expanded', 'false')
 	expect(toggleOf(await fieldRow(main, 'Author'), 'Author')).toHaveAttribute('aria-expanded', 'true')
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveValue('')
+	expect(within(addForm).getByRole('textbox', { name: 'Label' })).toHaveValue('')
 	expect(add).toHaveFocus()
 })
 
@@ -180,22 +214,46 @@ test('heads the sub fields of an open container and its add form, each title nam
 	expect(within(main).getAllByRole('heading', { level: 3, name: 'Add a field' })).toHaveLength(1)
 })
 
-test('says an open container holds no sub fields yet, under its Sub fields title and over its add form', async () => {
-	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
-	renderAt('/field-groups')
-	const main = await openFields()
-	const part = await openField(main, 'Author')
+test.each([
+	{
+		containerDescription: 'an open container',
+		missingItems: 'sub fields',
+		placement: 'under its Sub fields title and over',
+		container: EMPTY_AUTHOR,
+		headingName: 'Sub fields of Author',
+		emptyMessage: 'No sub fields yet.',
+		otherEmptyMessage: 'No layouts yet.',
+		addButtonText: 'Add field',
+	},
+	{
+		containerDescription: 'a flexible content field',
+		missingItems: 'layouts',
+		placement: 'between its Layouts title and',
+		container: FEATURES,
+		headingName: 'Layouts of Features',
+		emptyMessage: 'No layouts yet.',
+		otherEmptyMessage: 'No sub fields yet.',
+		addButtonText: 'Add layout',
+	},
+])(
+	'says $containerDescription holds no $missingItems yet, $placement its add form',
+	async ({ container, headingName, emptyMessage, otherEmptyMessage, addButtonText }) => {
+		listing([{ ...DETAILS, fields: [container] }, EXTRAS])
+		renderAt('/field-groups')
+		const main = await openFields()
+		const part = await openField(main, container.label)
 
-	const empty = within(part).getByText('No sub fields yet.')
-	const shown = [
-		within(part).getByRole('heading', { level: 3, name: 'Sub fields of Author' }),
-		empty,
-		addFormOf(part, 'Author'),
-	]
-	expect(within(part).queryByRole('region')).toBeNull()
-	expect(shown[0].compareDocumentPosition(shown[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-	expect(shown[1].compareDocumentPosition(shown[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-})
+		const elementsInOrder = [
+			within(part).getByRole('heading', { level: 3, name: headingName }),
+			within(part).getByText(emptyMessage),
+			addFormOf(part, container.label, addButtonText),
+		]
+		expect(within(part).queryByText(otherEmptyMessage)).toBeNull()
+		expect(within(part).queryByRole('region')).toBeNull()
+		expect(elementsInOrder[0].compareDocumentPosition(elementsInOrder[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+		expect(elementsInOrder[1].compareDocumentPosition(elementsInOrder[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+	},
+)
 
 test('names the add button of each open container after it, apart from the add button of the group', async () => {
 	const address = { ...SUBTITLE, key: 'address', label: 'Address', kind: 'section', fields: [] }
@@ -241,10 +299,10 @@ test('keeps the draft of a container and the header Save as they were once a fie
 	const part = await openField(main, 'Author')
 	const label = within(part).getAllByRole('textbox', { name: 'Label' })[0]
 	await userEvent.type(label, ' line')
-	const adding = addFormOf(part, 'Author')
+	const addForm = addFormOf(part, 'Author')
 
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Name')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
 
 	expect(await findToast('Name declared.')).toBeInTheDocument()
 	expect(subFieldsOf(part, 'Author')).toContainElement(await fieldRow(main, 'Name'))
@@ -266,26 +324,43 @@ test('shows no sub fields part and no add form inside an open field that holds n
 	expect(within(part).queryByText('No sub fields yet.')).toBeNull()
 })
 
-test('declares a field inside a container standing inside another', async () => {
-	let where = ''
-	const address = { ...SUBTITLE, key: 'address', label: 'Address', kind: 'section', fields: [] }
-	listing([{ ...DETAILS, fields: [{ ...AUTHOR, fields: [address] }] }, EXTRAS])
+test.each([
+	{
+		declares: 'a container standing inside another',
+		outerContainer: {
+			...AUTHOR,
+			fields: [{ ...SUBTITLE, key: 'address', label: 'Address', kind: 'section', fields: [] }],
+		},
+		innerContainerLabel: 'Address',
+		path: 'author.address',
+		label: 'Street',
+	},
+	{
+		declares: 'a layout of a flexible content field',
+		outerContainer: { ...FEATURES, fields: [HERO] },
+		innerContainerLabel: 'Hero',
+		path: 'features.hero',
+		label: 'Title',
+	},
+])('declares a field inside $declares', async ({ outerContainer, innerContainerLabel, path, label }) => {
+	let requestPath = ''
+	listing([{ ...DETAILS, fields: [outerContainer] }, EXTRAS])
 	server.use(
-		http.post('/api/groups/3/fields/author.address', ({ request }) => {
-			where = new URL(request.url).pathname
-			return HttpResponse.json({ ...SUBTITLE, key: 'street', label: 'Street' }, { status: 201 })
+		http.post(`/api/groups/3/fields/${path}`, ({ request }) => {
+			requestPath = new URL(request.url).pathname
+			return HttpResponse.json({ ...SUBTITLE, key: label.toLowerCase(), label }, { status: 201 })
 		}),
 	)
 	renderAt('/field-groups')
 	const main = await openFields()
-	await openField(main, 'Author')
-	const part = await openField(main, 'Address')
+	await openField(main, outerContainer.label)
+	const part = await openField(main, innerContainerLabel)
 
-	const adding = addFormOf(part, 'Address')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Street')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Address' }))
+	const addForm = addFormOf(part, innerContainerLabel)
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), label)
+	await userEvent.click(within(addForm).getByRole('button', { name: `Add field to ${innerContainerLabel}` }))
 
-	await waitFor(() => expect(where).toBe('/api/groups/3/fields/author.address'))
+	await waitFor(() => expect(requestPath).toBe(`/api/groups/3/fields/${path}`))
 })
 
 test('opens a field inside a container in place and saves it on its dotted path from the header Save', async () => {
@@ -440,9 +515,7 @@ test('removes a sub field from the container that holds it', async () => {
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
-	await userEvent.click(within(part).getByRole('button', { name: 'Delete Name' }))
-	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Name"?' })
-	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+	await deleteNameField(part)
 
 	await waitFor(() => expect(hit).toBe('/api/groups/3/inside/author.name'))
 })
@@ -459,9 +532,7 @@ test('puts the focus on the trash of the sub field taking the place of a deleted
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
-	await userEvent.click(within(part).getByRole('button', { name: 'Delete Name' }))
-	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Name"?' })
-	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+	await deleteNameField(part)
 
 	await waitFor(() => expect(within(part).getByRole('button', { name: 'Delete Bio' })).toHaveFocus())
 })
@@ -478,9 +549,7 @@ test('puts the focus on the label of a container once its last sub field is dele
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
-	await userEvent.click(within(part).getByRole('button', { name: 'Delete Name' }))
-	const warning = await screen.findByRole('alertdialog', { name: 'Delete "Name"?' })
-	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+	await deleteNameField(part)
 
 	await waitFor(() => expect(within(part).queryByRole('region')).toBeNull())
 	expect(toggleOf(await fieldRow(main, 'Author'), 'Author')).toHaveFocus()
@@ -499,9 +568,9 @@ test('declares a layout inside the flexible content field it was opened from', a
 	const main = await openFields()
 	const part = await openField(main, 'Features')
 
-	const adding = addFormOf(part, 'Features', 'Add layout')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Hero')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add layout to Features' }))
+	const addForm = addFormOf(part, 'Features', 'Add layout')
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Hero')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add layout to Features' }))
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'hero', label: 'Hero', kind: 'layout' }))
 	expect(screen.queryByRole('dialog')).toBeNull()
@@ -525,24 +594,6 @@ test('heads the layouts of an open flexible content field and, under them, the f
 	expect(titles[1].parentElement).toContainElement(addFormOf(part, 'Features', 'Add layout'))
 	expect(within(part).queryByRole('region', { name: 'Sub fields of Features' })).toBeNull()
 	expect(add.textContent).toBe('Add layout')
-})
-
-test('says a flexible content field holds no layouts yet, between its Layouts title and its add form', async () => {
-	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
-	renderAt('/field-groups')
-	const main = await openFields()
-	const part = await openField(main, 'Features')
-
-	const empty = within(part).getByText('No layouts yet.')
-	const shown = [
-		within(part).getByRole('heading', { level: 3, name: 'Layouts of Features' }),
-		empty,
-		addFormOf(part, 'Features', 'Add layout'),
-	]
-	expect(within(part).queryByText('No sub fields yet.')).toBeNull()
-	expect(within(part).queryByRole('region')).toBeNull()
-	expect(shown[0].compareDocumentPosition(shown[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-	expect(shown[1].compareDocumentPosition(shown[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
 test('opens a layout to its own row limits, then its own sub fields and the form adding a field to it', async () => {
@@ -585,27 +636,6 @@ test('lists a flexible content field with the layouts and fields beneath it, eac
 	expect(partOf(await fieldRow(main, 'Title'))).toHaveAttribute('hidden', 'until-found')
 })
 
-test('declares a field inside a layout of a flexible content field', async () => {
-	let where = ''
-	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }, EXTRAS])
-	server.use(
-		http.post('/api/groups/3/fields/features.hero', ({ request }) => {
-			where = new URL(request.url).pathname
-			return HttpResponse.json({ ...SUBTITLE, key: 'title', label: 'Title' }, { status: 201 })
-		}),
-	)
-	renderAt('/field-groups')
-	const main = await openFields()
-	await openField(main, 'Features')
-	const part = await openField(main, 'Hero')
-
-	const adding = addFormOf(part, 'Hero')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Title')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Hero' }))
-
-	await waitFor(() => expect(where).toBe('/api/groups/3/fields/features.hero'))
-})
-
 test('shows a name taken inside a container under the Label box of its form, with no notice and no toast', async () => {
 	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
 	server.use(
@@ -616,11 +646,11 @@ test('shows a name taken inside a container under the Label box of its form, wit
 	renderAt('/field-groups')
 	const main = await openFields()
 	const part = await openField(main, 'Author')
-	const adding = addFormOf(part, 'Author')
-	const label = within(adding).getByRole('textbox', { name: 'Label' })
+	const addForm = addFormOf(part, 'Author')
+	const label = within(addForm).getByRole('textbox', { name: 'Label' })
 
 	await userEvent.type(label, 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
 
 	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
 	await waitFor(() => expect(label).toHaveAccessibleDescription(said))
@@ -630,53 +660,24 @@ test('shows a name taken inside a container under the Label box of its form, wit
 })
 
 test('reports a name taken in a toast and above the fields while its container is still closing', async () => {
-	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
-	const answer = gate()
-	server.use(
-		http.post('/api/groups/3/fields/author', async () => {
-			await answer.held
-			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
-		}),
-	)
-	renderAt('/field-groups')
-	const main = await openFields()
-	const part = await openField(main, 'Author')
-	const adding = addFormOf(part, 'Author')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
-	await waitBusy(adding, 'Add field to Author')
+	const { main, part, addForm, answerGate } = await startAddWithTakenName()
 
 	await userEvent.click(toggleOf(await fieldRow(main, 'Author'), 'Author'))
 	await waitFor(() => expect(part).toHaveAttribute('data-closed'))
 	part.removeAttribute('hidden')
-	answer.release()
+	answerGate.release()
 
 	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
 	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription('')
+	expect(within(addForm).getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription('')
 })
 
 test('reports a name taken in a toast and above the fields once its container closed while the add ran', async () => {
-	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
-	const answer = gate()
-	server.use(
-		http.post('/api/groups/3/fields/author', async () => {
-			await answer.held
-			return HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 })
-		}),
-	)
-	renderAt('/field-groups')
-	const main = await openFields()
-	const part = await openField(main, 'Author')
-	const adding = addFormOf(part, 'Author')
-	const label = within(adding).getByRole('textbox', { name: 'Label' })
-	await userEvent.type(label, 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
-	await waitBusy(adding, 'Add field to Author')
+	const { main, part, label, answerGate } = await startAddWithTakenName()
 
 	await userEvent.click(toggleOf(await fieldRow(main, 'Author'), 'Author'))
 	await waitFor(() => expect(part).toHaveAttribute('hidden', 'until-found'))
-	answer.release()
+	answerGate.release()
 
 	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
 	expect(await findToast(`Could not add the field. ${said}`)).toBeInTheDocument()
@@ -696,21 +697,21 @@ test("stops a field declared into a container past the site's time limit, keepin
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
-	const adding = addFormOf(part, 'Author')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
+	const addForm = addFormOf(part, 'Author')
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Full name')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
 
 	expect(await findToast('Could not add the field. The field groups could not be reached.')).toBeInTheDocument()
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveValue('Full name')
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
+	expect(within(addForm).getByRole('textbox', { name: 'Label' })).toHaveValue('Full name')
+	expect(within(addForm).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
 })
 
 test('keeps the controls of the form inside a container read only while its field is declared', async () => {
-	const answer = gate()
+	const answerGate = gate()
 	listing([{ ...DETAILS, fields: [EMPTY_AUTHOR] }, EXTRAS])
 	server.use(
 		http.post('/api/groups/3/fields/author', async () => {
-			await answer.held
+			await answerGate.held
 			return HttpResponse.json(NAME, { status: 201 })
 		}),
 	)
@@ -718,13 +719,13 @@ test('keeps the controls of the form inside a container read only while its fiel
 	const main = await openFields()
 	const part = await openField(main, 'Author')
 
-	const adding = addFormOf(part, 'Author')
-	await userEvent.type(within(adding).getByRole('textbox', { name: 'Label' }), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field to Author' }))
-	await waitBusy(adding, 'Add field to Author')
+	const addForm = addFormOf(part, 'Author')
+	await userEvent.type(within(addForm).getByRole('textbox', { name: 'Label' }), 'Full name')
+	await userEvent.click(within(addForm).getByRole('button', { name: 'Add field to Author' }))
+	await waitBusy(addForm, 'Add field to Author')
 
-	expectReadOnly(adding)
-	answer.release()
-	await waitFor(() => expect(within(adding).getByRole('textbox', { name: 'Label' })).toHaveValue(''))
-	expect(within(adding).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
+	expectReadOnly(addForm)
+	answerGate.release()
+	await waitFor(() => expect(within(addForm).getByRole('textbox', { name: 'Label' })).toHaveValue(''))
+	expect(within(addForm).getByRole('textbox', { name: 'Label' })).not.toHaveAttribute('readonly')
 })

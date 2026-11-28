@@ -320,40 +320,40 @@ test('moves the focus to the rule taking a removed rule\'s place, then to the se
 	expect(within(details).getByRole('button', { name: 'Add rule set' })).toHaveFocus()
 })
 
-test('moves the focus to the rule before once the trash takes away the last rule of a set', async () => {
-	listing({
-		...ON_POSTS,
+test.each([
+	{
+		place: 'rule',
+		trashEffect: 'takes away the last rule of a set',
 		location: [
 			[
 				{ source: 'content_type', operator: '==', value: 'post' },
 				{ source: 'content_type', operator: '==', value: 'recipe' },
 			],
 		],
-	})
-	renderAt('/field-groups')
-	const details = await openRules()
-
-	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 2 of set 1' }))
-
-	expect(within(details).getByRole('group', { name: 'Rule 1 of set 1' })).toHaveFocus()
-	expect(within(details).queryByRole('group', { name: 'Rule 2 of set 1' })).not.toBeInTheDocument()
-})
-
-test('moves the focus to the set before once the trash empties the last set', async () => {
-	listing({
-		...ON_POSTS,
+		trashButton: 'Remove rule 2 of set 1',
+		focusedGroup: 'Rule 1 of set 1',
+		removedGroup: 'Rule 2 of set 1',
+	},
+	{
+		place: 'set',
+		trashEffect: 'empties the last set',
 		location: [
 			[{ source: 'content_type', operator: '==', value: 'post' }],
 			[{ source: 'content_type', operator: '==', value: 'recipe' }],
 		],
-	})
+		trashButton: 'Remove rule 1 of set 2',
+		focusedGroup: 'Rule set 1',
+		removedGroup: 'Rule set 2',
+	},
+])('moves the focus to the $place before once the trash $trashEffect', async (trashCase) => {
+	listing({ ...ON_POSTS, location: trashCase.location })
 	renderAt('/field-groups')
 	const details = await openRules()
 
-	await userEvent.click(within(details).getByRole('button', { name: 'Remove rule 1 of set 2' }))
+	await userEvent.click(within(details).getByRole('button', { name: trashCase.trashButton }))
 
-	expect(within(details).getByRole('group', { name: 'Rule set 1' })).toHaveFocus()
-	expect(within(details).queryByRole('group', { name: 'Rule set 2' })).not.toBeInTheDocument()
+	expect(within(details).getByRole('group', { name: trashCase.focusedGroup })).toHaveFocus()
+	expect(within(details).queryByRole('group', { name: trashCase.removedGroup })).not.toBeInTheDocument()
 })
 
 test('leaves the focus where it sits as an add button or a trash that never took it is pressed', async () => {

@@ -53,11 +53,11 @@ const READERS = [
 		listed: 'Mostrar en la lista',
 		inside: 'Subcampos de Author',
 		subFields: ['Subcampos', 'Añadir un campo'],
-		addField: { words: 'Añadir campo', name: 'Añadir campo a Author' },
+		addField: { text: 'Añadir campo', name: 'Añadir campo a Author' },
 		noSubFields: 'Todavía no hay subcampos.',
 		layouts: ['Diseños', 'Añadir un diseño'],
 		layoutsOf: 'Diseños de Features',
-		addLayout: { words: 'Añadir diseño', name: 'Añadir diseño a Features' },
+		addLayout: { text: 'Añadir diseño', name: 'Añadir diseño a Features' },
 		noLayouts: 'Todavía no hay diseños.',
 		remove: 'Borrar Author',
 		lostToo: 'También se pierden los cambios sin guardar dentro de Author.',
@@ -88,11 +88,11 @@ const READERS = [
 		listed: 'Afficher dans la liste',
 		inside: 'Sous-champs de Author',
 		subFields: ['Sous-champs', 'Ajouter un champ'],
-		addField: { words: 'Ajouter un champ', name: 'Ajouter un champ à Author' },
+		addField: { text: 'Ajouter un champ', name: 'Ajouter un champ à Author' },
 		noSubFields: "Aucun sous-champ pour l'instant.",
 		layouts: ['Dispositions', 'Ajouter une disposition'],
 		layoutsOf: 'Dispositions de Features',
-		addLayout: { words: 'Ajouter une disposition', name: 'Ajouter une disposition à Features' },
+		addLayout: { text: 'Ajouter une disposition', name: 'Ajouter une disposition à Features' },
 		noLayouts: "Aucune disposition pour l'instant.",
 		remove: 'Supprimer Author',
 		lostToo: 'Les modifications non enregistrées dans Author sont aussi perdues.',
@@ -141,171 +141,188 @@ async function openIn(fields: HTMLElement, label: string) {
 test.each([
 	{ locale: 'es-ES', list: 'Grupos de campos', counts: ['1 campo', '0 campos', '2 campos'] },
 	{ locale: 'fr-FR', list: 'Groupes de champs', counts: ['1 champ', '0 champ', '2 champs'] },
-])('writes how many fields each group holds in the Field Groups list in $locale', async (said) => {
+])('writes how many fields each group holds in the Field Groups list in $locale', async (texts) => {
 	const SOLE = { ...DETAILS, id: 5, key: 'sole', title: 'Sole', position: 3, fields: [SUBTITLE] }
 	listing([SOLE, EXTRAS, DETAILS])
 	server.use(
 		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),
 	)
-	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	setLocaleData(await catalogFor(texts.locale), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/field-groups')
 
-	const table = await screen.findByRole('region', { name: said.list })
+	const table = await screen.findByRole('region', { name: texts.list })
 
 	const written = [SOLE, EXTRAS, DETAILS].map(
 		(group) =>
 			(within(table).getByRole('row', { name: new RegExp(group.title) }) as HTMLTableRowElement).cells[2].textContent,
 	)
-	expect(written).toEqual(said.counts)
+	expect(written).toEqual(texts.counts)
 })
 
-test.each(READERS)('heads the fields table with Label, Kind, API name and Actions in $locale', async (said) => {
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+test.each(READERS)('heads the fields table with Label, Kind, API name and Actions in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 
 	const headers = within(fields).getAllByRole('columnheader')
-	expect(headers.map((header) => header.textContent)).toEqual(said.columns)
+	expect(headers.map((header) => header.textContent)).toEqual(texts.columns)
 })
 
-test.each(READERS)('says a group holds no fields yet and what a field adds in $locale', async (said) => {
-	const fields = await fieldsIn(said.locale, EXTRAS, said.fields)
+test.each(READERS)('says a group holds no fields yet and what a field adds in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, EXTRAS, texts.fields)
 
-	expect(within(fields).getByRole('heading', { name: said.empty })).toBeInTheDocument()
-	expect(within(fields).getByText(said.add)).toBeInTheDocument()
+	expect(within(fields).getByRole('heading', { name: texts.empty })).toBeInTheDocument()
+	expect(within(fields).getByText(texts.add)).toBeInTheDocument()
 })
 
-test.each(READERS)('names the tabs of an open field, Close field and Discard changes in $locale', async (said) => {
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+test.each(READERS)('names the tabs of an open field, Close field and Discard changes in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, SUBTITLE.label)
 
-	expect(within(part).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(said.tabs)
-	expect(within(part).getByRole('button', { name: said.close })).toBeInTheDocument()
-	await userEvent.type(within(part).getByRole('textbox', { name: said.label }), ' line')
-	expect(within(part).getByRole('button', { name: said.discard })).toBeInTheDocument()
+	expect(within(part).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(texts.tabs)
+	expect(within(part).getByRole('button', { name: texts.close })).toBeInTheDocument()
+	await userEvent.type(within(part).getByRole('textbox', { name: texts.label }), ' line')
+	expect(within(part).getByRole('button', { name: texts.discard })).toBeInTheDocument()
 })
 
-test.each(READERS)('names the box putting a field in the admin list on Presentation in $locale', async (said) => {
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+test.each(READERS)('names the box putting a field in the admin list on Presentation in $locale', async (texts) => {
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, SUBTITLE.label)
 
-	await userEvent.click(within(part).getByRole('tab', { name: said.tabs[2] }))
+	await userEvent.click(within(part).getByRole('tab', { name: texts.tabs[2] }))
 
-	expect(within(part).getByRole('checkbox', { name: said.listed })).toBeInTheDocument()
+	expect(within(part).getByRole('checkbox', { name: texts.listed })).toBeInTheDocument()
 })
 
-test.each(READERS)('names the Conditional logic tab Active while the field holds a rule in $locale', async (said) => {
+test.each(READERS)('names the Conditional logic tab Active while the field holds a rule in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, SUBTITLE.label)
 
-	const tab = within(part).getByRole('tab', { name: said.ruled })
+	const tab = within(part).getByRole('tab', { name: texts.ruled })
 
-	expect(tab).toHaveTextContent(said.tabs[3] + said.active)
-	expect(within(tab).getByText(said.active)).toBeInTheDocument()
+	expect(tab).toHaveTextContent(texts.tabs[3] + texts.active)
+	expect(within(tab).getByText(texts.active)).toBeInTheDocument()
 })
 
-test.each(READERS)('names a rule row and its trash by their place on Conditional logic in $locale', async (said) => {
+test.each(READERS)('names a rule row and its trash by their place on Conditional logic in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [RULED_SUBTITLE, READING_TIME] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, SUBTITLE.label)
 
-	await userEvent.click(within(part).getByRole('tab', { name: said.ruled }))
+	await userEvent.click(within(part).getByRole('tab', { name: texts.ruled }))
 
-	const rule = within(part).getByRole('group', { name: said.rule })
-	expect(within(rule).getByRole('button', { name: said.trash })).toBeInTheDocument()
+	const rule = within(part).getByRole('group', { name: texts.rule })
+	expect(within(rule).getByRole('button', { name: texts.trash })).toBeInTheDocument()
 })
 
-test.each(READERS)('names the sub fields of a container and the edits its delete loses in $locale', async (said) => {
+test.each(READERS)('names the sub fields of a container and the edits its delete loses in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const container = await openIn(fields, AUTHOR.label)
-	const inside = within(container).getByRole('region', { name: said.inside })
-	const part = await openIn(inside, BYLINE.label)
-	await userEvent.type(within(part).getByRole('textbox', { name: said.label }), ' line')
+	const subFieldRegion = within(container).getByRole('region', { name: texts.inside })
+	const part = await openIn(subFieldRegion, BYLINE.label)
+	await userEvent.type(within(part).getByRole('textbox', { name: texts.label }), ' line')
 
-	await userEvent.click(within(fields).getByRole('button', { name: said.remove }))
+	await userEvent.click(within(fields).getByRole('button', { name: texts.remove }))
 
-	expect(await screen.findByRole('alertdialog')).toHaveTextContent(said.lostToo)
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent(texts.lostToo)
 })
 
-test.each(READERS)('heads the sub fields of an open container and the form adding one in $locale', async (said) => {
-	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
-	const container = await openIn(fields, AUTHOR.label)
+/** The texts heading the open part of a container: the two titles shown, the region name, and its add button. */
+interface ContainerHeadingTexts {
+	visibleTitles: string[]
+	regionName: string
+	add: { text: string; name: string }
+}
 
-	const titles = within(container).getAllByRole('heading')
+/**
+ * Checks the two titles of an open container, the region the first one names, and the button adding to it.
+ * @param part - The row holding the container's open part.
+ * @param expectedTexts - The texts the part shows and the names a screen reader hears.
+ */
+function expectContainerHeadings(part: HTMLElement, expectedTexts: ContainerHeadingTexts) {
+	const titles = within(part).getAllByRole('heading')
 
 	expect(titles).toHaveLength(2)
-	expect(within(titles[0]).getByText(said.subFields[0])).toHaveAttribute('aria-hidden', 'true')
-	expect(titles[0]).toHaveAccessibleName(said.inside)
-	expect(within(titles[1]).getByText(said.subFields[1])).toHaveAttribute('aria-hidden', 'true')
-	expect(titles[1]).toHaveAccessibleName(said.addField.name)
-	expect(within(container).getByRole('button', { name: said.addField.name })).toHaveTextContent(said.addField.words)
+	expect(within(titles[0]).getByText(expectedTexts.visibleTitles[0])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[0]).toHaveAccessibleName(expectedTexts.regionName)
+	expect(within(titles[1]).getByText(expectedTexts.visibleTitles[1])).toHaveAttribute('aria-hidden', 'true')
+	expect(titles[1]).toHaveAccessibleName(expectedTexts.add.name)
+	expect(within(part).getByRole('region', { name: expectedTexts.regionName })).toBeInTheDocument()
+	expect(within(part).getByRole('button', { name: expectedTexts.add.name })).toHaveTextContent(expectedTexts.add.text)
+}
+
+test.each(READERS)('heads the sub fields of an open container and the form adding one in $locale', async (texts) => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, AUTHOR] }, EXTRAS])
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
+	const container = await openIn(fields, AUTHOR.label)
+
+	expectContainerHeadings(container, {
+		visibleTitles: texts.subFields,
+		regionName: texts.inside,
+		add: texts.addField,
+	})
 })
 
-test.each(READERS)('says an open container holds no sub fields yet in $locale', async (said) => {
+test.each(READERS)('says an open container holds no sub fields yet in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [{ ...AUTHOR, fields: [] }] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const container = await openIn(fields, AUTHOR.label)
 
-	expect(within(container).getByText(said.noSubFields)).toBeInTheDocument()
+	expect(within(container).getByText(texts.noSubFields)).toBeInTheDocument()
 })
 
-test.each(READERS)('heads the layouts of an open flexible content field and its add form in $locale', async (said) => {
+test.each(READERS)('heads the layouts of an open flexible content field and its add form in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const flexible = await openIn(fields, FEATURES.label)
 
-	const titles = within(flexible).getAllByRole('heading')
-
-	expect(titles).toHaveLength(2)
-	expect(within(titles[0]).getByText(said.layouts[0])).toHaveAttribute('aria-hidden', 'true')
-	expect(titles[0]).toHaveAccessibleName(said.layoutsOf)
-	expect(within(titles[1]).getByText(said.layouts[1])).toHaveAttribute('aria-hidden', 'true')
-	expect(titles[1]).toHaveAccessibleName(said.addLayout.name)
-	expect(within(flexible).getByRole('region', { name: said.layoutsOf })).toBeInTheDocument()
-	expect(within(flexible).getByRole('button', { name: said.addLayout.name })).toHaveTextContent(said.addLayout.words)
+	expectContainerHeadings(flexible, {
+		visibleTitles: texts.layouts,
+		regionName: texts.layoutsOf,
+		add: texts.addLayout,
+	})
 })
 
-test.each(READERS)('says a flexible content field holds no layouts yet in $locale', async (said) => {
+test.each(READERS)('says a flexible content field holds no layouts yet in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const flexible = await openIn(fields, FEATURES.label)
 
-	expect(within(flexible).getByText(said.noLayouts)).toBeInTheDocument()
+	expect(within(flexible).getByText(texts.noLayouts)).toBeInTheDocument()
 })
 
-test.each(READERS)('names a choice row by its place and its move and remove buttons in $locale', async (said) => {
+test.each(READERS)('names a choice row by its place and its move and remove buttons in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [{ ...STYLE, settings: { choices: [{ value: 'ipa', label: 'IPA' }] } }] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, STYLE.label)
 
-	const row = within(part).getByRole('group', { name: said.choice })
-	said.choiceButtons.forEach((name) => expect(within(row).getByRole('button', { name })).toBeInTheDocument())
+	const row = within(part).getByRole('group', { name: texts.choice })
+	texts.choiceButtons.forEach((name) => expect(within(row).getByRole('button', { name })).toBeInTheDocument())
 })
 
-test.each(READERS)('says a choice field holds no choices yet in $locale', async (said) => {
+test.each(READERS)('says a choice field holds no choices yet in $locale', async (texts) => {
 	listing([{ ...DETAILS, fields: [STYLE] }, EXTRAS])
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const part = await openIn(fields, STYLE.label)
 
-	expect(within(part).getByText(said.noChoices)).toBeInTheDocument()
+	expect(within(part).getByText(texts.noChoices)).toBeInTheDocument()
 })
 
-test.each(READERS)('counts what the header Save stored and names the field it could not in $locale', async (said) => {
+test.each(READERS)('counts what the header Save stored and names the field it could not in $locale', async (texts) => {
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () =>
 			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
 		),
 		http.patch('/api/groups/3/fields/reading-time', () => HttpResponse.json(READING_TIME)),
 	)
-	const fields = await fieldsIn(said.locale, DETAILS, said.fields)
+	const fields = await fieldsIn(texts.locale, DETAILS, texts.fields)
 	const stale = await openIn(fields, SUBTITLE.label)
 	const saving = await openIn(fields, READING_TIME.label)
-	await userEvent.type(within(stale).getByRole('textbox', { name: said.label }), ' line')
-	await userEvent.type(within(saving).getByRole('textbox', { name: said.label }), ' in minutes')
+	await userEvent.type(within(stale).getByRole('textbox', { name: texts.label }), ' line')
+	await userEvent.type(within(saving).getByRole('textbox', { name: texts.label }), ' in minutes')
 
-	await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: said.save }))
+	await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: texts.save }))
 
-	expect(await findToast(said.ran.join(' '))).toBeInTheDocument()
+	expect(await findToast(texts.ran.join(' '))).toBeInTheDocument()
 })

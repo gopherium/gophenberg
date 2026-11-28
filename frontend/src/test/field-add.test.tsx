@@ -229,70 +229,51 @@ test('declares a plain field while the content types are still out of reach', as
 	expect(sent).toBeUndefined()
 })
 
-test('declares a radio group as the choice kind presented as radio', async () => {
+test.each([
+	{
+		field: 'a radio group',
+		shape: 'the choice kind presented as radio',
+		label: 'Style',
+		option: 'Radio group',
+		body: { key: 'style', kind: 'choice', settings: { presentation: 'radio' } },
+		unset: [],
+	},
+	{
+		field: 'an email field',
+		shape: 'text checked as an email',
+		label: 'Contact',
+		option: 'Email',
+		body: { kind: 'text', settings: { variant: 'email' } },
+		unset: [],
+	},
+	{
+		field: 'a gallery',
+		shape: 'a media field holding many',
+		label: 'Gallery',
+		option: 'Gallery',
+		body: { kind: 'media', many: true },
+		unset: ['settings'],
+	},
+])('declares $field as $shape', async ({ label, option, body, unset }) => {
 	let sent: unknown
 	server.use(
 		http.post('/api/groups/3/fields', async ({ request }) => {
 			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' })
+			return HttpResponse.json({ ...SUBTITLE, key: label.toLowerCase(), label, kind: body.kind })
 		}),
 	)
 	renderAt('/field-groups')
 	const dialog = await openFields()
 
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Style')
+	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), label)
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Radio group' }))
+	await userEvent.click(await screen.findByRole('option', { name: option }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
 
-	await waitFor(() =>
-		expect(sent).toMatchObject({
-			key: 'style',
-			kind: 'choice',
-			settings: { presentation: 'radio' },
-		}),
-	)
-})
-
-test('declares an email field as text checked as an email', async () => {
-	let sent: unknown
-	server.use(
-		http.post('/api/groups/3/fields', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, key: 'contact', label: 'Contact' })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Contact')
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Email' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
-
-	await waitFor(() =>
-		expect(sent).toMatchObject({ kind: 'text', settings: { variant: 'email' } }),
-	)
-})
-
-test('declares a gallery as a media field holding many', async () => {
-	let sent: unknown
-	server.use(
-		http.post('/api/groups/3/fields', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'media' })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Gallery')
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Gallery' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
-
-	await waitFor(() => expect(sent).toMatchObject({ kind: 'media', many: true }))
-	expect((sent as { settings?: unknown }).settings).toBeUndefined()
+	await waitFor(() => expect(sent).toMatchObject(body))
+	for (const key of unset) {
+		expect(sent).not.toHaveProperty(key)
+	}
 })
 
 test('offers flexible content at the top of a group and no bare layout', async () => {
@@ -373,32 +354,10 @@ test('declares a linked from field reading a relation another group holds', asyn
 		expect(sent).toMatchObject({
 			key: 'linked-from',
 			kind: 'backlinks',
+			required: false,
 			settings: { source_group: 'cars', source_field: ['owner'] },
 		}),
 	)
-})
-
-test('declares a linked from field optional', async () => {
-	let sent: unknown
-	listing([DETAILS, EXTRAS, VANS, CARS])
-	server.use(
-		http.post('/api/groups/3/fields', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json({ ...SUBTITLE, key: 'linked-from', kind: 'backlinks' }, { status: 201 })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Linked from')
-	await pickLinkedFrom(dialog)
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Through' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Owner' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
-
-	await waitFor(() => expect(sent).toMatchObject({ kind: 'backlinks', required: false }))
 })
 
 test('offers a linked from field only the groups holding a relation', async () => {
