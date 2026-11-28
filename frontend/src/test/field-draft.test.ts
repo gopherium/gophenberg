@@ -42,6 +42,21 @@ const EMAIL: ContentField = {
 	updatedAt: READ_STAMP,
 }
 
+const PADDED_SETTINGS_FIELD: ContentField = {
+	...EMAIL,
+	key: 'note',
+	label: 'Note',
+	settings: { default: ' padded ', placeholder: '', instructions: 'Minutes.\n' },
+}
+
+const EMPTY_CHOICES_FIELD: ContentField = {
+	...EMAIL,
+	key: 'style',
+	label: 'Style',
+	kind: 'choice',
+	settings: { choices: [], instructions: 'Pick one.\n' },
+}
+
 const PHONE: ContentField = { ...EMAIL, key: 'phone', label: 'Phone', settings: {} }
 
 const ROLE: ContentField = { ...EMAIL, key: 'role', label: 'Role', settings: {} }
@@ -108,6 +123,36 @@ test.each(EMPTIED)('leaves out the key of a setting whose control holds $held', 
 	const sent = fieldEditOf(typing(fieldDraftOf(EMAIL), 'placeholder', asked.written))
 
 	expect(sent.settings).toEqual({ variant: 'email', conditions: WITH_PHONE, instructions: 'Where replies go.' })
+})
+
+test('sends the settings exactly as read beside an edited label, required flag, list flag or conditions', () => {
+	const draft = fieldDraftOf(PADDED_SETTINGS_FIELD)
+	const settingsAsRead = PADDED_SETTINGS_FIELD.settings
+
+	expect(fieldEditOf({ ...draft, label: 'Side note' }).settings).toEqual(settingsAsRead)
+	expect(fieldEditOf({ ...draft, required: true }).settings).toEqual(settingsAsRead)
+	expect(fieldEditOf(holding(draft, 'listed', true)).settings).toEqual({ ...settingsAsRead, listed: true })
+	expect(fieldEditOf(holding(draft, 'conditions', WITH_PHONE)).settings).toEqual({
+		...settingsAsRead,
+		conditions: WITH_PHONE,
+	})
+	expect(fieldEditOf(typing(draft, 'maxlength', '80')).settings).toEqual({ ...settingsAsRead, maxlength: 80 })
+	expect(fieldEditOf(typing(draft, 'default', ' fresh ')).settings).toEqual({ ...settingsAsRead, default: 'fresh' })
+})
+
+test('leaves out the choices of a field once its last choice is removed', () => {
+	const styleField = { ...EMPTY_CHOICES_FIELD, settings: { choices: [{ value: 'bold', label: 'Bold' }] } }
+
+	expect(fieldEditOf(holding(fieldDraftOf(styleField), 'choices', [])).settings).toEqual({})
+})
+
+test('sends an empty list of choices as read beside an edited label, required flag or list flag', () => {
+	const draft = fieldDraftOf(EMPTY_CHOICES_FIELD)
+	const settingsAsRead = EMPTY_CHOICES_FIELD.settings
+
+	expect(fieldEditOf({ ...draft, label: 'Look' }).settings).toEqual(settingsAsRead)
+	expect(fieldEditOf({ ...draft, required: true }).settings).toEqual(settingsAsRead)
+	expect(fieldEditOf(holding(draft, 'listed', true)).settings).toEqual({ ...settingsAsRead, listed: true })
 })
 
 test('sends a number typed in a control as a number', () => {

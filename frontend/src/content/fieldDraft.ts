@@ -66,12 +66,26 @@ export function fieldDraftOf(field: ContentField): FieldDraft {
  * @returns The label, the required flag and the whole settings to send.
  */
 export function fieldEditOf(draft: FieldDraft): FieldEdit {
-	const stored = storedSettings(settingsOffered(draft.base), draft.typed, draft.settings)
+	const controlSettings = storedSettings(settingsOffered(draft.base), draft.typed, draft.settings)
 	return {
 		label: draft.label,
 		required: draft.required,
-		settings: pairedSettings(draft.base.kind, stored, pairsOf(draft.settings)),
+		settings: withEditedChoices(draft, controlSettings),
 	}
+}
+
+/**
+ * Returns the settings with the draft's choice pairs written in, or as given while the choices are unchanged.
+ * @param draft - The draft held.
+ * @param settings - The settings as the controls store them.
+ * @returns The settings to send.
+ */
+function withEditedChoices(draft: FieldDraft, settings: Record<string, unknown>): Record<string, unknown> {
+	const choicePairs = pairsOf(draft.settings)
+	if (sameSetting(choicePairs, pairsOf(draft.base.settings))) {
+		return settings
+	}
+	return pairedSettings(settings, choicePairs)
 }
 
 /**

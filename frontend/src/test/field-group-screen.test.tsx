@@ -687,6 +687,39 @@ test('opens a field keyed constructor and sends its new label from the header Sa
 	])
 })
 
+test('sends the settings of a field exactly as read beside its new label from the header Save', async () => {
+	const paddedSubtitle = { ...SUBTITLE, settings: { default: ' padded ', placeholder: '', instructions: 'Minutes.\n' } }
+	const sentEdits: unknown[] = []
+	listing([{ ...DETAILS, fields: [paddedSubtitle, READING_TIME] }, EXTRAS])
+	server.use(
+		http.patch('/api/groups/3/fields/:path', async ({ request, params }) => {
+			sentEdits.push({ path: String(params.path), body: await request.json() })
+			return HttpResponse.json({ ...paddedSubtitle, label: 'Standfirst', updated_at: OTHER_SAVE_STAMP })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const part = await openField(main, 'Subtitle')
+
+	const labelInput = within(part).getByRole('textbox', { name: 'Label' })
+	await userEvent.clear(labelInput)
+	await userEvent.type(labelInput, 'Standfirst')
+	await userEvent.click(saveOf(main))
+
+	expect(await findToast('Article details updated.')).toBeInTheDocument()
+	expect(sentEdits).toEqual([
+		{
+			path: 'subtitle',
+			body: {
+				label: 'Standfirst',
+				required: false,
+				settings: paddedSubtitle.settings,
+				updated_at: SUBTITLE.updated_at,
+			},
+		},
+	])
+})
+
 test('shows the source a Linked from field keyed constructor reads and stores a pick on its stamp', async () => {
 	const sent: unknown[] = []
 	listing([{ ...DETAILS, fields: [CONSTRUCTOR_LINKED_FROM_FIELD] }, CARS])

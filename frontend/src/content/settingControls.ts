@@ -58,28 +58,20 @@ export function settingsOffered(field: ContentField): SettingControl[] {
 }
 
 /**
- * Returns the settings with the choice pairs the editor holds written in.
- * @param kind - The kind the field holds.
+ * Returns the settings with the complete choice pairs the editor holds written in.
  * @param settings - The settings as the controls stored them.
- * @param pairs - The pairs the editor rows hold.
- * @returns The settings to store.
+ * @param choicePairs - The pairs the editor rows hold.
+ * @returns The settings to store, with no choices key when no pair is complete.
  */
-export function pairedSettings(
-	kind: string,
-	settings: Record<string, unknown>,
-	pairs: ChoicePair[],
-): Record<string, unknown> {
-	if (kind !== 'choice') {
-		return settings
+export function pairedSettings(settings: Record<string, unknown>, choicePairs: ChoicePair[]): Record<string, unknown> {
+	const completePairs = choicePairs.filter((pair) => pair.value !== '' && pair.label !== '')
+	const settingsWithChoices = { ...settings }
+	if (completePairs.length === 0) {
+		delete settingsWithChoices.choices
+		return settingsWithChoices
 	}
-	const settled = pairs.filter((pair) => pair.value !== '' && pair.label !== '')
-	const held = { ...settings }
-	if (settled.length === 0) {
-		delete held.choices
-		return held
-	}
-	held.choices = settled
-	return held
+	settingsWithChoices.choices = completePairs
+	return settingsWithChoices
 }
 
 /**
@@ -110,43 +102,56 @@ export function typedSettings(offered: SettingControl[], held: Record<string, un
 }
 
 /**
- * Returns the settings to store, leaving out every control the operator left empty.
- * @param offered - The settings the kind takes.
- * @param typed - The text the controls hold.
- * @param held - The settings the field carries.
+ * Reports whether a control still holds the text of the value the field carries.
+ * @param controlText - The text the control holds.
+ * @param storedValue - The value the field carries.
+ * @returns Whether the control is untouched.
+ */
+function isUntouchedControl(controlText: string, storedValue: unknown): boolean {
+	return storedValue !== undefined && storedValue !== null && controlText === String(storedValue)
+}
+
+/**
+ * Returns the settings to store, untouched controls as stored and every emptied control left out.
+ * @param controls - The setting controls the kind takes.
+ * @param controlTexts - The text the controls hold.
+ * @param currentSettings - The settings the field carries.
  * @returns The settings as the registry stores them.
  */
 export function storedSettings(
-	offered: SettingControl[],
-	typed: Record<string, string>,
-	held: Record<string, unknown>,
+	controls: SettingControl[],
+	controlTexts: Record<string, string>,
+	currentSettings: Record<string, unknown>,
 ): Record<string, unknown> {
-	const settings: Record<string, unknown> = { ...held }
-	for (const setting of offered) {
-		const written = typed[setting.name].trim()
-		if (written === '') {
-			delete settings[setting.name]
+	const settings: Record<string, unknown> = { ...currentSettings }
+	for (const control of controls) {
+		if (isUntouchedControl(controlTexts[control.name], currentSettings[control.name])) {
 			continue
 		}
-		settings[setting.name] = settingHeld(setting.shape, written)
+		const trimmedText = controlTexts[control.name].trim()
+		if (trimmedText === '') {
+			delete settings[control.name]
+			continue
+		}
+		settings[control.name] = settingValueOf(control.shape, trimmedText)
 	}
 	return settings
 }
 
 /**
- * Returns what a control holds as the shape its setting stores.
+ * Returns the text of a control as the value of the shape its setting stores.
  * @param shape - The shape the setting takes.
- * @param written - The text the control holds.
+ * @param text - The text the control holds.
  * @returns The value to store.
  */
-function settingHeld(shape: SettingControl['shape'], written: string): unknown {
+function settingValueOf(shape: SettingControl['shape'], text: string): unknown {
 	if (shape === 'number') {
-		return Number(written)
+		return Number(text)
 	}
 	if (shape === 'choice') {
-		return written === 'true'
+		return text === 'true'
 	}
-	return written
+	return text
 }
 
 /** The kinds the admin list can show as a column. */
