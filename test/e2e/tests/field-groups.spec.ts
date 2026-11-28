@@ -22,31 +22,37 @@ test.afterEach(async ({ page }) => {
 	}
 })
 
+/** A field group a test registered through the API. */
+interface CreatedGroup {
+	id: number
+	title: string
+}
+
 /**
- * Registers a type of its own and a group placed on that type alone through the API, so no other spec meets its fields.
+ * Registers a type and a group located on that type alone through the API.
  * @param page - The page whose session registers them.
- * @param word - The word the type key, its names and the group title are made from.
- * @returns The id and the title of the group.
+ * @param noun - The noun the type key, its labels and the group title are made from.
+ * @returns The created group.
  */
-async function groupOfItsOwn(page: Page, word: string) {
-	const key = `${word.toLowerCase()}-${RUN}`
-	const typed = await page.request.post('/api/types', {
+async function createIsolatedGroup(page: Page, noun: string): Promise<CreatedGroup> {
+	const key = `${noun.toLowerCase()}-${RUN}`
+	const typeResponse = await page.request.post('/api/types', {
 		data: {
 			key,
-			singular_label: `${word} ${RUN}`,
-			plural_label: `${word}s ${RUN}`,
+			singular_label: `${noun} ${RUN}`,
+			plural_label: `${noun}s ${RUN}`,
 			description: '',
-			route_word: `${word.toLowerCase()}s-${RUN}`,
+			route_word: `${noun.toLowerCase()}s-${RUN}`,
 		},
 	})
-	expect(typed.status()).toBe(201)
+	expect(typeResponse.status()).toBe(201)
 	madeTypes.push(key)
-	const title = `${word} details ${RUN}`
-	const grouped = await page.request.post('/api/groups', {
+	const title = `${noun} details ${RUN}`
+	const groupResponse = await page.request.post('/api/groups', {
 		data: { title, location: [[{ source: 'content_type', operator: '==', value: key }]] },
 	})
-	expect(grouped.status()).toBe(201)
-	const { id } = (await grouped.json()) as { id: number }
+	expect(groupResponse.status()).toBe(201)
+	const { id } = (await groupResponse.json()) as { id: number }
 	madeGroups.push(id)
 	return { id, title }
 }
@@ -54,90 +60,90 @@ async function groupOfItsOwn(page: Page, word: string) {
 /**
  * Declares an optional text field in a group through the API.
  * @param page - The page whose session declares it.
- * @param group - The id of the group that holds it.
+ * @param group - The group the field belongs to.
  * @param label - The name of the field, its key made from it.
  */
-async function textFieldIn(page: Page, group: number, label: string) {
-	const answer = await page.request.post(`/api/groups/${group}/fields`, {
+async function textFieldIn(page: Page, group: CreatedGroup, label: string) {
+	const response = await page.request.post(`/api/groups/${group.id}/fields`, {
 		data: { key: label.toLowerCase(), label, kind: 'text', many: false, required: false },
 	})
-	expect(answer.status()).toBe(201)
+	expect(response.status()).toBe(201)
 }
 
 /**
  * Declares an optional text field in a group, shown only while its source field reads Two hours.
  * @param page - The page whose session declares it.
- * @param group - The id of the group that holds it.
+ * @param group - The group the field belongs to.
  * @param label - The name of the field, its key made from it.
- * @param source - The key of the field whose value shows it.
+ * @param sourceKey - The key of the field whose value shows it.
  */
-async function fieldShownBy(page: Page, group: number, label: string, source: string) {
-	const answer = await page.request.post(`/api/groups/${group}/fields`, {
+async function conditionalFieldIn(page: Page, group: CreatedGroup, label: string, sourceKey: string) {
+	const response = await page.request.post(`/api/groups/${group.id}/fields`, {
 		data: {
 			key: label.toLowerCase(),
 			label,
 			kind: 'text',
 			many: false,
 			required: false,
-			settings: { conditions: [[{ source, operator: '==', value: 'Two hours' }]] },
+			settings: { conditions: [[{ source: sourceKey, operator: '==', value: 'Two hours' }]] },
 		},
 	})
-	expect(answer.status()).toBe(201)
+	expect(response.status()).toBe(201)
 }
 
 /**
- * Declares a section in a group through the API, holding one optional text field.
+ * Declares a section in a group through the API, with one optional text field inside it.
  * @param page - The page whose session declares them.
- * @param group - The id of the group that holds the section.
+ * @param group - The group the section belongs to.
  * @param label - The name of the section, its key made from it.
- * @param inside - The name of the text field inside it, its key made from it.
+ * @param childLabel - The name of the text field inside it, its key made from it.
  */
-async function sectionIn(page: Page, group: number, label: string, inside: string) {
-	const section = await page.request.post(`/api/groups/${group}/fields`, {
+async function sectionIn(page: Page, group: CreatedGroup, label: string, childLabel: string) {
+	const sectionResponse = await page.request.post(`/api/groups/${group.id}/fields`, {
 		data: { key: label.toLowerCase(), label, kind: 'section', many: false, required: false },
 	})
-	expect(section.status()).toBe(201)
-	const field = await page.request.post(`/api/groups/${group}/fields/${label.toLowerCase()}`, {
-		data: { key: inside.toLowerCase(), label: inside, kind: 'text', many: false, required: false },
+	expect(sectionResponse.status()).toBe(201)
+	const childResponse = await page.request.post(`/api/groups/${group.id}/fields/${label.toLowerCase()}`, {
+		data: { key: childLabel.toLowerCase(), label: childLabel, kind: 'text', many: false, required: false },
 	})
-	expect(field.status()).toBe(201)
+	expect(childResponse.status()).toBe(201)
 }
 
 /**
- * Declares a container in a group through the API, holding no fields yet.
+ * Declares a container with no fields in a group through the API.
  * @param page - The page whose session declares it.
- * @param group - The id of the group that holds it.
+ * @param group - The group the container belongs to.
  * @param label - The name of the container, its key made from it.
  * @param kind - The kind of the container.
  */
-async function containerIn(page: Page, group: number, label: string, kind: string) {
-	const answer = await page.request.post(`/api/groups/${group}/fields`, {
+async function containerIn(page: Page, group: CreatedGroup, label: string, kind: string) {
+	const response = await page.request.post(`/api/groups/${group.id}/fields`, {
 		data: { key: label.toLowerCase(), label, kind, many: false, required: false },
 	})
-	expect(answer.status()).toBe(201)
+	expect(response.status()).toBe(201)
 }
 
 /**
- * Returns the words of each button and badge beside the label in every Label cell, with the lines each takes.
+ * Returns the text of each button and badge beside the label in every Label cell, with the lines each takes.
  * @param page - The group page.
- * @returns The words and the count of lines of each.
+ * @returns The text and the count of lines of each.
  */
 async function labelCellLines(page: Page) {
 	return page.getByRole('main').evaluate((main) => {
-		const badges = ['Required', 'Unsaved changes', 'Shadowed']
+		const badgeTexts = ['Required', 'Unsaved changes', 'Shadowed']
 		const cells = [...main.querySelectorAll('table.godmin-table > tbody > tr:first-child > td:first-child')]
-		const held = cells.flatMap((cell) =>
+		const buttonAndBadgeNodes = cells.flatMap((cell) =>
 			[...cell.querySelectorAll('*')].filter(
 				(node) =>
 					(node.tagName === 'BUTTON' && !node.classList.contains('godmin-table__toggle')) ||
-					(node.children.length === 0 && badges.includes(node.textContent ?? '')),
+					(node.children.length === 0 && badgeTexts.includes(node.textContent ?? '')),
 			),
 		)
-		return held.map((node) => {
-			const words = document.createRange()
-			words.selectNodeContents(node)
-			const tops = new Set([...words.getClientRects()].map((line) => Math.round(line.top)))
-			return { words: node.textContent, lines: tops.size }
+		return buttonAndBadgeNodes.map((node) => {
+			const range = document.createRange()
+			range.selectNodeContents(node)
+			const lineTops = new Set([...range.getClientRects()].map((lineRect) => Math.round(lineRect.top)))
+			return { text: node.textContent, lineCount: lineTops.size }
 		})
 	})
 }
@@ -155,26 +161,27 @@ function ruleOf(trash: Locator): Locator {
  * Returns whether a row of controls wraps and stays inside its tab panel or region, and how far a box up to it runs
  * sideways.
  * @param row - The row of controls.
- * @returns Whether it takes more than one line, whether every control sits inside the holder, and the widest overrun.
+ * @returns Whether it takes more than one line, whether every control sits inside the container, and the widest overrun.
  */
 async function fitOf(row: Locator) {
 	return row.evaluate((node) => {
-		const holder = node.closest('[role="tabpanel"], [role="region"]') as HTMLElement
-		const edges = holder.getBoundingClientRect()
-		const controls = [...node.querySelectorAll('[role="combobox"], input, button')]
+		const container = node.closest('[role="tabpanel"], [role="region"]') as HTMLElement
+		const containerRect = container.getBoundingClientRect()
+		const controlRects = [...node.querySelectorAll('[role="combobox"], input, button')]
 			.filter((control) => control.closest('[aria-hidden="true"]') === null)
 			.map((control) => control.getBoundingClientRect())
-		let sideways = holder.scrollWidth - holder.clientWidth
-		for (let held = node; held !== holder; held = held.parentElement as HTMLElement) {
-			sideways = Math.max(sideways, held.scrollWidth - held.clientWidth)
+		let maxOverflow = container.scrollWidth - container.clientWidth
+		for (let ancestor = node; ancestor !== container; ancestor = ancestor.parentElement as HTMLElement) {
+			maxOverflow = Math.max(maxOverflow, ancestor.scrollWidth - ancestor.clientWidth)
 		}
 		return {
-			wrapped: new Set(controls.map((control) => Math.round(control.bottom))).size > 1,
-			inside: controls.every(
-				(control) =>
-					Math.round(control.left) >= Math.round(edges.left) && Math.round(control.right) <= Math.round(edges.right),
+			isWrapped: new Set(controlRects.map((controlRect) => Math.round(controlRect.bottom))).size > 1,
+			isInside: controlRects.every(
+				(controlRect) =>
+					Math.round(controlRect.left) >= Math.round(containerRect.left) &&
+					Math.round(controlRect.right) <= Math.round(containerRect.right),
 			),
-			sideways,
+			maxOverflow,
 		}
 	})
 }
@@ -215,7 +222,7 @@ function backToList(main: Locator): Locator {
 test('walks from the list to a group page by its title, adds a field there and comes back by the breadcrumb', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Lesson')
+	const group = await createIsolatedGroup(page, 'Lesson')
 	await page.goto('/admin/field-groups')
 
 	const list = page.getByRole('region', { name: 'Field Groups' })
@@ -238,7 +245,7 @@ test('walks from the list to a group page by its title, adds a field there and c
 })
 
 test('opens a group page from its typed address and names an address no group holds', async ({ page }) => {
-	const group = await groupOfItsOwn(page, 'Recipe')
+	const group = await createIsolatedGroup(page, 'Recipe')
 
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
@@ -255,41 +262,41 @@ test('opens a group page from its typed address and names an address no group ho
 test('renames a group in its details, saves it from the header and reads the new title after a reload', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Course')
-	const renamed = `Course outline ${RUN}`
+	const group = await createIsolatedGroup(page, 'Course')
+	const newTitle = `Course outline ${RUN}`
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
 	const details = main.getByRole('region', { name: 'Field group settings' })
 
-	await details.getByRole('textbox', { name: 'Title' }).fill(renamed)
-	await expect(main.getByRole('heading', { level: 2, name: renamed })).toBeVisible()
+	await details.getByRole('textbox', { name: 'Title' }).fill(newTitle)
+	await expect(main.getByRole('heading', { level: 2, name: newTitle })).toBeVisible()
 	await main.getByRole('button', { name: 'Save', exact: true }).click()
-	await expect(page.locator('.godmin-toast', { hasText: `${renamed} updated.` })).toBeVisible()
+	await expect(page.locator('.godmin-toast', { hasText: `${newTitle} updated.` })).toBeVisible()
 	await page.reload()
 
-	await expect(main.getByRole('heading', { level: 2, name: renamed })).toBeVisible()
-	await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue(renamed)
+	await expect(main.getByRole('heading', { level: 2, name: newTitle })).toBeVisible()
+	await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue(newTitle)
 })
 
 test('asks before a draft leaves by the breadcrumb, stays on Keep editing and lands on the list on Discard', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Workshop')
-	const drafted = `Workshop draft ${RUN}`
+	const group = await createIsolatedGroup(page, 'Workshop')
+	const draftTitle = `Workshop draft ${RUN}`
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
-	const title = main.getByRole('region', { name: 'Field group settings' }).getByRole('textbox', { name: 'Title' })
-	await title.fill(drafted)
+	const titleInput = main.getByRole('region', { name: 'Field group settings' }).getByRole('textbox', { name: 'Title' })
+	await titleInput.fill(draftTitle)
 
 	await backToList(main).click()
-	const asking = page.getByRole('alertdialog', { name: 'Discard changes?' })
-	await asking.getByRole('button', { name: 'Keep editing', exact: true }).click()
-	await expect(asking).toBeHidden()
+	const discardDialog = page.getByRole('alertdialog', { name: 'Discard changes?' })
+	await discardDialog.getByRole('button', { name: 'Keep editing', exact: true }).click()
+	await expect(discardDialog).toBeHidden()
 	await expect(page).toHaveURL(new RegExp(`/admin/field-groups/${group.id}$`))
-	await expect(title).toHaveValue(drafted)
+	await expect(titleInput).toHaveValue(draftTitle)
 
 	await backToList(main).click()
-	await asking.getByRole('button', { name: 'Discard', exact: true }).click()
+	await discardDialog.getByRole('button', { name: 'Discard', exact: true }).click()
 
 	await expect(page).toHaveURL(/\/admin\/field-groups$/)
 	const list = page.getByRole('region', { name: 'Field Groups' })
@@ -297,72 +304,73 @@ test('asks before a draft leaves by the breadcrumb, stays on Keep editing and la
 })
 
 test('moves a field at once and stores the newest order once the order on its way is answered', async ({ page }) => {
-	const group = await groupOfItsOwn(page, 'Seminar')
-	await textFieldIn(page, group.id, 'Duration')
-	await textFieldIn(page, group.id, 'Summary')
-	const sent: unknown[] = []
+	const group = await createIsolatedGroup(page, 'Seminar')
+	await textFieldIn(page, group, 'Duration')
+	await textFieldIn(page, group, 'Summary')
+	const orderBodies: unknown[] = []
 	let release = () => {}
-	const held = new Promise<void>((resolve) => {
+	const releasePromise = new Promise<void>((resolve) => {
 		release = resolve
 	})
 	await page.route(`**/api/groups/${group.id}/fields/order`, async (route) => {
-		sent.push(route.request().postDataJSON())
-		await held
+		orderBodies.push(route.request().postDataJSON())
+		await releasePromise
 		await route.continue()
 	})
 	await page.goto(`/admin/field-groups/${group.id}`)
-	const trashes = page.getByRole('main').getByRole('region', { name: 'Fields' }).getByRole('button', { name: /^Delete / })
-	await expect(trashes).toHaveCount(2)
+	const fieldsRegion = page.getByRole('main').getByRole('region', { name: 'Fields' })
+	const deleteButtons = fieldsRegion.getByRole('button', { name: /^Delete / })
+	await expect(deleteButtons).toHaveCount(2)
 
-	const down = fieldRow(page, 'Duration').getByRole('button', { name: 'Move Duration down' })
-	await down.focus()
+	const moveDownButton = fieldRow(page, 'Duration').getByRole('button', { name: 'Move Duration down' })
+	await moveDownButton.focus()
 	await page.keyboard.press('Enter')
-	await expect(trashes.first()).toHaveAccessibleName('Delete Summary')
-	await expect(down).toBeFocused()
+	await expect(deleteButtons.first()).toHaveAccessibleName('Delete Summary')
+	await expect(moveDownButton).toBeFocused()
 	await fieldRow(page, 'Duration').getByRole('button', { name: 'Move Duration up' }).click()
-	await expect(trashes.first()).toHaveAccessibleName('Delete Duration')
-	await expect.poll(() => sent).toEqual([{ order: ['summary', 'duration'] }])
-	const reread = page.waitForResponse(
+	await expect(deleteButtons.first()).toHaveAccessibleName('Delete Duration')
+	await expect.poll(() => orderBodies).toEqual([{ order: ['summary', 'duration'] }])
+	const groupsResponse = page.waitForResponse(
 		(response) => response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/groups',
 	)
 	release()
 
-	await expect.poll(() => sent).toEqual([{ order: ['summary', 'duration'] }, { order: ['duration', 'summary'] }])
-	await reread
+	await expect.poll(() => orderBodies).toEqual([{ order: ['summary', 'duration'] }, { order: ['duration', 'summary'] }])
+	await groupsResponse
 	await expect(page.locator('.godmin-toast')).toHaveCount(0)
 	await page.reload()
-	await expect(trashes).toHaveCount(2)
-	await expect(trashes.first()).toHaveAccessibleName('Delete Duration')
+	await expect(deleteButtons).toHaveCount(2)
+	await expect(deleteButtons.first()).toHaveAccessibleName('Delete Duration')
 })
 
 test('opens a field in place, saves it from Enter and from the header, and reads its badge after a reload', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Contact')
-	await textFieldIn(page, group.id, 'Phone')
+	const group = await createIsolatedGroup(page, 'Contact')
+	await textFieldIn(page, group, 'Phone')
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
-	const save = main.getByRole('button', { name: 'Save', exact: true })
+	const saveButton = main.getByRole('button', { name: 'Save', exact: true })
 
-	const part = await openField(page, 'Phone')
+	const detailRow = await openField(page, 'Phone')
 	await expect(fieldRow(page, 'Phone').getByRole('button', { name: 'Phone', exact: true })).toBeFocused()
-	const label = part.getByRole('textbox', { name: 'Label' })
-	await label.fill('Phone number')
-	await label.press('Enter')
+	const labelInput = detailRow.getByRole('textbox', { name: 'Label' })
+	await labelInput.fill('Phone number')
+	await labelInput.press('Enter')
 	await expect(page.locator('.godmin-toast', { hasText: `${group.title} updated.` })).toBeVisible()
-	const renamed = fieldRow(page, 'Phone number').getByRole('button', { name: 'Phone number', exact: true })
-	await expect(renamed).toHaveAttribute('aria-expanded', 'false')
-	await expect(renamed).toBeFocused()
-	const again = await openField(page, 'Phone number')
-	await again.getByRole('tab', { name: 'Validation' }).click()
-	await again.getByRole('checkbox', { name: 'Required' }).click()
-	const path = `/api/groups/${group.id}/fields/phone`
+	const renamedToggle = fieldRow(page, 'Phone number').getByRole('button', { name: 'Phone number', exact: true })
+	await expect(renamedToggle).toHaveAttribute('aria-expanded', 'false')
+	await expect(renamedToggle).toBeFocused()
+	const renamedDetailRow = await openField(page, 'Phone number')
+	await renamedDetailRow.getByRole('tab', { name: 'Validation' }).click()
+	await renamedDetailRow.getByRole('checkbox', { name: 'Required' }).click()
+	const fieldPath = `/api/groups/${group.id}/fields/phone`
 	const fieldSaveResponse = page.waitForResponse(
-		(response) => response.request().method() === 'PATCH' && new URL(response.url()).pathname === path,
+		(response) => response.request().method() === 'PATCH' && new URL(response.url()).pathname === fieldPath,
 	)
-	await save.click()
+	await saveButton.click()
 	expect((await fieldSaveResponse).ok()).toBe(true)
-	await expect(save).toHaveAttribute('aria-disabled', 'true')
+	await expect(saveButton).toHaveAttribute('aria-disabled', 'true')
 	await page.reload()
 
 	const row = fieldRow(page, 'Phone number')
@@ -371,39 +379,40 @@ test('opens a field in place, saves it from Enter and from the header, and reads
 })
 
 test('keeps a field whose save was rejected open, the server words under the setting it named', async ({ page }) => {
-	const group = await groupOfItsOwn(page, 'Library')
-	await textFieldIn(page, group.id, 'Phone')
+	const group = await createIsolatedGroup(page, 'Library')
+	await textFieldIn(page, group, 'Phone')
 	await page.goto(`/admin/field-groups/${group.id}`)
 	const main = page.getByRole('main')
 
-	const part = await openField(page, 'Phone')
-	await part.getByRole('textbox', { name: 'Default' }).fill('Maria Perez')
-	await part.getByRole('tab', { name: 'Validation' }).click()
-	await part.getByRole('spinbutton', { name: 'Longest' }).fill('5')
+	const detailRow = await openField(page, 'Phone')
+	await detailRow.getByRole('textbox', { name: 'Default' }).fill('Maria Perez')
+	await detailRow.getByRole('tab', { name: 'Validation' }).click()
+	await detailRow.getByRole('spinbutton', { name: 'Longest' }).fill('5')
 	await main.getByRole('button', { name: 'Save', exact: true }).click()
 
-	const said = 'The setting default falls outside the others. Keep min below max and the default inside the bounds.'
-	await expect(page.locator('.godmin-toast', { hasText: `Could not save Phone. ${said}` })).toBeVisible()
-	await expect(part.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
-	const fallback = part.getByRole('textbox', { name: 'Default' })
-	await expect(fallback).toHaveAccessibleDescription(said)
+	const rejectionMessage =
+		'The setting default falls outside the others. Keep min below max and the default inside the bounds.'
+	await expect(page.locator('.godmin-toast', { hasText: `Could not save Phone. ${rejectionMessage}` })).toBeVisible()
+	await expect(detailRow.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+	const defaultInput = detailRow.getByRole('textbox', { name: 'Default' })
+	await expect(defaultInput).toHaveAccessibleDescription(rejectionMessage)
 	await expect(fieldRow(page, 'Phone').getByRole('button', { name: 'Phone', exact: true })).toHaveAttribute(
 		'aria-expanded',
 		'true',
 	)
-	await fallback.fill('Maria')
-	await expect(fallback).toHaveAccessibleDescription('')
+	await defaultInput.fill('Maria')
+	await expect(defaultInput).toHaveAccessibleDescription('')
 })
 
 test('puts the focus on the trash of the field taking the place of a deleted one', async ({ page }) => {
-	const group = await groupOfItsOwn(page, 'Gallery')
-	await textFieldIn(page, group.id, 'Duration')
-	await textFieldIn(page, group.id, 'Summary')
+	const group = await createIsolatedGroup(page, 'Gallery')
+	await textFieldIn(page, group, 'Duration')
+	await textFieldIn(page, group, 'Summary')
 	await page.goto(`/admin/field-groups/${group.id}`)
 
 	await fieldRow(page, 'Duration').getByRole('button', { name: 'Delete Duration' }).click()
-	const asking = page.getByRole('alertdialog', { name: 'Delete "Duration"?' })
-	await asking.getByRole('button', { name: 'Delete the field', exact: true }).click()
+	const deleteDialog = page.getByRole('alertdialog', { name: 'Delete "Duration"?' })
+	await deleteDialog.getByRole('button', { name: 'Delete the field', exact: true }).click()
 
 	await expect(fieldRow(page, 'Duration')).toHaveCount(0)
 	await expect(fieldRow(page, 'Summary').getByRole('button', { name: 'Delete Summary' })).toBeFocused()
@@ -412,55 +421,55 @@ test('puts the focus on the trash of the field taking the place of a deleted one
 test('adds Name and Role inside an open repeater from its own form, each row closed and the form ready for the next', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Squad')
-	await containerIn(page, group.id, 'Team', 'repeater')
+	const group = await createIsolatedGroup(page, 'Squad')
+	await containerIn(page, group, 'Team', 'repeater')
 	await page.goto(`/admin/field-groups/${group.id}`)
 
 	const team = await openField(page, 'Team')
 	await expect(team.getByText('No sub fields yet.', { exact: true })).toBeVisible()
 	const form = team.getByRole('form', { name: 'Add field to Team', exact: true })
-	const add = form.getByRole('button', { name: 'Add field to Team', exact: true })
-	const label = form.getByRole('textbox', { name: 'Label', exact: true })
-	await label.fill('Name')
-	await label.press('Enter')
+	const addButton = form.getByRole('button', { name: 'Add field to Team', exact: true })
+	const labelInput = form.getByRole('textbox', { name: 'Label', exact: true })
+	await labelInput.fill('Name')
+	await labelInput.press('Enter')
 	await expect(page.locator('.godmin-toast', { hasText: 'Name declared.' })).toBeVisible()
-	const inside = team.getByRole('region', { name: 'Sub fields of Team' })
-	await expect(inside.getByRole('button', { name: 'Name', exact: true })).toHaveAttribute('aria-expanded', 'false')
-	await expect(label).toHaveValue('')
-	await expect(label).toBeFocused()
+	const subFields = team.getByRole('region', { name: 'Sub fields of Team' })
+	await expect(subFields.getByRole('button', { name: 'Name', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	await expect(labelInput).toHaveValue('')
+	await expect(labelInput).toBeFocused()
 
-	await label.fill('Role')
-	await add.click()
+	await labelInput.fill('Role')
+	await addButton.click()
 	await expect(page.locator('.godmin-toast', { hasText: 'Role declared.' })).toBeVisible()
-	await expect(inside.getByRole('button', { name: 'Role', exact: true })).toHaveAttribute('aria-expanded', 'false')
-	await expect(label).toHaveValue('')
-	await expect(add).toBeFocused()
+	await expect(subFields.getByRole('button', { name: 'Role', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	await expect(labelInput).toHaveValue('')
+	await expect(addButton).toBeFocused()
 	await expect(page.getByRole('dialog')).toHaveCount(0)
 	await page.reload()
 
-	const kept = (await openField(page, 'Team')).getByRole('region', { name: 'Sub fields of Team' })
-	const trashes = kept.getByRole('button', { name: /^Delete / })
-	await expect(trashes).toHaveCount(2)
-	await expect(trashes.first()).toHaveAccessibleName('Delete Name')
-	await expect(trashes.last()).toHaveAccessibleName('Delete Role')
+	const reloadedSubFields = (await openField(page, 'Team')).getByRole('region', { name: 'Sub fields of Team' })
+	const deleteButtons = reloadedSubFields.getByRole('button', { name: /^Delete / })
+	await expect(deleteButtons).toHaveCount(2)
+	await expect(deleteButtons.first()).toHaveAccessibleName('Delete Name')
+	await expect(deleteButtons.last()).toHaveAccessibleName('Delete Role')
 })
 
 test('adds a Hero layout from the form of an open flexible field, then a Title from the form of Hero', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Landing')
-	await containerIn(page, group.id, 'Features', 'flexible')
+	const group = await createIsolatedGroup(page, 'Landing')
+	await containerIn(page, group, 'Features', 'flexible')
 	await page.goto(`/admin/field-groups/${group.id}`)
 
 	const features = await openField(page, 'Features')
-	const titled = features.getByRole('heading', { name: 'Layouts of Features', exact: true })
-	await expect(titled.getByText('Layouts', { exact: true })).toBeVisible()
+	const layoutsHeading = features.getByRole('heading', { name: 'Layouts of Features', exact: true })
+	await expect(layoutsHeading.getByText('Layouts', { exact: true })).toBeVisible()
 	await expect(features.getByText('No layouts yet.', { exact: true })).toBeVisible()
-	const asking = features.getByRole('form', { name: 'Add layout to Features', exact: true })
-	const layout = asking.getByRole('button', { name: 'Add layout to Features', exact: true })
-	await expect(asking.getByRole('combobox')).toHaveCount(0)
-	await asking.getByRole('textbox', { name: 'Label', exact: true }).fill('Hero')
-	await layout.click()
+	const layoutForm = features.getByRole('form', { name: 'Add layout to Features', exact: true })
+	const addLayoutButton = layoutForm.getByRole('button', { name: 'Add layout to Features', exact: true })
+	await expect(layoutForm.getByRole('combobox')).toHaveCount(0)
+	await layoutForm.getByRole('textbox', { name: 'Label', exact: true }).fill('Hero')
+	await addLayoutButton.click()
 	await expect(page.locator('.godmin-toast', { hasText: 'Hero declared.' })).toBeVisible()
 	const layouts = features.getByRole('region', { name: 'Layouts of Features' })
 	const toggle = layouts.getByRole('button', { name: 'Hero', exact: true })
@@ -476,60 +485,65 @@ test('adds a Hero layout from the form of an open flexible field, then a Title f
 	await expect(hero.getByRole('spinbutton', { name: 'Fewest rows', exact: true })).toBeVisible()
 	await expect(hero.getByRole('spinbutton', { name: 'Most rows', exact: true })).toBeVisible()
 	await expect(hero.getByText('No sub fields yet.', { exact: true })).toBeVisible()
-	const label = hero
+	const labelInput = hero
 		.getByRole('form', { name: 'Add field to Hero', exact: true })
 		.getByRole('textbox', { name: 'Label', exact: true })
-	await label.fill('Title')
-	await label.press('Enter')
+	await labelInput.fill('Title')
+	await labelInput.press('Enter')
 	await expect(page.locator('.godmin-toast', { hasText: 'Title declared.' })).toBeVisible()
-	const inside = hero.getByRole('region', { name: 'Sub fields of Hero' })
-	await expect(inside.getByRole('button', { name: 'Title', exact: true })).toHaveAttribute('aria-expanded', 'false')
+	const heroSubFields = hero.getByRole('region', { name: 'Sub fields of Hero' })
+	await expect(heroSubFields.getByRole('button', { name: 'Title', exact: true })).toHaveAttribute(
+		'aria-expanded',
+		'false',
+	)
 	await page.reload()
 
-	const kept = await openField(page, 'Features')
-	const reread = kept.getByRole('region', { name: 'Layouts of Features' })
-	await reread.getByRole('button', { name: 'Hero', exact: true }).click()
-	const held = kept.getByRole('region', { name: 'Sub fields of Hero' })
-	await expect(held.getByRole('button', { name: 'Title', exact: true })).toBeVisible()
+	const reloadedFeatures = await openField(page, 'Features')
+	const reloadedLayouts = reloadedFeatures.getByRole('region', { name: 'Layouts of Features' })
+	await reloadedLayouts.getByRole('button', { name: 'Hero', exact: true }).click()
+	const reloadedHeroSubFields = reloadedFeatures.getByRole('region', { name: 'Sub fields of Hero' })
+	await expect(reloadedHeroSubFields.getByRole('button', { name: 'Title', exact: true })).toBeVisible()
 })
 
 test('keeps an open field inside its region on a phone, its open part padded 16px', async ({ page }) => {
-	const group = await groupOfItsOwn(page, 'Clinic')
-	await textFieldIn(page, group.id, 'Phone')
+	const group = await createIsolatedGroup(page, 'Clinic')
+	await textFieldIn(page, group, 'Phone')
 	await page.setViewportSize(PHONE)
 	await page.goto(`/admin/field-groups/${group.id}`)
 
-	const part = await openField(page, 'Phone')
+	const detailRow = await openField(page, 'Phone')
 
-	const body = part.locator('.godmin-table__detail-body')
-	await expect(body.getByRole('textbox', { name: 'Label' })).toHaveValue('Phone')
+	const detailBody = detailRow.locator('.godmin-table__detail-body')
+	await expect(detailBody.getByRole('textbox', { name: 'Label' })).toHaveValue('Phone')
 	await expect
 		.poll(
 			() =>
-				body.evaluate((node) => {
-					const region = (node.closest('[role="region"]') as HTMLElement).getBoundingClientRect()
-					const box = node.getBoundingClientRect()
+				detailBody.evaluate((node) => {
+					const regionRect = (node.closest('[role="region"]') as HTMLElement).getBoundingClientRect()
+					const bodyRect = node.getBoundingClientRect()
 					const style = getComputedStyle(node)
 					return {
-						inside: Math.round(box.left) >= Math.round(region.left) && Math.round(box.right) <= Math.round(region.right),
+						isInside:
+							Math.round(bodyRect.left) >= Math.round(regionRect.left) &&
+							Math.round(bodyRect.right) <= Math.round(regionRect.right),
 						padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
-						spill: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+						pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
 					}
 				}),
 			{ message: 'the open part fits its region' },
 		)
-		.toEqual({ inside: true, padding: ['16px', '16px', '16px', '16px'], spill: 0 })
+		.toEqual({ isInside: true, padding: ['16px', '16px', '16px', '16px'], pageOverflow: 0 })
 })
 
 test('keeps each button and badge beside a label on one line, in a container too, on a desktop and a phone', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Studio')
-	await sectionIn(page, group.id, 'Author', 'Byline')
+	const group = await createIsolatedGroup(page, 'Studio')
+	await sectionIn(page, group, 'Author', 'Byline')
 	await page.goto(`/admin/field-groups/${group.id}`)
 	await openField(page, 'Author')
-	const inside = page.getByRole('region', { name: 'Sub fields of Author' })
-	const byline = inside.getByRole('row').filter({ has: page.getByText('Byline', { exact: true }) })
+	const authorSubFields = page.getByRole('region', { name: 'Sub fields of Author' })
+	const byline = authorSubFields.getByRole('row').filter({ has: page.getByText('Byline', { exact: true }) })
 	const toggle = byline.getByRole('button', { name: 'Byline', exact: true })
 	await toggle.click()
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true')
@@ -538,10 +552,10 @@ test('keeps each button and badge beside a label on one line, in a container too
 
 	for (const size of [DESKTOP, PHONE]) {
 		await page.setViewportSize(size)
-		const words = (await labelCellLines(page)).map((held) => held.words)
-		expect(words).toEqual(expect.arrayContaining(['Move', 'Unsaved changes']))
+		const labelTexts = (await labelCellLines(page)).map((cellLine) => cellLine.text)
+		expect(labelTexts).toEqual(expect.arrayContaining(['Move', 'Unsaved changes']))
 		await expect
-			.poll(async () => (await labelCellLines(page)).filter((held) => held.lines !== 1), {
+			.poll(async () => (await labelCellLines(page)).filter((cellLine) => cellLine.lineCount !== 1), {
 				message: `every button and badge beside a label takes one line at ${size.width}`,
 			})
 			.toEqual([])
@@ -551,9 +565,9 @@ test('keeps each button and badge beside a label on one line, in a container too
 test('wraps a location rule and a field condition on a phone, every control inside the details and the tab', async ({
 	page,
 }) => {
-	const group = await groupOfItsOwn(page, 'Apprenticeship')
-	await textFieldIn(page, group.id, 'Duration')
-	await fieldShownBy(page, group.id, 'Summary', 'duration')
+	const group = await createIsolatedGroup(page, 'Apprenticeship')
+	await textFieldIn(page, group, 'Duration')
+	await conditionalFieldIn(page, group, 'Summary', 'duration')
 	await page.setViewportSize(PHONE)
 
 	await page.goto(`/admin/field-groups/${group.id}`)
@@ -563,29 +577,29 @@ test('wraps a location rule and a field condition on a phone, every control insi
 	await expect(rule).toHaveAccessibleName('Rule 1 of set 1')
 	await expect(rule.getByRole('combobox', { name: 'Value' })).toHaveText(`Apprenticeships ${RUN}`)
 	expect.soft(await fitOf(rule), 'the rule row fits the details').toEqual({
-		wrapped: true,
-		inside: true,
-		sideways: 0,
+		isWrapped: true,
+		isInside: true,
+		maxOverflow: 0,
 	})
 
 	const summary = await openField(page, 'Summary')
 	const tab = summary.getByRole('tab', { name: /^Conditional logic/ })
-	const active = tab.getByText('Active', { exact: true })
+	const activeMark = tab.getByText('Active', { exact: true })
 	await expect
 		.poll(async () => {
-			const box = await active.boundingBox()
-			return box && { width: box.width, height: box.height }
+			const markRect = await activeMark.boundingBox()
+			return markRect && { width: markRect.width, height: markRect.height }
 		}, { message: 'the Active mark draws as a dot at 390' })
 		.toEqual({ width: 8, height: 8 })
 	await expect(tab).toHaveAccessibleName('Conditional logic Active')
 	await tab.click()
-	const rules = summary.getByRole('tabpanel', { name: /^Conditional logic/ })
-	await expect(rules.getByRole('textbox', { name: 'Value' })).toHaveValue('Two hours')
-	const condition = ruleOf(rules.getByRole('button', { name: 'Remove rule 1 of set 1' }))
+	const conditionsPanel = summary.getByRole('tabpanel', { name: /^Conditional logic/ })
+	await expect(conditionsPanel.getByRole('textbox', { name: 'Value' })).toHaveValue('Two hours')
+	const condition = ruleOf(conditionsPanel.getByRole('button', { name: 'Remove rule 1 of set 1' }))
 	await expect(condition).toHaveAccessibleName('Rule 1 of set 1')
 	await expect
 		.poll(() => fitOf(condition), { message: 'the condition row fits the tab at 390' })
-		.toEqual({ wrapped: true, inside: true, sideways: 0 })
+		.toEqual({ isWrapped: true, isInside: true, maxOverflow: 0 })
 	await expect
 		.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), {
 			message: 'the open field with its four tabs leaves the page unscrolled at 390',
@@ -595,8 +609,8 @@ test('wraps a location rule and a field condition on a phone, every control insi
 	await page.setViewportSize(DESKTOP)
 	await expect
 		.poll(async () => {
-			const { inside, sideways } = await fitOf(condition)
-			return { inside, sideways }
+			const { isInside, maxOverflow } = await fitOf(condition)
+			return { isInside, maxOverflow }
 		}, { message: 'the condition row fits the tab at 1280' })
-		.toEqual({ inside: true, sideways: 0 })
+		.toEqual({ isInside: true, maxOverflow: 0 })
 })
