@@ -196,7 +196,7 @@ function withoutRule(held: Rule[][], at: Spot): Rule[][] {
  * @returns The editor element.
  */
 export function RuleSets(props: RuleSetsProps) {
-	const fresh = blankRule(props.sources)
+	const newRule = blankRule(props.sources)
 	const focus = useRuleFocus()
 	const shared: SpotProps = {
 		...props,
@@ -217,13 +217,15 @@ export function RuleSets(props: RuleSetsProps) {
 				<Button
 					ref={focus.hold(ADD_KEY)}
 					variant="outline"
-					disabled={fresh === null || props.readOnly}
-					onClick={(event) => {
-						if (fresh !== null) {
-							focus.after(spotKey(props.draft.length), event.currentTarget)
-							props.onDraft([...props.draft, [fresh]])
-						}
-					}}
+					disabled={newRule === null || props.readOnly}
+					onClick={
+						newRule === null
+							? undefined
+							: (event) => {
+									focus.after(spotKey(props.draft.length), event.currentTarget)
+									props.onDraft([...props.draft, [newRule]])
+								}
+					}
 				>
 					{__('Add rule set', 'gophenberg')}
 				</Button>
@@ -238,7 +240,7 @@ export function RuleSets(props: RuleSetsProps) {
  * @returns The set element.
  */
 function RuleSet(props: SpotProps & { set: Rule[]; at: number }) {
-	const fresh = blankRule(props.sources)
+	const newRule = blankRule(props.sources)
 	const name = sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(props.at + 1) })
 	return (
 		<Stack
@@ -258,13 +260,15 @@ function RuleSet(props: SpotProps & { set: Rule[]; at: number }) {
 				<Button
 					variant="outline"
 					size="compact"
-					disabled={fresh === null || props.readOnly}
-					onClick={(event) => {
-						if (fresh !== null) {
-							props.after(spotKey(props.at, props.set.length), event.currentTarget)
-							props.onDraft(props.draft.map((set, index) => (index === props.at ? [...set, fresh] : set)))
-						}
-					}}
+					disabled={newRule === null || props.readOnly}
+					onClick={
+						newRule === null
+							? undefined
+							: (event) => {
+									props.after(spotKey(props.at, props.set.length), event.currentTarget)
+									props.onDraft(props.draft.map((set, index) => (index === props.at ? [...set, newRule] : set)))
+								}
+					}
 				>
 					{__('Add condition', 'gophenberg')}
 				</Button>
@@ -295,7 +299,7 @@ function RuleRow(props: SpotProps & { rule: Rule; at: number; spot: number }) {
 	}
 
 	/**
-	 * Stores the rule under the source it moved to, starting its condition and value afresh.
+	 * Stores the rule under the source it moved to, starting its condition and value anewRule.
 	 * @param source - The source picked.
 	 */
 	function moved(source: string) {
